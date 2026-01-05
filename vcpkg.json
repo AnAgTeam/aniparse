@@ -1,0 +1,9 @@
+{
+	"name": "aniparse",
+	"version": "0.1",
+	"dependencies": [
+		"boost-json",
+		"boost-system",
+		"curl"
+	]
+}
