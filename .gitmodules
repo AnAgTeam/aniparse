@@ -1,0 +1,4 @@
+[submodule "libasyncnet"]
+	path = libasyncnet
+	url = https://github.com/AnAgTeam/libasyncnet
+	branch = feat/task-progress
