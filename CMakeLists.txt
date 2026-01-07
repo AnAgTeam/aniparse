@@ -4,6 +4,7 @@
 
 option(ANIPARSE_BUILD_TESTS "build tests, Default=OFF" OFF)
 option(ANIPARSE_BUILD_EXAMPLES "build examples, Default=OFF" OFF)
+option(ANIPARSE_BUILD_TOOLS "build tools, Default=OFF" OFF)
 
 # without this vcpkg won't try to install dependencies
 if (CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg.cmake")
@@ -22,13 +23,17 @@ find_package(asyncnet REQUIRED)
 
 add_library(aniparse STATIC
 	"src/AniParse.cpp" "include/aniparse/AniParse.hpp"
-	"src/Release.cpp" "include/aniparse/Release.hpp"
-	"include/aniparse/Parser.hpp"
+	"src/anime/Release.cpp" "include/aniparse/anime/Release.hpp"
+	"include/aniparse/Client.hpp"
+	"include/aniparse/Requests.hpp"
+	"src/Parser.cpp" "include/aniparse/Parser.hpp"
 	"include/aniparse/ParserStore.hpp"
 	"include/aniparse/FlagsBitfield.hpp"
 	"include/aniparse/detail/BitsetLite.hpp"
 	"include/aniparse/detail/StrongBitset.hpp"
-)
+	"src/Client.cpp"
+	"src/images/Image.cpp" "include/aniparse/images/Image.hpp"
+ "src/Parser.cpp" "src/ParserStore.cpp")
 
 set_property(TARGET aniparse PROPERTY CXX_STANDARD 20)
 set_property(TARGET aniparse PROPERTY CXX_STANDARD_REQUIRED ON)
@@ -49,6 +54,10 @@ endif()
 
 if (ANIPARSE_BUILD_EXAMPLES)
 	add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/examples")
+endif()
+
+if (ANIPARSE_BUILD_TOOLS)
+	add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/tools")
 endif()
 
 # ---- CONFIGURE PACKAGE

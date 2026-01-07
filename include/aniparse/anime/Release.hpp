@@ -1,5 +1,6 @@
 #pragma once
 #include "aniparse/FlagsBitfield.hpp"
+#include "aniparse/Requests.hpp"
 
 #include <asyncnet/CancellingTask.hpp>
 #include <string>
@@ -83,7 +84,7 @@ namespace aniparse {
 		std::optional<std::vector<DubberInfo>> dubbers;
 		std::optional<ReleaseRating> rating;
 
-		std::variant<std::monostate, boost::json::value, std::shared_ptr<void>, void*> extractor_data = std::monostate{};
+		std::variant<std::monostate, boost::json::value, std::shared_ptr<void>, void*> extractor_data;
 		ReleaseFlags flags = release_flags::default_flags;
 	};
 
@@ -91,7 +92,28 @@ namespace aniparse {
 	public:
 		virtual ~AsyncReleaseGetter() = default;
 
-		asyncnet::NetworkTask<decltype(Release::title)> get_title();
+		virtual OptionalRequest<std::string> title(const GetterContext& context) const;
 	};
+
+	//template<typename T>
+	//class SplittedGetter : public OptionalRequest<T> {
+	//public:
+	//	SplittedGetter(T&& value) : OptionalRequest<T>(std::forward<T>(value)) {}
+	//	SplittedGetter(ClientRequest request) : OptionalRequest<T>(make_parsed_request(std::move(request))) {}
+	//
+	//
+	//private:
+	//	ClientParsedRequest<T> make_parsed_request(ClientRequest&& request) {
+	//		return {
+	//			.request = std::move(request),
+	//			.parse = [this](asyncnet::Response response) {
+	//				return 
+	//			}
+	//		}
+	//	}
+	//};
+
+	//template<typename T>
+	//constexpr OptionalRequest<T> make_request_of();
 
 } // namespace aniparse

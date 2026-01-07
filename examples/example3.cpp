@@ -17,7 +17,8 @@
 
 #include <aniparse/detail/BitsetLite.hpp>
 #include <aniparse/detail/StrongBitset.hpp>
-#include <aniparse/Release.hpp>
+#include <aniparse/anime/Release.hpp>
+#include <aniparse/Client.hpp>
 
 #undef max
 #undef min
@@ -159,6 +160,14 @@ void test_bitset_flags() {
 
 void release_test() {
 	Release release;
+
+	AsyncClient client;
+	AsyncReleaseGetter release_getter;
+
+	auto title_getter = release_getter.get_title();
+	auto title = coro::sync_wait(client.do_request(std::move(title_getter)));
+
+	std::println("title: {}", title);
 }
 
 //template<typename T>
@@ -170,4 +179,5 @@ int main() {
 	//test_flags();
 	//test_bitset();
 	//test_bitset_flags();
+	release_test();
 }
