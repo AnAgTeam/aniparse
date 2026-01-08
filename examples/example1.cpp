@@ -38,14 +38,6 @@ void test_domain_scanner() {
 	std::println("1: {}, 2: {}, 3: {}", bool(parser), bool(parser2), bool(parser3));
 }
 
-void test_domain_store() {
-	struct Dummy {};
-	aniparse::DomainStore<Dummy> store;
-
-	store.insert("youtube.com", {});
-	store.insert("www.youtu.be", {});
-}
-
 struct TestParser : aniparse::Parser {
 	std::string identifier() const override {
 		return "TestParser";
@@ -60,12 +52,16 @@ struct TestParser : aniparse::Parser {
 			.flags = aniparse::compatibilities_flags::supports_anime_store
 		};
 	}
+
+	void emplace_domains(aniparse::EmplaceDomainsContext& context) const override {
+
+	}
 };
 
 void test_parser_store() {
 	aniparse::ParserStore parser_store;
 	
-	parser_store.add_parser("www.youtube.com", std::make_unique<TestParser>());
+	parser_store.add_parser("youtube.com", std::make_unique<TestParser>());
 	
 	decltype(auto) parser1 = parser_store.find_for_url("https://youtube.com");
 	decltype(auto) parser2 = parser_store.find_for_url("https://www.youtube.com");
@@ -75,6 +71,5 @@ void test_parser_store() {
 
 int main() {
 	//test_domain_scanner();
-	//test_domain_store();
 	test_parser_store();
 }

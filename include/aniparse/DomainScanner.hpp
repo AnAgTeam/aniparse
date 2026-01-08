@@ -83,7 +83,7 @@ namespace aniparse {
 			}
 		Node& insert(Range range) {
 			DomainString str(std::begin(range), std::end(range));
-			Node& new_node = nexts_[std::move(str)] = make_node();
+			Node& new_node = nexts_[std::move(str)] = make_node(this->shared_from_this());
 			return new_node;
 		}
 
@@ -220,7 +220,7 @@ namespace aniparse {
 
 		template<std::forward_iterator Iterator, typename Predicate>
 		std::optional<DomainParser> search_all(Iterator first, Iterator last, Predicate pred) {
-			auto node = std::addressof(find_node(first, last));
+			auto node = std::addressof(find_node_no_add(first, last));
 			if (auto parser = find_parser_by_pred(*node, pred)) {
 				return parser;
 			}
@@ -262,7 +262,22 @@ namespace aniparse {
 			auto current_node = get_node_ptr(storage_.first());
 			while (first != last) {
 				auto domain = *first++;
-				current_node = get_node_ptr((*current_node)[domain]);
+				auto next_node = get_node_ptr((*current_node)[domain]);
+				current_node = next_node;
+			}
+			return *current_node;
+		}
+
+		template<typename Iterator>
+		auto& find_node_no_add(Iterator first, Iterator last) {
+			auto current_node = get_node_ptr(storage_.first());
+			while (first != last) {
+				auto domain = *first++;
+				auto next_node = get_node_ptr(current_node->find(domain));
+				if (!next_node) {
+					return *current_node;
+				}
+				current_node = next_node;
 			}
 			return *current_node;
 		}

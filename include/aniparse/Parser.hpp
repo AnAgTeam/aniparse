@@ -52,6 +52,12 @@ namespace aniparse {
 		ParseQueryResult meta;
 	};
 
+	struct EmplaceDomainsContext {
+		virtual ~EmplaceDomainsContext() = default;
+
+		virtual void add_domain(std::string_view domain);
+	};
+
 	struct Parser {
 		virtual ~Parser() = default;
 
@@ -60,6 +66,8 @@ namespace aniparse {
 		virtual bool valid_for_url(std::string_view url) const = 0;
 
 		virtual ParserCompatibilities compatibilities() const = 0;
+
+		virtual void emplace_domains(EmplaceDomainsContext& context) const = 0;
 
 		//virtual ParseResult<std::unique_ptr<AsyncReleaseGetter>> async_release_getter(ParseContext& ctx);
 
