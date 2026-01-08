@@ -79,39 +79,53 @@ namespace aniparse {
 	class ParserStore {
 	public:
 
-		inline Parser* add_parser(std::string_view domain, std::unique_ptr<Parser> parser) {
-			auto domain_iter = domain | std::views::split('.');
+		inline std::shared_ptr<Parser> add_parser(std::string_view domain, std::shared_ptr<Parser> parser) {
+			auto domain_iter = domain
+				// split domain in reverse order
+				| std::views::reverse
+				| std::views::split('.')
+				| std::views::transform(std::views::reverse);
 			auto& inserted_parser = parsers_[parser->identifier()] = std::move(parser);
-			parsers_scanner_.add_domain_parser(domain_iter, inserted_parser.get());
+			parsers_scanner_.add_domain_parser(domain_iter, inserted_parser);
+			return inserted_parser;
 		}
 
-		//inline Parser* find_by_domain(std::string_view domain) {
-		//	auto domain_iter = domain | std::views::split('.');
-		//	std::string url = "https://" + std::string(domain);
-		//	auto found_parser = parsers_scanner_.search_all(domain_iter, [&url](Parser* parser) {
-		//		return parser->valid_for_url(url);
-		//	});
-		//	return found_parser ? *found_parser : nullptr;
-		//}
-
-		//inline Parser* find_for_url(std::string_view url) {
-		//	auto domain_iter = url
-		//		| std::views::drop_while([](char c) { return c != ':'; })
-		//		| std::views::take_while([](char c) { return c != '?'; })
-		//		| std::views::split('.');
-		//	auto found_parser = parsers_scanner_.search_all(std::begin(domain_iter), std::end(domain_iter), [&url](const Parser* parser) {
-		//		return parser->valid_for_url(url);
-		//	});
-		//	return found_parser ? *found_parser : nullptr;
-		//}
-
-		//template<typename Iter>
-		//void add_parser(Iter domain_first, Iter domain_last, Parser parser) {
-		//	add_parser(domain_first, domain_last, std::make_unique<Parser>(std::move(parser)))
-		//}
+		inline std::shared_ptr<Parser> find_by_domain(std::string_view domain) {
+			auto domain_iter = domain
+				// split domain in reverse order
+				| std::views::reverse
+				| std::views::split('.')
+				| std::views::transform(std::views::reverse);
+			std::string url = "https://" + std::string(domain);
+			auto found_parser = parsers_scanner_.search_all(domain_iter, [&url](std::shared_ptr<Parser>& parser) {
+				return parser->valid_for_url(url);
+			});
+			return found_parser ? *found_parser : nullptr;
+		}
+		
+		inline std::shared_ptr<Parser> find_for_url(std::string_view url) {
+			size_t protocol_end = url.find("://");
+			auto domain_iter = url
+				// cut domain from url
+				| std::views::drop(protocol_end + 3)
+				| std::views::take_while([](char c) { return c != '?'; })
+				// split domain in reverse order
+				| std::views::reverse
+				| std::views::split('.')
+				| std::views::transform(std::views::reverse);
+			auto found_parser = parsers_scanner_.search_all(domain_iter, [&url](std::shared_ptr<Parser>& parser) {
+				return parser->valid_for_url(url);
+			});
+			return found_parser ? *found_parser : nullptr;
+		}
+		
+		template<typename Iter>
+		void add_parser(Iter domain_first, Iter domain_last, Parser parser) {
+			add_parser(domain_first, domain_last, std::make_shared<Parser>(std::move(parser)));
+		}
 
 	private:
-		std::map<std::string, std::unique_ptr<Parser>> parsers_;
-		DomainScanner<Parser*> parsers_scanner_;
+		std::map<std::string, std::shared_ptr<Parser>> parsers_;
+		DomainScanner<std::shared_ptr<Parser>> parsers_scanner_;
 	};
 }

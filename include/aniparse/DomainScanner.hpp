@@ -5,24 +5,57 @@
 #include <memory>
 #include <map>
 #include <vector>
+#include <ranges>
 
 namespace aniparse {
 	template<
 		typename DomainParser,
 		typename Char = char
 	>
-	class DomainNode {
+	class DomainNode : public std::enable_shared_from_this<DomainNode<DomainParser, Char>> {
+		struct PrivateConstructor {
+			explicit constexpr PrivateConstructor() = default;
+		};
+
 	public:
 		using DomainStringView = std::basic_string_view<Char>;
 		using DomainString = std::basic_string<Char>;
 
-		using Node = std::unique_ptr<DomainNode>;
+		using Node = std::shared_ptr<DomainNode>;
 		using NodesContainer = std::map<DomainString, Node, std::less<>>;
 		using ParserContainer = std::vector<DomainParser>;
 
 		static constexpr Node null_node;
 
-		Node& find(DomainStringView name) {
+		DomainNode(PrivateConstructor) {}
+
+		DomainNode(Node& parent_node, PrivateConstructor) : parent_(parent_node) {
+
+		}
+
+		DomainNode(const DomainNode& other) = delete;
+		DomainNode(DomainNode&& other) = default;
+		~DomainNode() = default;
+
+		DomainNode& operator=(const DomainNode& other) = delete;
+		DomainNode& operator=(DomainNode&& other) = default;
+
+		static Node make_node(Node parent = null_node) {
+			return std::make_shared<DomainNode>(parent, PrivateConstructor{});
+		}
+
+		template<std::ranges::range Range>
+			requires requires (Range range) {
+				DomainString(std::begin(range), std::end(range));
+			}
+		Node find(Range range) {
+			DomainStringView str(std::begin(range), std::end(range));
+			auto iter = nexts_.find(str);
+			return iter != nexts_.end() ? iter->second : null_node;
+		}
+
+		template<std::three_way_comparable_with<DomainString> T>
+		Node find(T name) {
 			auto iter = nexts_.find(name);
 			return iter != nexts_.end() ? iter->second : null_node;
 		}
@@ -34,12 +67,23 @@ namespace aniparse {
 
 		template<typename T>
 		Node& operator[](T&& name) {
-			auto iter = nexts_.find(name);
-			return iter != nexts_.end() ? iter->second : insert(std::forward<T>(name));
+			Node node = find(name);
+			return node != null_node ? node : insert(std::forward<T>(name));
 		}
 
-		Node& insert(DomainString name) {
-			Node& new_node = nexts_[std::move(name)] = std::make_unique<DomainNode>();
+		template<std::convertible_to<DomainString> T>
+		Node& insert(T name) {
+			Node& new_node = nexts_[std::move(name)] = make_node(this->shared_from_this());
+			return new_node;
+		}
+
+		template<std::ranges::range Range>
+			requires requires (Range range) {
+				DomainString(std::begin(range), std::end(range));
+			}
+		Node& insert(Range range) {
+			DomainString str(std::begin(range), std::end(range));
+			Node& new_node = nexts_[std::move(str)] = make_node();
 			return new_node;
 		}
 
@@ -66,8 +110,13 @@ namespace aniparse {
 			std::erase(parsers_.begin(), parsers_.end(), parser);
 		}
 
+		Node parent() const {
+			return parent_.lock();
+		}
+
 	private:
 
+		std::weak_ptr<DomainNode> parent_;
 		ParserContainer parsers_;
 		NodesContainer nexts_;
 	};
@@ -79,24 +128,30 @@ namespace aniparse {
 	class DomainStorage {
 	public:
 
-		using Node = std::unique_ptr<DomainNode<DomainParser, Char>>;
+		using Node = std::shared_ptr<DomainNode<DomainParser, Char>>;
+
+		//DomainStorage() {
+		//
+		//}
 
 		Node& first() {
 			return domains_start_;
 		}
 
 		Node& last() {
-			return Node::null_node;
+			return DomainNode<DomainParser, Char>::null_node;
 		}
 
 	private:
 
-		Node domains_start_ = std::make_unique<DomainNode<DomainParser, Char>>();
+		Node domains_start_ = DomainNode<DomainParser, Char>::make_node();
 	};
 
 	template<typename DomainParser, typename Char = char, typename Storage = DomainStorage<DomainParser, Char>>
 	//requires requires (std::remove_pointer_t<DomainParser> parser, std::string_view url) { parser.is_url_supported(url); }
 	class DomainScanner {
+		using Node = typename Storage::Node;
+
 	public:
 
 		template<typename T>
@@ -150,10 +205,7 @@ namespace aniparse {
 
 		template<typename Iterator, typename Predicate>
 		std::optional<DomainParser> search(Iterator first, Iterator last, Predicate pred) {
-			auto& parsers = find_node(first, last).parsers();
-			auto iter = std::find_if(std::begin(parsers), std::end(parsers), pred);
-			if (iter == parsers.end()) return std::nullopt;
-			return *iter;
+			return find_parser_by_pred(find_node(first, last), pred);
 		}
 
 		template<typename T, typename Predicate>
@@ -166,24 +218,42 @@ namespace aniparse {
 			return search_all(std::begin(range), std::end(range), pred);
 		}
 
-		template<std::bidirectional_iterator Iterator, typename Predicate>
+		template<std::forward_iterator Iterator, typename Predicate>
 		std::optional<DomainParser> search_all(Iterator first, Iterator last, Predicate pred) {
-			do {
-				if (auto result = search(first, last, pred))
-					return result;
-			} while (last-- != first);
+			auto node = std::addressof(find_node(first, last));
+			if (auto parser = find_parser_by_pred(*node, pred)) {
+				return parser;
+			}
+
+			while (node = get_node_ptr(node->parent())) {
+				if (auto parser = find_parser_by_pred(*node, pred)) {
+					return parser;
+				}
+			}
 			return std::nullopt;
 		}
 
 	private:
 
-		static constexpr bool node_is_ptr = requires (typename Storage::Node node) { *node; };
+		static constexpr bool node_is_ptr = requires (Node node) { *node; };
 
-		auto get_node_ptr(typename Storage::Node& node) requires !node_is_ptr{
-			return std::addressof(node);
+		template<typename Predicate>
+		std::optional<DomainParser> find_parser_by_pred(auto& node, Predicate pred) {
+			auto& parsers = node.parsers();
+			auto iter = std::find_if(std::begin(parsers), std::end(parsers), pred);
+			if (iter == parsers.end()) return std::nullopt;
+			return *iter;
 		}
 
-			auto get_node_ptr(typename Storage::Node& node) requires node_is_ptr {
+		auto get_node_ptr(Node& node) requires !node_is_ptr {
+			return std::addressof(node);
+		}
+		auto get_node_ptr(Node&& node) requires !node_is_ptr = delete;
+
+		auto get_node_ptr(Node& node) requires node_is_ptr {
+			return std::addressof(*node);
+		}
+		auto get_node_ptr(Node&& node) requires node_is_ptr {
 			return std::addressof(*node);
 		}
 

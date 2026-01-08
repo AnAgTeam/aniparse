@@ -164,7 +164,7 @@ void release_test() {
 	AsyncClient client;
 	AsyncReleaseGetter release_getter;
 
-	auto title_getter = release_getter.get_title();
+	auto title_getter = release_getter.title({});
 	auto title = coro::sync_wait(client.do_request(std::move(title_getter)));
 
 	std::println("title: {}", title);
