@@ -12,7 +12,7 @@ namespace aniparse {
 	struct ForwardPaginator {
 		virtual ~ForwardPaginator() = default;
 
-		virtual Container next() = 0;
+		virtual OptionalRequest<Container> next() = 0;
 
 		virtual bool end() const = 0;
 	};

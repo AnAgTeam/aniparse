@@ -48,23 +48,30 @@ struct TestParser : aniparse::Parser {
 	}
 
 	aniparse::ParserCompatibilities compatibilities() const override {
+		using namespace aniparse::compatibilities_flags;
 		return {
-			.flags = aniparse::compatibilities_flags::supports_anime_store
+			.flags = supports_anime_store | supports_manga_store
 		};
 	}
 
 	void emplace_domains(aniparse::EmplaceDomainsContext& context) const override {
-
+		context.add_domain("www.youtube.com");
+		context.add_domain("youtu.be");
 	}
 };
 
 void test_parser_store() {
 	aniparse::ParserStore parser_store;
 	
-	parser_store.add_parser("youtube.com", std::make_unique<TestParser>());
+	parser_store.add_parser(std::make_unique<TestParser>());
+	parser_store.add_parser(std::make_unique<TestParser>());
 	
 	decltype(auto) parser1 = parser_store.find_for_url("https://youtube.com");
 	decltype(auto) parser2 = parser_store.find_for_url("https://www.youtube.com");
+	decltype(auto) parser3 = parser_store.find_for_url("https://youtu.be");
+	decltype(auto) parser4 = parser_store.find_for_url("http://youtu.be");
+
+	decltype(auto) key_parser = parser_store.find_by_key("TestParser");
 	
 	std::println("1: {}, 2: {}", parser1 != nullptr, parser2 != nullptr);
 }

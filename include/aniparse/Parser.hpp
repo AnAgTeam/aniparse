@@ -55,18 +55,40 @@ namespace aniparse {
 	struct EmplaceDomainsContext {
 		virtual ~EmplaceDomainsContext() = default;
 
-		virtual void add_domain(std::string_view domain);
+		virtual void add_domain(std::string_view domain) = 0;
 	};
 
 	struct Parser {
 		virtual ~Parser() = default;
 
+		/** 
+		 * @return Unique identifier for the parser
+		 */
 		virtual std::string identifier() const = 0;
 
+		/**
+		 * @brief Check if the parser can handle given url
+		 * @param url Url to check
+		 * @return true if the parser can handle, false otherwise
+		 */
 		virtual bool valid_for_url(std::string_view url) const = 0;
 
+		/**
+		 * @see ParserCompatibilities, @see namespace compatibilities_flags
+		 * Get compatibilies, that parser can handle.
+		 * For example, if the parser support anime it should
+		 * set the compatibilities_flags::supports_images_search flag.
+		 * @return Compatibilities of the parser
+		 */
 		virtual ParserCompatibilities compatibilities() const = 0;
 
+		/**
+		 * @see EmplaceDomainsContext
+		 * Add parser domains to the context
+		 * This function is called whenever someone wants
+		 * to add the parser domains to store
+		 * @param context Context to use to add domains
+		 */
 		virtual void emplace_domains(EmplaceDomainsContext& context) const = 0;
 
 		//virtual ParseResult<std::unique_ptr<AsyncReleaseGetter>> async_release_getter(ParseContext& ctx);

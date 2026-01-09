@@ -92,7 +92,10 @@ namespace aniparse {
 	public:
 		virtual ~AsyncReleaseGetter() = default;
 
-		virtual OptionalRequest<std::string> title(const GetterContext& context) const;
+		virtual OptionalRequest<std::string> title() const;
+
+	protected:
+		GetterContext context;
 	};
 
 	//template<typename T>

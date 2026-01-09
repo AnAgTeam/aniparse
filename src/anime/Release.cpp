@@ -1,7 +1,7 @@
 #include "aniparse/anime/Release.hpp"
 
 namespace aniparse {
-	OptionalRequest<std::string> AsyncReleaseGetter::title(const GetterContext& context) const {
+	OptionalRequest<std::string> AsyncReleaseGetter::title() const {
 		return ClientParsedRequest<std::string> {
 			.request = GetRequest {
 				.url = "https://www.google.com"
