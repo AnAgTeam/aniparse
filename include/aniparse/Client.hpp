@@ -1,11 +1,12 @@
 #pragma once
 #include "aniparse/Requests.hpp"
+#include "aniparse/ClientContext.hpp"
 
 #include <asyncnet/AsyncSession.hpp>
 
 namespace aniparse {
 
-	class AsyncClient {
+	class AsyncClient : ClientContext {
 	public:
 		AsyncClient() = default;
 

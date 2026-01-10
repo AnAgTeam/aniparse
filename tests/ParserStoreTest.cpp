@@ -2,6 +2,11 @@
 #include <aniparse/ParserStore.hpp>
 
 struct TestParser : aniparse::Parser {
+
+	std::string name() const override {
+		return "Test parser";
+	}
+
 	std::string identifier() const override {
 		return "TestParser";
 	}

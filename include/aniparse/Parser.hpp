@@ -11,23 +11,11 @@ namespace aniparse {
 	class ImagesGetter;
 
 	using ParseFlags = FlagsBitfield<64, struct ParseFlagsTag>;
-	using CompatibilitiesFlags = FlagsBitfield<64, struct CompatibilitiesFlagsTag>;
 
 	namespace parse_flags {
 		constexpr auto supports_inplace_get = ParseFlags::make_bit(0);
 
 		constexpr ParseFlags default_flags;
-	}
-
-	namespace compatibilities_flags {
-		constexpr auto supports_inplace_get = CompatibilitiesFlags::make_bit(0);
-		constexpr auto supports_images_store = CompatibilitiesFlags::make_bit(1);
-		constexpr auto supports_anime_store = CompatibilitiesFlags::make_bit(2);
-		constexpr auto supports_manga_store = CompatibilitiesFlags::make_bit(3);
-		constexpr auto using_custom_store = CompatibilitiesFlags::make_bit(4);
-		constexpr auto supports_images_search = CompatibilitiesFlags::make_bit(5);
-
-		constexpr CompatibilitiesFlags default_flags;
 	}
 
 	struct ParseContext {
@@ -42,7 +30,7 @@ namespace aniparse {
 	};
 
 	struct ParserCompatibilities {
-
+		std::string primary_language;
 		CompatibilitiesFlags flags = compatibilities_flags::default_flags;
 	};
 
@@ -60,6 +48,11 @@ namespace aniparse {
 
 	struct Parser {
 		virtual ~Parser() = default;
+
+		/**
+		 * @return Name/display name of the parser
+		 */
+		virtual std::string name() const = 0;
 
 		/** 
 		 * @return Unique identifier for the parser

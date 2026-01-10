@@ -23,17 +23,23 @@ find_package(asyncnet REQUIRED)
 
 add_library(aniparse STATIC
 	"src/AniParse.cpp" "include/aniparse/AniParse.hpp"
-	"src/anime/Release.cpp" "include/aniparse/anime/Release.hpp"
-	"include/aniparse/Client.hpp"
-	"include/aniparse/Requests.hpp"
-	"src/Parser.cpp" "include/aniparse/Parser.hpp"
-	"include/aniparse/ParserStore.hpp"
 	"include/aniparse/FlagsBitfield.hpp"
 	"include/aniparse/detail/BitsetLite.hpp"
 	"include/aniparse/detail/StrongBitset.hpp"
-	"src/Client.cpp"
+	"src/Client.cpp" "include/aniparse/Client.hpp"
+	"include/aniparse/Requests.hpp"
+	"include/aniparse/ClientContext.hpp"
+	"include/aniparse/Common.hpp"
+
+	"src/ParserStore.cpp" "include/aniparse/ParserStore.hpp"
+	"src/Parser.cpp" "include/aniparse/Parser.hpp"
+
+	"src/anime/Release.cpp" "include/aniparse/anime/Release.hpp"
+
 	"src/images/Image.cpp" "include/aniparse/images/Image.hpp"
- "src/Parser.cpp" "src/ParserStore.cpp")
+
+	"include/aniparse/manga/Manga.hpp"
+)
 
 set_property(TARGET aniparse PROPERTY CXX_STANDARD 20)
 set_property(TARGET aniparse PROPERTY CXX_STANDARD_REQUIRED ON)
