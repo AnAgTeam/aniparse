@@ -5,6 +5,7 @@ add_executable(aniparseTests
 	"BitsetLiteTest.cpp"
 	"StrongBitsetTest.cpp"
 	"ParserStoreTest.cpp"
+	"HTMLParseTests.cpp"
 )
 
 set_property(TARGET aniparseTests PROPERTY CXX_STANDARD 23)

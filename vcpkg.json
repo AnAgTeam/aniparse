@@ -4,6 +4,8 @@
 	"dependencies": [
 		"boost-json",
 		"boost-system",
-		"curl"
+		"curl",
+		"tinyxml2",
+		"lexbor"
 	]
 }

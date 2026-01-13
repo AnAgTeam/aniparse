@@ -67,13 +67,23 @@ namespace aniparse {
 		std::chrono::system_clock::time_point release_time;
 	};
 
-	struct MangaChapterGetter {
+	struct MangaChapterGetter : ForwardPaginator<Image> {
 
+		virtual asyncnet::NetworkTask<std::vector<Image>> next() = 0;
+		virtual bool end() const = 0;
+		virtual asyncnet::NetworkTask<size_t> total_items() = 0;
+
+		virtual bool update_client(std::shared_ptr<ClientContext> client);
+
+	protected:
+		std::shared_ptr<ClientContext> client;
 	};
 
 	struct MangaGetterCompatibilities {
 		CompatibilitiesFlags flags;
 	};
+
+	using MangaChapterInfoPaginator = ForwardPaginator<std::unique_ptr<MangaChapterGetter>>;
 
 	struct MangaGetter {
 
@@ -81,13 +91,15 @@ namespace aniparse {
 
 		virtual MangaGetterCompatibilities compatibilies() const = 0;
 
-		virtual asyncnet::NetworkTask<MangaInfo> info();
+		virtual asyncnet::NetworkTask<MangaInfo> info() = 0;
 
 		virtual asyncnet::NetworkTask<std::vector<MangaTranslationInfo>> translation_info(GetFilters filters);
 
 		virtual asyncnet::NetworkTask<std::vector<MangaChapterInfo>> chapters_info(GetFilters filters);
 
-		virtual asyncnet::NetworkTask<MangaGetterPaginator> similar();
+		virtual asyncnet::NetworkTask<std::unique_ptr<MangaGetterPaginator>> similar();
+
+		virtual asyncnet::NetworkTask<std::unique_ptr<MangaChapterGetter>> get_chapter(int volume, int chapter) = 0;
 
 		virtual bool update_client(std::shared_ptr<ClientContext> new_client);
 
@@ -95,12 +107,42 @@ namespace aniparse {
 		std::shared_ptr<ClientContext> client;
 	};
 
-	struct ImagesGetter {
-		virtual ~ImagesGetter() = default;
+	struct MangaRootGetter {
+		virtual ~MangaRootGetter() = default;
 
-		virtual asyncnet::NetworkTask<MangaGetterPaginator> search(std::shared_ptr<ClientContext> client, std::string query, GetFilters filters);
+		/**
+		 * @see MangaGetterPaginator
+		 * Search mangas with query and/or filters (advanced query may come as filters)
+		 * By default throws NotImplementedError
+		 * @param client Client to perform HTTP requests
+		 * @param query Query string, plain text
+		 * @param filters Filters to apply to results (e.g. sort)
+		 * @throw NotImplementedError If the method isn't implemented by the parser
+		 * @return Task to get MangaGetterPaginator
+		 */
+		virtual asyncnet::NetworkTask<std::unique_ptr<MangaGetterPaginator>> search(std::shared_ptr<ClientContext> client, std::string query, GetFilters filters);
 
-		virtual asyncnet::NetworkTask<MangaGetterPaginator> latest(std::shared_ptr<ClientContext> client, GetFilters filters);
+		/**
+		 * @see MangaGetterPaginator
+		 * Get latest parser source released mangas
+		 * By default throws NotImplementedError
+		 * @param client Client to perform HTTP requests
+		 * @param filters Filters to apply to results (e.g. sort)
+		 * @throw NotImplementedError If the method isn't implemented by the parser
+		 * @return Task to get MangaGetterPaginator
+		 */
+		virtual asyncnet::NetworkTask<std::unique_ptr<MangaGetterPaginator>> latest(std::shared_ptr<ClientContext> client, GetFilters filters);
+
+		/**
+		 * @see MangaGetter
+		 * Parse the url and return corresponding getter
+		 * By default throws NotImplementedError
+		 * @param client Client to perform HTTP requests
+		 * @param url The url to parse
+		 * @throw NotImplementedError If the method isn't implemented by the parser
+		 * @return Task to get MangaGetter
+		 */
+		virtual asyncnet::NetworkTask<std::unique_ptr<MangaGetter>> parse_url(std::shared_ptr<ClientContext> client, std::string_view url);
 
 	protected:
 		GetterContext context;

@@ -18,6 +18,8 @@ project(aniparse VERSION 0.1 LANGUAGES CXX)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 find_package(asyncnet REQUIRED)
+find_package(tinyxml2 REQUIRED)
+find_package(lexbor REQUIRED)
 
 # ---- ADD LIBRARY
 
@@ -30,6 +32,7 @@ add_library(aniparse STATIC
 	"include/aniparse/Requests.hpp"
 	"include/aniparse/ClientContext.hpp"
 	"include/aniparse/Common.hpp"
+	"src/html/HTMLDocument.cpp" "include/aniparse/html/HTMLDocument.hpp"
 
 	"src/ParserStore.cpp" "include/aniparse/ParserStore.hpp"
 	"src/Parser.cpp" "include/aniparse/Parser.hpp"
@@ -38,7 +41,7 @@ add_library(aniparse STATIC
 
 	"src/images/Image.cpp" "include/aniparse/images/Image.hpp"
 
-	"include/aniparse/manga/Manga.hpp"
+	"src/manga/Manga.cpp" "include/aniparse/manga/Manga.hpp"
 )
 
 set_property(TARGET aniparse PROPERTY CXX_STANDARD 20)
@@ -50,7 +53,7 @@ target_include_directories(aniparse PUBLIC
 )
 
 target_link_libraries(aniparse PUBLIC
-	$<BUILD_INTERFACE:asyncnet>
+	$<BUILD_INTERFACE:asyncnet tinyxml2::tinyxml2 ${LEXBOR_LIBRARIES}>
 )
 
 if (ANIPARSE_BUILD_TESTS)

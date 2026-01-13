@@ -17,14 +17,15 @@ namespace aniparse {
 		constexpr auto supports_images_store = CompatibilitiesFlags::make_bit(1);
 		constexpr auto supports_anime_store = CompatibilitiesFlags::make_bit(2);
 		constexpr auto supports_manga_store = CompatibilitiesFlags::make_bit(3);
-		constexpr auto using_custom_store = CompatibilitiesFlags::make_bit(4);
-		constexpr auto adult_source = CompatibilitiesFlags::make_bit(5);
+		constexpr auto supports_video_store = CompatibilitiesFlags::make_bit(4);
+		constexpr auto using_custom_store = CompatibilitiesFlags::make_bit(5);
+		constexpr auto adult_source = CompatibilitiesFlags::make_bit(6);
 
-		constexpr auto supports_images_search = CompatibilitiesFlags::make_bit(6);
-		constexpr auto supports_registration = CompatibilitiesFlags::make_bit(7);
-		constexpr auto supports_voting = CompatibilitiesFlags::make_bit(8);
-		constexpr auto supports_commenting = CompatibilitiesFlags::make_bit(9);
-		constexpr auto supports_online_lists = CompatibilitiesFlags::make_bit(10);
+		constexpr auto supports_images_search = CompatibilitiesFlags::make_bit(7);
+		constexpr auto supports_registration = CompatibilitiesFlags::make_bit(8);
+		constexpr auto supports_voting = CompatibilitiesFlags::make_bit(9);
+		constexpr auto supports_commenting = CompatibilitiesFlags::make_bit(10);
+		constexpr auto supports_online_lists = CompatibilitiesFlags::make_bit(11);
 
 		constexpr CompatibilitiesFlags default_flags;
 	}

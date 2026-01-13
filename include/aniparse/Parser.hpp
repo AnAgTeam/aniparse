@@ -1,6 +1,7 @@
 #pragma once
 #include "aniparse/FlagsBitfield.hpp"
 #include "aniparse/images/Image.hpp"
+#include "aniparse/manga/Manga.hpp"
 
 #include <asyncnet/CancellingTask.hpp>
 #include <memory>
@@ -46,6 +47,18 @@ namespace aniparse {
 		virtual void add_domain(std::string_view domain) = 0;
 	};
 
+	enum class GetterSuggestionType {
+		Unknown,
+		Anime,
+		Images,
+		Manga,
+		Video
+	};
+
+	struct GetterSuggestionResult {
+		GetterSuggestionType type;
+	};
+
 	struct Parser {
 		virtual ~Parser() = default;
 
@@ -86,7 +99,11 @@ namespace aniparse {
 
 		//virtual ParseResult<std::unique_ptr<AsyncReleaseGetter>> async_release_getter(ParseContext& ctx);
 
+		//virtual GetterSuggestionResult suggest_getter(std::string_view url) = 0;
+
 		virtual std::unique_ptr<ImagesGetter> images_getter() const;
+
+		virtual std::unique_ptr<MangaRootGetter> mangas_getter() const;
 	};
 
 	//using ParserProvider = std::function<
