@@ -5,7 +5,6 @@
 		"boost-json",
 		"boost-system",
 		"curl",
-		"tinyxml2",
 		"lexbor"
 	]
 }
