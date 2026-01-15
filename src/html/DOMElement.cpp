@@ -1,11 +1,14 @@
 #pragma once
 #include "aniparse/html/DOMElement.hpp"
 #include "aniparse/html/DOMAttributes.hpp"
+#include "aniparse/html/DOMNode.hpp"
 
 #include <cassert>
 #include <array>
 #include <functional>
 #include <algorithm>
+#include <numeric>
+#include <cctype>
 #include <lexbor/dom/interfaces/element.h>
 
 /// Reserved space in the stack for find methods
@@ -197,16 +200,55 @@ namespace aniparse::html {
 		return std::string_view(reinterpret_cast<const char*>(text), length);
 	}
 
-	std::string_view DOMElementView::text() const {
-		//for (auto& element : DOMElementWalkIterator(*this)) {
+	std::string DOMElementView::text() const {
+		static auto remove_leading_trailing = [](std::string_view text) -> std::string_view {
+			size_t off = text.find_first_not_of("\r\n\t\f ");
+			size_t off_end = text.find_last_not_of("\r\n\t\f ");
+			if (off >= off_end) {
+				return "";
+			}
+			if (off_end == std::string_view::npos) {
+				return text.substr(off);
+			}
+			return text.substr(off, off_end - off + 1);
+		};
+		static auto is_not_escape = [](lxb_char_t c) {
+			return !std::isspace(c)
+				|| std::isblank(c);
+		};
 
-		//}
+		size_t output_length = std::accumulate(DOMNodeWalkIterator(*this), DOMNodeWalkIterator{}, 0ULL, [](size_t size, const DOMNodeView& node) {
+			if (node.is_element()) {
+				size += node.as_element().tag_name() == "BR" ? 1 : 0;
+				return size;
+			}
+			if (!node.is_text()) {
+				return size;
+			}
+			std::string_view node_text = remove_leading_trailing(node.as_text());
+			size += std::count_if(std::begin(node_text), std::end(node_text), is_not_escape);
+			return size;
+		});
 
-		//size_t output_length = std::count_if(DOMElementWalkIterator(*this), DOMElementWalkIterator{}, [](const DOMElementView& val) {
-		//	size_t off = val.
-		//	return std::count_if()
-		//});
-		return "";
+		std::string output_string(output_length, 0);
+		auto output_iterator = std::begin(output_string);
+		for (const DOMNodeView& node : DOMNodeWalkIterator(*this)) {
+			if (node.is_element() && node.as_element().tag_name() == "BR") {
+				*output_iterator++ = '\n';
+				continue;
+			}
+			if (!node.is_text()) {
+				continue;
+			}
+			std::string_view node_text = remove_leading_trailing(node.as_text());
+			output_iterator = std::copy_if(
+				std::begin(node_text),
+				std::end(node_text),
+				output_iterator,
+				is_not_escape);
+		}
+
+		return output_string;
 	}
 
 	DOMElementWalkIterator::DOMElementWalkIterator(lxb_dom_element_t* element) : root_(lxb_dom_interface_node(element)), node_(root_ ? root_->first_child : nullptr) {

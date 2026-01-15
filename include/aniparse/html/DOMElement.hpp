@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 #include <string_view>
 #include <optional>
 #include <vector>
@@ -18,6 +19,7 @@ namespace aniparse::html {
 	 * @note The class is non owning, so it must be alive with not "View" class
 	 */
 	class DOMElementView {
+		friend class DOMNodeView;
 		friend class DOMElementWalkIterator;
 		friend class DOMElementIterator;
 
@@ -188,7 +190,15 @@ namespace aniparse::html {
 		 */
 		[[nodiscard]] std::string_view content_text() const;
 
-		[[nodiscard]] std::string_view text() const;
+		/**
+		 * @brief Get escaped text of element.
+		 * Walks though all chilren of the element.
+		 * Ignores all new line characters (with space),
+		 * and removes leading and trailing spaces.
+		 * Interprets <BR> element as new line ('\n').
+		 * @return Text of the element or empty string
+		 */
+		[[nodiscard]] std::string text() const;
 
 		//std::string_view to_string() const;
 
@@ -229,7 +239,6 @@ namespace aniparse::html {
 		/**
 		 * @brief Construct invalid interator.
 		 * Represents end of a normal iterator
-		 * @param element DOM element
 		 */
 		DOMElementIterator() noexcept = default;
 

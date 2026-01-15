@@ -1,6 +1,7 @@
 #include "catch_amalgamated.hpp"
 
 #include <aniparse/html/HTMLParser.hpp>
+#include <aniparse/html/DOMNode.hpp>
 #include <aniparse/html/DOMAttributes.hpp>
 
 #include <list>
@@ -223,17 +224,77 @@ TEST_CASE("HTML element text") {
     DOMElementView html_element = document.as_element();
     auto found_div_element = html_element.find("attr1", "test");
     CHECK(found_div_element);
-    REQUIRE(found_div_element->text() == R"(
+    REQUIRE(found_div_element->content_text() == R"(
                 blabla bold
                 
             )");
     auto div_img_element = found_div_element->find("IMG");
     CHECK(div_img_element);
-    REQUIRE(div_img_element->text().empty());
+    REQUIRE(div_img_element->content_text().empty());
 }
 
 TEST_CASE("HTML empty element iteration") {
     DOMElementView element;
     REQUIRE(std::distance(std::begin(element), std::end(element)) == 0);
     REQUIRE(std::distance(DOMElementWalkIterator(element), DOMElementWalkIterator{}) == 0);
+}
+
+
+// Nodes
+
+template<typename Iter>
+bool all_nodes_is(Iter first, Iter last, const std::vector<std::string_view>& range) {
+    size_t i = 0;
+    return std::all_of(first, last, [&range, &i](DOMNodeView node) {
+        if (i >= range.size()) return false;
+        auto& range_value = range[i++];
+        return node.is_element() && range_value == "ELEMENT"
+            || node.is_text() && range_value == "TEXT";
+    });
+}
+
+template<std::ranges::range Range>
+bool all_nodes_is(Range nodes_range, const std::vector<std::string_view>& range) {
+    return all_nodes_is(begin(nodes_range), end(nodes_range), range);
+}
+
+TEST_CASE("HTML node constructon") {
+    constexpr std::string_view test_html = R"(<!DOCTYPE html>
+    <html>
+        <head></head>
+        <body class="class1 class2 class3-1">
+            <div id="id1" class="class1 class2" attr1="test">
+                blabla
+            </div><a></a>
+            <img></img></body>
+    </html>)";
+
+    HTMLParser parser;
+    HTMLDocument document = parser.parse(test_html);
+
+    DOMNodeView body_element = document.body();
+    REQUIRE(all_nodes_is(DOMNodeWalkIterator(body_element), {
+        "TEXT", "ELEMENT", "TEXT", "ELEMENT",
+        "TEXT", "ELEMENT", "TEXT", "ELEMENT"
+    }));
+}
+
+TEST_CASE("HTML text") {
+    constexpr std::string_view test_html = R"(<!DOCTYPE html>
+    <html>
+        <head></head>
+        <body class="class1 class2 class3-1">
+            <div id="id1" class="class1 class2" attr1="test">
+                blabla
+            </div><a>. 
+hello</a><br>new line
+            <img></img></body>
+    </html>)";
+
+    HTMLParser parser;
+    HTMLDocument document = parser.parse(test_html);
+
+    REQUIRE(document.body().text() == "blabla. hello\nnew line");
+    auto found_img_element = document.body().find("IMG");
+    REQUIRE((found_img_element && found_img_element->text().empty()));
 }
