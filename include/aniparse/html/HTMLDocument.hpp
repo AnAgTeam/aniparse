@@ -50,27 +50,25 @@ namespace aniparse::html {
 		 * @brief Get HTML document title
 		 * @return HTML document title, or empty string if no title
 		 */
-		std::string_view title() const;
+		[[nodiscard]] std::string_view title() const;
 
 		/**
 		 * @brief Get root HTML element <HTML>
 		 * @return Root HTML element
 		 */
-		DOMElementView as_element() const;
+		[[nodiscard]] DOMElementView as_element() const;
 
 		/**
 		 * @brief <HEAD> element inside root <HTML>
 		 * @return <HEAD> element view
 		 */
-		DOMElementView head() const;
+		[[nodiscard]] DOMElementView head() const;
 
 		/**
 		 * @brief <BODY> element inside root <HTML>
 		 * @return <BODY> element view
 		 */
-		DOMElementView body() const;
-
-		std::optional<DOMElementView> find_first_by_class(std::string_view name) const;
+		[[nodiscard]] DOMElementView body() const;
 
 	private:
 		lxb_html_document_t* document_ = nullptr;

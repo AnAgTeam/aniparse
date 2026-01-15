@@ -27,21 +27,33 @@ namespace aniparse {
 		constexpr auto supports_commenting = CompatibilitiesFlags::make_bit(10);
 		constexpr auto supports_online_lists = CompatibilitiesFlags::make_bit(11);
 
+		/**
+		 * All the Paginator<T>::next items will be unique over time if true.
+		 * Otherwise, the items can duplicate. For example, when you get 10
+		 * from next, then 3 new items added at the start and you start getting
+		 * duplicates of 8-10 from previous parsing and only 7 new
+		 */
+		constexpr auto supports_pagination_uniqueness = CompatibilitiesFlags::make_bit(12);
+
 		constexpr CompatibilitiesFlags default_flags;
 	}
 
 	/// Minimal age allowed to access the item. Use 0 for all
 	using AgeRestriction = int;
 
-	struct Image {
-		TagID id;
-		std::string url;
+	struct ImageResolution {
 		int width;
 		int height;
 	};
 
+	struct Image {
+		TagID id{ 0 };
+		std::string url;
+		std::optional<ImageResolution> size;
+	};
+
 	struct Tag {
-		TagID id;
+		TagID id{ 0 };
 		std::string name;
 		std::string referer;
 	};
@@ -52,9 +64,11 @@ namespace aniparse {
 	};
 
 	struct Series {
-		SeriesID id;
+		SeriesID id{ 0 };
 		std::string name;
 		std::string referer;
+
+		static Series make_original(std::string referer);
 	};
 
 	/**
@@ -72,7 +86,7 @@ namespace aniparse {
 		std::string name;
 		std::chrono::system_clock::time_point time;
 
-		static AiredStatus make_default(AiredStatus status, std::chrono::system_clock::time_point time);
+		static AiredStatus make_default(DefaultAiredStatuses status, std::chrono::system_clock::time_point time);
 	};
 
 	/**
@@ -124,15 +138,19 @@ namespace aniparse {
 		int views = 0;
 	};
 
-	template<typename T, typename Container = std::vector<T>>
+	template<typename T, typename TContainer = std::vector<T>>
 	struct ForwardPaginator {
+		using Container = TContainer;
+
 		virtual ~ForwardPaginator() = default;
 
-		virtual asyncnet::NetworkTask<Container> next(ClientContext& client) = 0;
+		virtual asyncnet::NetworkTask<Container> current(RequestorContext context) = 0;
+
+		virtual asyncnet::NetworkTask<Container> next(RequestorContext context) = 0;
 
 		virtual bool end() const = 0;
 
-		virtual asyncnet::NetworkTask<size_t> total_items() = 0;
+		virtual asyncnet::NetworkTask<size_t> total_items(RequestorContext context) = 0;
 	};
 
 	struct GetFilters {

@@ -5,6 +5,10 @@ using asyncnet::NetworkTask;
 using asyncnet::Response;
 
 namespace aniparse {
+	AsyncClient::AsyncClient() {
+		session_.set_default_headers(get_default_headers());
+	}
+
 	NetworkTask<Response> AsyncClient::do_request(GetRequest request) {
 		auto get_request = session_.make_request<asyncnet::GetRequest>(std::move(request.url));
 		get_request.add_headers(std::move(request.headers));
@@ -25,6 +29,18 @@ namespace aniparse {
 
 	NetworkTask<Response> AsyncClient::do_request(std::shared_ptr<PolymorphicRequest> request) {
 		throw std::logic_error("Not implemented");
+	}
+
+	void AsyncClient::set_user_agent(std::string_view user_agent) {
+		session_.set_default_headers({
+			"User-Agent: " + std::string(user_agent)
+		});
+	}
+
+	std::list<std::string> AsyncClient::get_default_headers() {
+		return {
+			"User-Agent: Libaniparse/0.1"
+		};
 	}
 
 }

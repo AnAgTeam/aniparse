@@ -46,15 +46,4 @@ namespace aniparse::html {
 		return DOMElementView(body);
 	}
 
-	std::optional<DOMElementView> HTMLDocument::find_first_by_class(std::string_view name) const {
-		lxb_dom_collection_t* collection = lxb_dom_collection_make(&document_->dom_document, 1);
-		lxb_status_t status = lxb_dom_elements_by_class_name(
-			lxb_dom_interface_element(document_),
-			collection,
-			reinterpret_cast<const lxb_char_t*>(name.data()),
-			name.length()
-		);
-		return DOMElementView(lxb_dom_interface_element(collection->array.list[0]));
-	}
-
 }

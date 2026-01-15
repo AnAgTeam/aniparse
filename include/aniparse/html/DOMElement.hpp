@@ -69,31 +69,31 @@ namespace aniparse::html {
 		/**
 		 * @return true if DOM element is valid, false otherwise
 		 */
-		operator bool() const;
+		[[nodiscard]] operator bool() const;
 
 		/**
 		 * @return View of the DOM element attributes
 		 */
-		DOMElementAttrsView attributes() const;
+		[[nodiscard]] DOMElementAttrsView attributes() const;
 
 		/**
 		 * @brief Iterator to the start (first) of DOM element children
 		 * @return DOM elements iterator
 		 */
-		DOMElementIterator begin();
+		[[nodiscard]] DOMElementIterator begin();
 
 		/**
 		 * @brief Iterator to the end of DOM element children.
 		 * @note Taking value from it will be UB
 		 * @return DOM elements iterator
 		 */
-		DOMElementIterator end();
+		[[nodiscard]] DOMElementIterator end();
 
 		/**
 		 * @note Tag name always in upper case ("HTML", "DIV", etc.)
 		 * @return DOM element tag/name, e.g. <html> => HTML
 		 */
-		std::string_view tag_name() const;
+		[[nodiscard]] std::string_view tag_name() const;
 
 		/**
 		 * @brief Get the full class name of the element.
@@ -101,14 +101,14 @@ namespace aniparse::html {
 		 * The classes may be separated by whitespace characters
 		 * @return DOM element class
 		 */
-		std::string_view class_name() const;
+		[[nodiscard]] std::string_view class_name() const;
 
 		/**
 		 * @brief Get the id name of the element.
 		 * This is just efficient shortcut to "id" attr, get_attr("id")
 		 * @return DOM element id
 		 */
-		std::string_view id() const;
+		[[nodiscard]] std::string_view id() const;
 
 		/**
 		 * @brief Check if the element contains class.
@@ -116,14 +116,15 @@ namespace aniparse::html {
 		 * @param name Class name to check
 		 * @return true if the class is found, false otherwise
 		 */
-		bool contains_class(std::string_view name) const;
+		[[nodiscard]] bool contains_class(std::string_view name) const;
 
 		/**
 		 * @brief Find first element with tag
+		 * @note Tag finding is case sensitive! (must be uppercase), @ref tag_name
 		 * @param tag DOM element tag name
 		 * @return DOM element view if found, nullopt otherwise
 		 */
-		std::optional<DOMElementView> find(std::string_view tag) const;
+		[[nodiscard]] std::optional<DOMElementView> find(std::string_view tag) const;
 
 		/**
 		 * @brief Find first element with attribute and value
@@ -134,28 +135,29 @@ namespace aniparse::html {
 		 *        Otherwise, checks if element class exactly the same
 		 * @return DOM element view if found, nullopt otherwise
 		 */
-		std::optional<DOMElementView> find(
+		[[nodiscard]] std::optional<DOMElementView> find(
 			std::string_view attr,
 			std::string_view value,
 			bool ignore_class_whitespaces = true) const;
 
 		/**
 		 * @brief Find all elements with tag
+		 * @note Tag finding is case sensitive! (must be uppercase)
 		 * @param tag DOM element tag name
 		 * @return All found DOM element views
 		 */
-		std::vector<DOMElementView> find_all(std::string_view tag) const;
+		[[nodiscard]] std::vector<DOMElementView> find_all(std::string_view tag) const;
 
 		/**
 		 * @brief Find all elements with attribute and value
 		 * @param attr DOM attribute name
 		 * @param value DOM Attrubute value
 		 * @param ignore_class_whitespace Only for "attr" == "class".
-		 *        Checks if element contains "value" class if true,
-		 *        Checks if element class exactly the same
+		 *        If true, then it checks if element contains "value" class,
+		 *        Otherwise, checks if element class exactly the same
 		 * @return All found DOM element views
 		 */
-		std::vector<DOMElementView> find_all(
+		[[nodiscard]] std::vector<DOMElementView> find_all(
 			std::string_view attr,
 			std::string_view value,
 			bool ignore_class_whitespaces = true) const;
@@ -166,7 +168,7 @@ namespace aniparse::html {
 		 * @param name DOM attribute name
 		 * @return DOM attribute view if found, nullopt otherwise
 		 */
-		std::optional<DOMAttrView> find_attr(std::string_view name) const;
+		[[nodiscard]] std::optional<DOMAttrView> find_attr(std::string_view name) const;
 
 		/**
 		 * @brief Get DOM element attribute value with name.
@@ -175,7 +177,20 @@ namespace aniparse::html {
 		 * @return Value of the element or empty string
 		 *         if attribute found, std::nullopt otherwise
 		 */
-		std::optional<std::string_view> get_attr(std::string_view name) const;
+		[[nodiscard]] std::optional<std::string_view> get_attr(std::string_view name) const;
+
+		/**
+		 * @brief Get text of element.
+		 * Walks though all chilren of the element.
+		 * Ignores all element tags and print all it's contents.
+		 * Also preserves all whitespace characters
+		 * @return Text of the element or empty string
+		 */
+		[[nodiscard]] std::string_view content_text() const;
+
+		[[nodiscard]] std::string_view text() const;
+
+		//std::string_view to_string() const;
 
 		/**
 		 * @brief Get raw pointer to the DOM element
@@ -184,7 +199,7 @@ namespace aniparse::html {
 		 *       pointer should be implementation defined
 		 * @return Raw pointer to the DOM element
 		 */
-		lxb_dom_element_t* get() const;
+		[[nodiscard]] lxb_dom_element_t* get() const;
 
 	private:
 		lxb_dom_element_t* element_ = nullptr;
@@ -250,12 +265,12 @@ namespace aniparse::html {
 		/**
 		 * @return DOM element view of the current element
 		 */
-		const DOMElementView& operator*() const;
+		[[nodiscard]] const DOMElementView& operator*() const;
 
 		/**
 		 * @return DOM element view of the current element
 		 */
-		const DOMElementView* operator->() const;
+		[[nodiscard]] const DOMElementView* operator->() const;
 
 		/**
 		 * @brief Iterate back to previous DOM element
@@ -286,7 +301,7 @@ namespace aniparse::html {
 		 * @return true if iterators are at the same element
 		 *         or both invalid, false otherwise
 		 */
-		friend bool operator==(const DOMElementIterator& left, const DOMElementIterator& right);
+		[[nodiscard]] friend bool operator==(const DOMElementIterator& left, const DOMElementIterator& right);
 
 	private:
 
@@ -367,12 +382,12 @@ namespace aniparse::html {
 		/**
 		 * @return DOM element view of the current element
 		 */
-		const DOMElementView& operator*() const;
+		[[nodiscard]] const DOMElementView& operator*() const;
 
 		/**
 		 * @return DOM element view pointer of the current element
 		 */
-		const DOMElementView* operator->() const;
+		[[nodiscard]] const DOMElementView* operator->() const;
 
 		/**
 		 * @brief Walk to next element
@@ -391,7 +406,7 @@ namespace aniparse::html {
 		 * @return true if iterators are at the same element
 		 *         or both invalid, false otherwise
 		 */
-		friend bool operator==(const DOMElementWalkIterator& left, const DOMElementWalkIterator& right) noexcept;
+		[[nodiscard]] friend bool operator==(const DOMElementWalkIterator& left, const DOMElementWalkIterator& right) noexcept;
 
 	private:
 
@@ -410,6 +425,14 @@ namespace aniparse::html {
 		lxb_dom_node_t* node_ = nullptr;
 		DOMElementView node_view_;
 	};
+
+	[[nodiscard]] inline DOMElementWalkIterator begin(DOMElementWalkIterator iter) noexcept {
+		return iter;
+	}
+
+	[[nodiscard]] inline DOMElementWalkIterator end(const DOMElementWalkIterator& iter) noexcept {
+		return {};
+	}
 
 	/**
 	 * @brief Class for storing and accessing DOM element.

@@ -2,15 +2,36 @@
 #include "aniparse/Exceptions.hpp"
 
 namespace aniparse {
-	asyncnet::NetworkTask<std::unique_ptr<MangaGetterPaginator>> MangaRootGetter::search(std::shared_ptr<ClientContext> client, std::string query, GetFilters filters) {
+	MangaGetter::MangaGetter(RequestorContext context) : context(std::move(context)) {
+
+	}
+
+	asyncnet::NetworkTask<std::vector<MangaTranslationInfo>> MangaGetter::translation_info(GetFilters filters) {
+		throw NotImplementedError("The parser's MangaGetter cannot get translation info");
+	}
+
+	asyncnet::NetworkTask<std::vector<MangaChapterInfo>> MangaGetter::chapters_info(GetFilters filters) {
+		throw NotImplementedError("The parser's MangaGetter cannot get chapters info");
+	}
+
+	asyncnet::NetworkTask<std::unique_ptr<MangaGetterPaginator>> MangaGetter::similar() {
+		throw NotImplementedError("The parser's MangaGetter cannot get similar info");
+	}
+
+	bool MangaGetter::update_context(RequestorContext context) {
+		this->context = std::move(context);
+		return true;
+	}
+
+	asyncnet::NetworkTask<std::unique_ptr<MangaGetterPaginator>> MangaRootGetter::search(RequestorContext context, std::string query, GetFilters filters) {
 		throw NotImplementedError("The parser cannot search");
 	}
 
-	asyncnet::NetworkTask<std::unique_ptr<MangaGetterPaginator>> MangaRootGetter::latest(std::shared_ptr<ClientContext> client, GetFilters filters) {
+	asyncnet::NetworkTask<std::unique_ptr<MangaGetterPaginator>> MangaRootGetter::latest(RequestorContext context, GetFilters filters) {
 		throw NotImplementedError("The parser cannot get latest");
 	}
 
-	asyncnet::NetworkTask<std::unique_ptr<MangaGetter>> MangaRootGetter::parse_url(std::shared_ptr<ClientContext> client, std::string_view url) {
+	asyncnet::NetworkTask<std::unique_ptr<MangaGetter>> MangaRootGetter::parse_url(RequestorContext context, std::string_view url) {
 		throw NotImplementedError("The parser cannot parse url");
 	}
 }

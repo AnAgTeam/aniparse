@@ -3,8 +3,9 @@
 	"version": "0.1",
 	"dependencies": [
 		"boost-json",
+		"boost-regex",
 		"boost-system",
 		"curl",
-		"lexbor"
+		"fmt"
 	]
 }

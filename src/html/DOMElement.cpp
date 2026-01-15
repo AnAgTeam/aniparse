@@ -5,6 +5,7 @@
 #include <cassert>
 #include <array>
 #include <functional>
+#include <algorithm>
 #include <lexbor/dom/interfaces/element.h>
 
 /// Reserved space in the stack for find methods
@@ -91,24 +92,28 @@ namespace aniparse::html {
 		return element_;
 	}
 
+	/// actually might have side effect as some cached allocations
 	std::string_view DOMElementView::tag_name() const {
 		size_t size;
 		const lxb_char_t* name = lxb_dom_element_tag_name(element_, &size);
 		return std::string_view(reinterpret_cast<const char*>(name), size);
 	}
 
+	/// actually might have side effect as some cached allocations
 	std::string_view DOMElementView::class_name() const {
 		size_t size;
 		const lxb_char_t* name = lxb_dom_element_class(element_, &size);
 		return std::string_view(reinterpret_cast<const char*>(name), size);
 	}
 
+	/// actually might have side effect as some cached allocations
 	std::string_view DOMElementView::id() const {
 		size_t size;
 		const lxb_char_t* name = lxb_dom_element_id(element_, &size);
 		return std::string_view(reinterpret_cast<const char*>(name), size);
 	}
 
+	/// actually might have side effect as some cached allocations
 	std::optional<DOMElementView> DOMElementView::find(std::string_view tag) const {
 		auto iter = std::find_if(DOMElementWalkIterator(element_), DOMElementWalkIterator{}, [&tag](const DOMElementView& element) {
 			return element.tag_name() == tag;
@@ -119,6 +124,7 @@ namespace aniparse::html {
 		return *iter;
 	}
 
+	/// actually might have side effect as some cached allocations
 	std::optional<DOMElementView> DOMElementView::find(std::string_view attr, std::string_view value, bool ignore_class_whitespaces) const {
 		auto predicate = get_attr_value_predicate(attr, ignore_class_whitespaces);
 
@@ -131,6 +137,7 @@ namespace aniparse::html {
 		return *iter;
 	}
 
+	/// actually might have side effect as some cached allocations
 	std::vector<DOMElementView> DOMElementView::find_all(std::string_view tag) const {
 		FindAllPredicate predicate = [](const DOMElementView& element, std::string_view value) {
 			return element.tag_name() == value;
@@ -139,12 +146,14 @@ namespace aniparse::html {
 		return find_all_elements_predicate(element_, tag, predicate);
 	}
 
+	/// actually might have side effect as some cached allocations
 	std::vector<DOMElementView> DOMElementView::find_all(std::string_view attr, std::string_view value, bool ignore_class_whitespaces) const {
 		auto predicate = get_attr_value_predicate(attr, ignore_class_whitespaces);
 
 		return find_all_elements_predicate(element_, value, predicate);
 	}
 
+	/// actually might have side effect as some cached allocations
 	bool DOMElementView::contains_class(std::string_view name) const {
 		std::string_view full_class = class_name();
 		for (size_t i = 0; i < full_class.size();) {
@@ -160,6 +169,7 @@ namespace aniparse::html {
 		return false;
 	}
 
+	/// actually might have side effect as some cached allocations
 	std::optional<DOMAttrView> DOMElementView::find_attr(std::string_view name) const {
 		auto attrs = attributes();
 		auto iter = std::find_if(std::begin(attrs), std::end(attrs), [&name](const DOMAttrView& attr) {
@@ -171,12 +181,32 @@ namespace aniparse::html {
 		return *iter;
 	}
 
+	/// actually might have side effect as some cached allocations
 	std::optional<std::string_view> DOMElementView::get_attr(std::string_view name) const {
 		auto attr = find_attr(name);
 		if (!attr) {
 			return std::nullopt;
 		}
 		return attr->value();
+	}
+
+	/// ! actually have side effect as cached string allocation
+	std::string_view DOMElementView::content_text() const {
+		size_t length;
+		const lxb_char_t* text = lxb_dom_node_text_content(lxb_dom_interface_node(element_), &length);
+		return std::string_view(reinterpret_cast<const char*>(text), length);
+	}
+
+	std::string_view DOMElementView::text() const {
+		//for (auto& element : DOMElementWalkIterator(*this)) {
+
+		//}
+
+		//size_t output_length = std::count_if(DOMElementWalkIterator(*this), DOMElementWalkIterator{}, [](const DOMElementView& val) {
+		//	size_t off = val.
+		//	return std::count_if()
+		//});
+		return "";
 	}
 
 	DOMElementWalkIterator::DOMElementWalkIterator(lxb_dom_element_t* element) : root_(lxb_dom_interface_node(element)), node_(root_ ? root_->first_child : nullptr) {
@@ -219,11 +249,11 @@ namespace aniparse::html {
 			node_ = node_->first_child;
 		}
 		else {
-			while (node_->next == nullptr && node_ != root_) {
+			while (node_ != nullptr && node_->next == nullptr && node_ != root_) {
 				node_ = node_->parent;
 			}
 
-			if (node_ != nullptr) {
+			if (node_ != root_ && node_ != nullptr) {
 				node_ = node_->next;
 			}
 		}

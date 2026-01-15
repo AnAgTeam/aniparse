@@ -12,6 +12,7 @@
 
 #include <print>
 #include <fstream>
+#include <filesystem>
 
 #include <aniparse/html/HTMLParser.hpp>
 #include <aniparse/html/DOMAttributes.hpp>
@@ -22,6 +23,9 @@ using namespace aniparse::html;
 constexpr const char html_test_file_path[] = R"(D:\example_html.html)";
 
 void test_aniparse_html() {
+	auto dir_iter = std::filesystem::recursive_directory_iterator("sdfdsf");
+	std::filesystem::begin(dir_iter);
+
 	std::string html_content;
 	{
 		std::ifstream stream(html_test_file_path);
@@ -70,6 +74,8 @@ void test_aniparse_html() {
 	std::println("Find id: {}", attr ? attr->value() : "nullopt");
 	attr = iter->find_attr("bbbb");
 	std::println("Find bbbb: {}", attr ? attr->value() : "nullopt");
+
+	std::println("Body text: {}", document.body().text());
 }
 
 int main() {

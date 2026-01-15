@@ -160,3 +160,80 @@ TEST_CASE("HTML find, find_all (tags)") {
     REQUIRE(html_element.find_all("DIV").size() == 3);
     REQUIRE(html_element.find_all("ELEMENT").size() == 0);
 }
+
+constexpr std::string_view inner_test_html = R"raw(<!DOCTYPE html>
+    <html>
+        <head></head>
+        <body class="class1 class2 class3-1">
+            <div id="id1" class="class1 class2" attr1="test">
+                blabla <b>bold</b>
+                <img><div><a></a></div></img>
+            </div><a id="id1" class="class3" href="#bodyContent">Jump to content</a>
+            <div class="">
+                <header class="">
+                    <div class="class2">
+                    <nav class="class4" aria-label="Site">
+                    </nav></div>
+                </header>
+                <footer></footer>
+            </div>
+            <img></img>
+        </body>
+    </html>)raw";
+
+TEST_CASE("HTML walk with inner") {
+    HTMLParser parser;
+    HTMLDocument document = parser.parse(inner_test_html);
+
+    DOMElementView body_element = document.body();
+    auto div_element = *std::next(std::begin(body_element), 0);
+    CHECK(div_element);
+
+    DOMElementWalkIterator walk_iterator(div_element);
+    REQUIRE(std::distance(walk_iterator, DOMElementWalkIterator{}) == 4);
+
+    // the last element
+    auto div_a_element = div_element.find("A");
+    CHECK(div_a_element);
+    REQUIRE(std::distance(DOMElementWalkIterator(*div_a_element), DOMElementWalkIterator{}) == 0);
+}
+
+TEST_CASE("HTML find with inner") {
+    HTMLParser parser;
+    HTMLDocument document = parser.parse(inner_test_html);
+
+    DOMElementView html_element = document.as_element();
+    auto found_div_element = html_element.find("DIV");
+    CHECK(found_div_element);
+    REQUIRE(found_div_element->find_all("IMG").size() == 1);
+
+    // the last element
+    auto div_a_element = found_div_element->find("A");
+    CHECK(div_a_element);
+    REQUIRE(!div_a_element->find("A"));
+    REQUIRE(!div_a_element->find("class", "class1"));
+    REQUIRE(div_a_element->find_all("DIV").size() == 0);
+    REQUIRE(div_a_element->find_all("id", "id1").size() == 0);
+}
+
+TEST_CASE("HTML element text") {
+    HTMLParser parser;
+    HTMLDocument document = parser.parse(inner_test_html);
+
+    DOMElementView html_element = document.as_element();
+    auto found_div_element = html_element.find("attr1", "test");
+    CHECK(found_div_element);
+    REQUIRE(found_div_element->text() == R"(
+                blabla bold
+                
+            )");
+    auto div_img_element = found_div_element->find("IMG");
+    CHECK(div_img_element);
+    REQUIRE(div_img_element->text().empty());
+}
+
+TEST_CASE("HTML empty element iteration") {
+    DOMElementView element;
+    REQUIRE(std::distance(std::begin(element), std::end(element)) == 0);
+    REQUIRE(std::distance(DOMElementWalkIterator(element), DOMElementWalkIterator{}) == 0);
+}

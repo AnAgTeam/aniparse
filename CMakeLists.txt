@@ -5,6 +5,7 @@
 option(ANIPARSE_BUILD_TESTS "build tests, Default=OFF" OFF)
 option(ANIPARSE_BUILD_EXAMPLES "build examples, Default=OFF" OFF)
 option(ANIPARSE_BUILD_TOOLS "build tools, Default=OFF" OFF)
+option(ANIPARSE_USE_LIBFMT "Use libfmt's 'fmt::format instead of std::format, Default=OFF" OFF)
 
 # without this vcpkg won't try to install dependencies
 if (CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg.cmake")
@@ -19,6 +20,9 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 find_package(asyncnet REQUIRED)
 find_package(lexbor REQUIRED)
+if (ANIPARSE_USE_LIBFMT)
+	find_package(fmt REQUIRED)
+endif()
 
 # ---- ADD LIBRARY
 
@@ -30,7 +34,8 @@ add_library(aniparse STATIC
 	"src/Client.cpp" "include/aniparse/Client.hpp"
 	"include/aniparse/Requests.hpp"
 	"include/aniparse/ClientContext.hpp"
-	"include/aniparse/Common.hpp"
+	"src/Common.cpp" "include/aniparse/Common.hpp"
+	"include/aniparse/Format.hpp"
 
 	"src/html/HTMLDocument.cpp" "include/aniparse/html/HTMLDocument.hpp"
 	"src/html/DOMAttributes.cpp" "include/aniparse/html/DOMAttributes.hpp"
@@ -59,6 +64,14 @@ target_include_directories(aniparse PUBLIC
 target_link_libraries(aniparse PUBLIC
 	$<BUILD_INTERFACE:asyncnet ${LEXBOR_LIBRARIES}>
 )
+
+if (ANIPARSE_USE_LIBFMT)
+	target_link_libraries(aniparse PUBLIC
+		$<BUILD_INTERFACE:fmt>
+	)
+
+	target_compile_definitions(aniparse PRIVATE -DANIPARSE_USE_LIBFMT=1)
+endif()
 
 if (ANIPARSE_BUILD_TESTS)
 	enable_testing()

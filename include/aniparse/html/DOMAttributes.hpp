@@ -60,12 +60,12 @@ namespace aniparse::html {
 		/**
 		 * @return Name of the attribute
 		 */
-		std::string_view name() const;
+		[[nodiscard]] std::string_view name() const;
 
 		/**
 		 * @return Value of the attribute
 		 */
-		std::string_view value() const;
+		[[nodiscard]] std::string_view value() const;
 
 	private:
 		lxb_dom_attr_t* attr_ = nullptr;
@@ -88,8 +88,8 @@ namespace aniparse::html {
 		DOMElementAttrsView(DOMElementAttrsView&& other) = default;
 		~DOMElementAttrsView() = default;
 
-		DOMAttrsIterator begin();
-		DOMAttrsIterator end();
+		[[nodiscard]] DOMAttrsIterator begin();
+		[[nodiscard]] DOMAttrsIterator end();
 
 	private:
 		lxb_dom_element_t* element_ = nullptr;
@@ -128,8 +128,8 @@ namespace aniparse::html {
 			return *this;
 		};
 
-		const DOMAttrView& operator*() const;
-		const DOMAttrView* operator->() const;
+		[[nodiscard]] const DOMAttrView& operator*() const;
+		[[nodiscard]] const DOMAttrView* operator->() const;
 
 		DOMAttrsIterator& operator--();
 		DOMAttrsIterator operator--(int);
@@ -137,7 +137,7 @@ namespace aniparse::html {
 		DOMAttrsIterator& operator++();
 		DOMAttrsIterator operator++(int);
 
-		friend bool operator==(const DOMAttrsIterator& left, const DOMAttrsIterator& right);
+		[[nodiscard]] friend bool operator==(const DOMAttrsIterator& left, const DOMAttrsIterator& right);
 
 	private:
 		DOMAttrView attr_ = nullptr;
