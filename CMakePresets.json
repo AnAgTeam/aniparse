@@ -13,7 +13,8 @@
             "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}\\scripts\\buildsystems\\vcpkg.cmake",
             "ANIPARSE_BUILD_TESTS": true,
             "ANIPARSE_BUILD_EXAMPLES": true,
-            "ANIPARSE_BUILD_TOOLS": true
+            "ANIPARSE_BUILD_TOOLS": true,
+            "ANIPARSE_USE_BOOST_REGEX":  true
           },
             "condition": {
                 "type": "equals",

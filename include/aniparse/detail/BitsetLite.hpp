@@ -105,6 +105,13 @@ namespace aniparse::detail {
 		}
 
 		/**
+		 * Returns maximum bit count, that bitset can hold
+		 */
+		constexpr size_t size() {
+			return BitCount;
+		}
+
+		/**
 		 * @return true if all the bits are '1', false otherwise
 		 */
 		constexpr bool all() noexcept {

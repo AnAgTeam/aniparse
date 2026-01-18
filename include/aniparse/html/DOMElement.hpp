@@ -439,7 +439,7 @@ namespace aniparse::html {
 		return iter;
 	}
 
-	[[nodiscard]] inline DOMElementWalkIterator end(const DOMElementWalkIterator& iter) noexcept {
+	[[nodiscard]] inline DOMElementWalkIterator end(const DOMElementWalkIterator&) noexcept {
 		return {};
 	}
 

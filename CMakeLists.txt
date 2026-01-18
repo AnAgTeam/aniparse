@@ -6,6 +6,7 @@ option(ANIPARSE_BUILD_TESTS "build tests, Default=OFF" OFF)
 option(ANIPARSE_BUILD_EXAMPLES "build examples, Default=OFF" OFF)
 option(ANIPARSE_BUILD_TOOLS "build tools, Default=OFF" OFF)
 option(ANIPARSE_USE_LIBFMT "Use libfmt's 'fmt::format instead of std::format, Default=OFF" OFF)
+option(ANIPARSE_USE_BOOST_REGEX "Use boost::regex instead of std::regex, Default=OFF" OFF)
 
 # without this vcpkg won't try to install dependencies
 if (CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg.cmake")
@@ -23,6 +24,9 @@ find_package(lexbor REQUIRED)
 if (ANIPARSE_USE_LIBFMT)
 	find_package(fmt REQUIRED)
 endif()
+if (ANIPARSE_USE_BOOST_REGEX)
+	find_package(boost REQUIRED COMPONENTS regex)
+endif()
 
 # ---- ADD LIBRARY
 
@@ -35,7 +39,9 @@ add_library(aniparse STATIC
 	"include/aniparse/Requests.hpp"
 	"include/aniparse/ClientContext.hpp"
 	"src/Common.cpp" "include/aniparse/Common.hpp"
-	"include/aniparse/Format.hpp"
+	"include/aniparse/utility/Format.hpp"
+	"include/aniparse/utility/Coroutines.hpp"
+	"include/aniparse/utility/Regex.hpp"
 
 	"src/html/HTMLDocument.cpp" "include/aniparse/html/HTMLDocument.hpp"
 	"src/html/DOMAttributes.cpp" "include/aniparse/html/DOMAttributes.hpp"
@@ -72,6 +78,9 @@ if (ANIPARSE_USE_LIBFMT)
 	)
 
 	target_compile_definitions(aniparse PRIVATE -DANIPARSE_USE_LIBFMT=1)
+endif()
+if (ANIPARSE_USE_BOOST_REGEX)
+	target_compile_definitions(aniparse PRIVATE -DANIPARSE_USE_BOOST_REGEX=1)
 endif()
 
 if (ANIPARSE_BUILD_TESTS)

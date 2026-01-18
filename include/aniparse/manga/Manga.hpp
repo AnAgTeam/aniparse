@@ -24,12 +24,15 @@ namespace aniparse {
 		std::string name;
 	};
 
+	constexpr int unknown_manga_chapters = -1;
+	constexpr MangaTranslationID any_manga_translation = -1;
+
 	struct MangaInfo {
-		MangaID id;
+		MangaID id = MangaID(0);
 
 		std::string title;
 		std::optional<std::string> original_title;
-		std::string description;
+		AttributedText description;
 
 		std::chrono::system_clock::time_point update_time;
 		std::chrono::system_clock::time_point release_time;
@@ -45,11 +48,11 @@ namespace aniparse {
 		Rating rating;
 		std::optional<ViewStats> views;
 		std::optional<UserList> user_lists;
-		AgeRestriction age_restriction;
+		AgeRestriction age_restriction = 0;
 
 		std::optional<RelatedUser> uploader;
 
-		int total_chapters = 0;
+		int total_chapters = unknown_manga_chapters;
 
 		bool is_hentai = false;
 	};
@@ -57,15 +60,17 @@ namespace aniparse {
 	struct MangaTranslationInfo {
 		MangaTranslationID id;
 		std::string language;
-		std::string translator;
+		RelatedUser translator;
 	};
 
 	struct MangaChapterInfo {
-		int volume;
-		int chapter;
+		int volume = 0;
+		int chapter = 0;
 		std::string name;
-		std::chrono::system_clock::time_point update_time;
-		std::chrono::system_clock::time_point release_time;
+		std::string description;
+		std::vector<Image> previews;
+		std::chrono::system_clock::time_point update_time = unknown_time;
+		std::chrono::system_clock::time_point release_time = unknown_time;
 	};
 
 	struct MangaChapterGetter : ForwardPaginator<Image> {
@@ -81,7 +86,13 @@ namespace aniparse {
 	};
 
 	struct MangaGetterCompatibilities {
-		CompatibilitiesFlags flags;
+		size_t alt_links_count;
+		CompatibilitiesFlags flags = compatibilities_flags::default_flags;
+	};
+
+	struct MangaGetterRootCompatibilities {
+		FilteringFlags filtering_support = filtering_flags::default_flags;
+		CompatibilitiesFlags compatibilities = compatibilities_flags::default_flags;
 	};
 
 	using MangaChapterInfoPaginator = ForwardPaginator<std::unique_ptr<MangaChapterGetter>>;
@@ -94,15 +105,23 @@ namespace aniparse {
 
 		virtual MangaGetterCompatibilities compatibilies() const = 0;
 
+		virtual asyncnet::NetworkTask<MangaInfo> preview_info();
+
 		virtual asyncnet::NetworkTask<MangaInfo> info() = 0;
 
 		virtual asyncnet::NetworkTask<std::vector<MangaTranslationInfo>> translation_info(GetFilters filters);
 
-		virtual asyncnet::NetworkTask<std::vector<MangaChapterInfo>> chapters_info(GetFilters filters);
+		virtual asyncnet::NetworkTask<PageResults<MangaChapterInfo>> chapters_info(
+			GetFilters filters,
+			MangaTranslationID translation = any_manga_translation);
 
 		virtual asyncnet::NetworkTask<std::unique_ptr<MangaGetterPaginator>> similar();
 
-		virtual asyncnet::NetworkTask<std::unique_ptr<MangaChapterGetter>> get_chapter(int volume, int chapter) = 0;
+		virtual asyncnet::NetworkTask<std::unique_ptr<MangaChapterGetter>> get_chapter(
+			int volume, int chapter,
+			MangaTranslationID translation = any_manga_translation) = 0;
+
+		virtual void reset();
 
 		virtual bool update_context(RequestorContext context);
 
@@ -113,28 +132,36 @@ namespace aniparse {
 	struct MangaRootGetter {
 		virtual ~MangaRootGetter() = default;
 
+		virtual MangaGetterRootCompatibilities search_support() const;
+		virtual MangaGetterRootCompatibilities latest_support() const;
+
 		/**
-		 * @see MangaGetterPaginator
+		 * @todo
 		 * Search mangas with query and/or filters (advanced query may come as filters)
 		 * By default throws NotImplementedError
 		 * @param context Client to perform HTTP requests
 		 * @param query Query string, plain text
-		 * @param filters Filters to apply to results (e.g. sort)
+		 * @param filters Filters to apply to results (e.g. sort ...)
 		 * @throw NotImplementedError If the method isn't implemented by the parser
-		 * @return Task to get MangaGetterPaginator
+		 * @return ...
 		 */
-		virtual asyncnet::NetworkTask<std::unique_ptr<MangaGetterPaginator>> search(RequestorContext context, std::string query, GetFilters filters);
+		virtual asyncnet::NetworkTask<PageResults<std::unique_ptr<MangaGetter>>> search(
+			RequestorContext context,
+			std::string query,
+			GetFilters filters);
 
 		/**
-		 * @see MangaGetterPaginator
+		 * @todo
 		 * Get latest parser source released mangas
 		 * By default throws NotImplementedError
 		 * @param context Client to perform HTTP requests
-		 * @param filters Filters to apply to results (e.g. sort)
+		 * @param filters Filters to apply to results (e.g. sort ...)
 		 * @throw NotImplementedError If the method isn't implemented by the parser
-		 * @return Task to get MangaGetterPaginator
+		 * @return ...
 		 */
-		virtual asyncnet::NetworkTask<std::unique_ptr<MangaGetterPaginator>> latest(RequestorContext context, GetFilters filters);
+		virtual asyncnet::NetworkTask<PageResults<std::unique_ptr<MangaGetter>>> latest(
+			RequestorContext context,
+			GetFilters filters);
 
 		/**
 		 * @see MangaGetter
@@ -145,7 +172,9 @@ namespace aniparse {
 		 * @throw NotImplementedError If the method isn't implemented by the parser
 		 * @return Task to get MangaGetter
 		 */
-		virtual asyncnet::NetworkTask<std::unique_ptr<MangaGetter>> parse_url(RequestorContext context, std::string_view url);
+		virtual asyncnet::NetworkTask<std::unique_ptr<MangaGetter>> parse_url(
+			RequestorContext context, 
+			std::string url);
 
 	protected:
 		GetterContext context;

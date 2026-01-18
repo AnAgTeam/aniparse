@@ -213,7 +213,7 @@ namespace aniparse::html {
 		return iter;
 	}
 
-	[[nodiscard]] inline DOMNodeWalkIterator end(DOMNodeWalkIterator iter) {
+	[[nodiscard]] inline DOMNodeWalkIterator end(const DOMNodeWalkIterator&) {
 		return {};
 	}
 }

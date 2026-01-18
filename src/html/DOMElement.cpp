@@ -46,9 +46,9 @@ namespace aniparse::html {
 		auto iter = DOMElementWalkIterator(element);
 		auto end = DOMElementWalkIterator{};
 		while (iter != end && i < buffer_space.size()) {
-			const DOMElementView& element = *iter++;
-			if (predicate(element, value)) {
-				buffer_space[i++] = element;
+			const DOMElementView& inner_element = *iter++;
+			if (predicate(inner_element, value)) {
+				buffer_space[i++] = inner_element;
 			}
 		}
 
