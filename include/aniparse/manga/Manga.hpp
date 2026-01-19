@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2025-2026 Toilettrauma
+ *
+ * Author: Toilettrauma <aateam.anianglia@gmail.com>
+ */
 #pragma once
 #include "aniparse/Common.hpp"
 
@@ -34,8 +39,8 @@ namespace aniparse {
 		std::optional<std::string> original_title;
 		AttributedText description;
 
-		std::chrono::system_clock::time_point update_time;
-		std::chrono::system_clock::time_point release_time;
+		std::chrono::system_clock::time_point update_time = unknown_time;
+		std::chrono::system_clock::time_point release_time = unknown_time;
 		AiredStatus status;
 		
 		RelatedUser author;
@@ -71,6 +76,10 @@ namespace aniparse {
 		std::vector<Image> previews;
 		std::chrono::system_clock::time_point update_time = unknown_time;
 		std::chrono::system_clock::time_point release_time = unknown_time;
+	};
+
+	struct MangaPage {
+		Image image;
 	};
 
 	struct MangaChapterGetter : ForwardPaginator<Image> {
@@ -115,10 +124,13 @@ namespace aniparse {
 			GetFilters filters,
 			MangaTranslationID translation = any_manga_translation);
 
-		virtual asyncnet::NetworkTask<std::unique_ptr<MangaGetterPaginator>> similar();
+		virtual asyncnet::NetworkTask<PageResults<std::unique_ptr<MangaGetter>>> related(GetFilters filters);
 
-		virtual asyncnet::NetworkTask<std::unique_ptr<MangaChapterGetter>> get_chapter(
+		virtual asyncnet::NetworkTask<PageResults<std::unique_ptr<MangaGetter>>> similar(GetFilters filters);
+
+		virtual asyncnet::NetworkTask<PageResults<MangaPage>> chapter_pages(
 			int volume, int chapter,
+			GetFilters filters,
 			MangaTranslationID translation = any_manga_translation) = 0;
 
 		virtual void reset();

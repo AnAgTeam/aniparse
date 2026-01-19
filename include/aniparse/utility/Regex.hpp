@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2025-2026 Toilettrauma
+ *
+ * Author: Toilettrauma <aateam.anianglia@gmail.com>
+ */
 #pragma once
 #ifndef ANIPARSE_USE_BOOST_REGEX
 # include <regex>

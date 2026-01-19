@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2025-2026 Toilettrauma
+ *
+ * Author: Toilettrauma <aateam.anianglia@gmail.com>
+ */
 #include "aniparse/manga/Manga.hpp"
 #include "aniparse/Exceptions.hpp"
 
@@ -20,7 +25,11 @@ namespace aniparse {
 		throw NotImplementedError("The parser's MangaGetter cannot get chapters info");
 	}
 
-	asyncnet::NetworkTask<std::unique_ptr<MangaGetterPaginator>> MangaGetter::similar() {
+	asyncnet::NetworkTask<PageResults<std::unique_ptr<MangaGetter>>> MangaGetter::related(GetFilters filters) {
+		throw NotImplementedError("The parser's MangaGetter cannot get related info");
+	}
+
+	asyncnet::NetworkTask<PageResults<std::unique_ptr<MangaGetter>>> MangaGetter::similar(GetFilters filters) {
 		throw NotImplementedError("The parser's MangaGetter cannot get similar info");
 	}
 

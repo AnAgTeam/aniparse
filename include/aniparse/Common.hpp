@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2025-2026 Toilettrauma
+ *
+ * Author: Toilettrauma <aateam.anianglia@gmail.com>
+ */
 #pragma once
 #include "aniparse/FlagsBitfield.hpp"
 #include "aniparse/ClientContext.hpp"
@@ -36,6 +41,8 @@ namespace aniparse {
 		 * duplicates of 8-10 from previous parsing and only 7 new
 		 */
 		constexpr auto supports_pagination_uniqueness = CompatibilitiesFlags::make_bit(12);
+
+		constexpr auto unsupported_feature = CompatibilitiesFlags::make_bit(13);
 
 		constexpr CompatibilitiesFlags default_flags;
 	}

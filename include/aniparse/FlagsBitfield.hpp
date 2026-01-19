@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2025-2026 Toilettrauma
+ *
+ * Author: Toilettrauma <aateam.anianglia@gmail.com>
+ */
 #pragma once
 #include "aniparse/detail/StrongBitset.hpp"
 #ifdef __cpp_lib_constexpr_bitset

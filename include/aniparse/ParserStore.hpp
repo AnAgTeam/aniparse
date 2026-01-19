@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2025-2026 Toilettrauma
+ *
+ * Author: Toilettrauma <aateam.anianglia@gmail.com>
+ */
 #pragma once
 #include "aniparse/DomainScanner.hpp"
 #include "aniparse/Parser.hpp"
@@ -16,12 +21,6 @@ namespace aniparse {
 	public:
 
 		ParserStore();
-
-		//template<typename EmplaceParser, typename ... Args>
-		//	requires std::constructible_from<EmplaceParser, Args ...>
-		//std::shared_ptr<Parser> emplace_parser(Args&& ... args) {
-		//	return nullptr;
-		//}
 
 		static ParserStore make_default_store();
 

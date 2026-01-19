@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2025-2026 Toilettrauma
+ *
+ * Author: Toilettrauma <aateam.anianglia@gmail.com>
+ */
 #pragma once
 #include <string_view>
 #include <string>
@@ -59,11 +64,6 @@ namespace aniparse {
 			auto iter = nexts_.find(name);
 			return iter != nexts_.end() ? iter->second : null_node;
 		}
-
-		//Node& operator[](const DomainStringView& name) {
-		//	auto iter = nexts_.find(name);
-		//	return iter != nexts_.end() ? iter->second : insert(DomainString(name));
-		//}
 
 		template<typename T>
 		Node& operator[](T&& name) {
@@ -130,10 +130,6 @@ namespace aniparse {
 
 		using Node = std::shared_ptr<DomainNode<DomainParser, Char>>;
 
-		//DomainStorage() {
-		//
-		//}
-
 		Node& first() {
 			return domains_start_;
 		}
@@ -148,7 +144,6 @@ namespace aniparse {
 	};
 
 	template<typename DomainParser, typename Char = char, typename Storage = DomainStorage<DomainParser, Char>>
-	//requires requires (std::remove_pointer_t<DomainParser> parser, std::string_view url) { parser.is_url_supported(url); }
 	class DomainScanner {
 		using Node = typename Storage::Node;
 
