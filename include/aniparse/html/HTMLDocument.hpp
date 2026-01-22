@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2025-2026 Toilettrauma
  *
- * Author: Toilettrauma <aateam.anianglia@gmail.com>
+ * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
 #include "aniparse/html/DOMElement.hpp"
@@ -78,4 +78,15 @@ namespace aniparse::html {
 	private:
 		lxb_html_document_t* document_ = nullptr;
 	};
+
+	/**
+	 * @brief Parse HTML document from string
+	 * Simply just shortcut to @ref HTMLParser::parse
+	 * @param text Full HTML text to parse
+	 * @note Returns valid HTMLDocument even if some tags
+	 *       are invalid.
+	 * @throw HTMLParseError if parsing failed: invalid DOCTYPE
+	 * @return Parsed HTML document
+	 */
+	extern HTMLDocument parse_html(std::string_view text);
 }

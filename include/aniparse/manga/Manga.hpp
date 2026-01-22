@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2025-2026 Toilettrauma
  *
- * Author: Toilettrauma <aateam.anianglia@gmail.com>
+ * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
 #include "aniparse/Common.hpp"
@@ -12,8 +12,6 @@ namespace aniparse {
 	using MangaTranslationID = int;
 
 	struct MangaGetter;
-
-	using MangaGetterPaginator = ForwardPaginator<std::unique_ptr<MangaGetter>>;
 
 	enum class DefaultMangaType {
 		Manga,
@@ -50,7 +48,7 @@ namespace aniparse {
 		std::vector<Image> previews;
 		std::vector<Tag> tags;
 
-		Rating rating;
+		std::optional<Rating> rating;
 		std::optional<ViewStats> views;
 		std::optional<UserList> user_lists;
 		AgeRestriction age_restriction = 0;
@@ -82,18 +80,6 @@ namespace aniparse {
 		Image image;
 	};
 
-	struct MangaChapterGetter : ForwardPaginator<Image> {
-
-		virtual asyncnet::NetworkTask<std::vector<Image>> next() = 0;
-		virtual bool end() const = 0;
-		virtual asyncnet::NetworkTask<size_t> total_items() = 0;
-
-		virtual bool update_context(RequestorContext context);
-
-	protected:
-		RequestorContext context;
-	};
-
 	struct MangaGetterCompatibilities {
 		size_t alt_links_count;
 		CompatibilitiesFlags flags = compatibilities_flags::default_flags;
@@ -103,8 +89,6 @@ namespace aniparse {
 		FilteringFlags filtering_support = filtering_flags::default_flags;
 		CompatibilitiesFlags compatibilities = compatibilities_flags::default_flags;
 	};
-
-	using MangaChapterInfoPaginator = ForwardPaginator<std::unique_ptr<MangaChapterGetter>>;
 
 	struct MangaGetter {
 

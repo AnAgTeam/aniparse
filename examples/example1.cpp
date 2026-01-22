@@ -1,6 +1,7 @@
 #include <aniparse/AniParse.hpp>
 #include <aniparse/ParserStore.hpp>
 #include <aniparse/DomainScanner.hpp>
+#include <aniparse/utility/Coroutines.hpp>
 
 #include <map>
 #include <vector>
@@ -14,70 +15,90 @@
 #include <fstream>
 #include <filesystem>
 
-#include <aniparse/html/HTMLParser.hpp>
-#include <aniparse/html/DOMAttributes.hpp>
+#include <iostream>
+#include <string>
+#include <coro/task.hpp>
+#include <coro/sync_wait.hpp>
 
 using namespace aniparse;
-using namespace aniparse::html;
 
-constexpr const char html_test_file_path[] = R"(D:\example_html.html)";
 
-void test_aniparse_html() {
-	auto dir_iter = std::filesystem::recursive_directory_iterator("sdfdsf");
-	std::filesystem::begin(dir_iter);
+namespace test_ns {
+    struct MyType {};
 
-	std::string html_content;
-	{
-		std::ifstream stream(html_test_file_path);
-		stream.seekg(0, std::ios::end);
-		html_content.resize(stream.tellg());
-		stream.seekg(0);
-		stream.read(html_content.data(), html_content.size());
-	}
 
-	HTMLParser parser;
-	HTMLDocument document = parser.parse(html_content);
 
-	//std::list<int> ltest = { 1, 2, 3 };
-	//auto liter = std::begin(ltest);
-	//auto last_liter = std::next(liter, 3);
-	//auto prev_llast = std::prev(liter);
+    template<size_t Index, typename ... T>
+    size_t get(test_ns::MyType&& type) {
+        return Index;
+    }
+}
 
-	//std::optional<DOMElementView> element = document.find_first_by_class("vector-header");
-	//if (!element) {
-	//	return;
-	//}
+template<>
+struct std::tuple_size<test_ns::MyType> : std::integral_constant<size_t, 2> {};
 
-	auto iter = DOMElementWalkIterator(document.as_element());
-	iter = std::find_if(iter, DOMElementWalkIterator{}, [](const DOMElementView& element) {
-		//std::println("{}", element.class_name());
-		return element.contains_class("vector-dropdown-label");
-	});
-	if (iter == DOMElementWalkIterator{}) {
-		return;
-	}
+template<size_t Index>
+struct std::tuple_element<Index, test_ns::MyType> {
+    using type = int;
+};
 
-	auto filtered = document.as_element() | std::views::filter([](const DOMElementView& el) {
-		return el.contains_class("vector-dropdown-content");
-	});
-	for (auto& element : filtered) {
-		std::println("Found: {}", element.tag_name());
-	}
+coro::task<void> test_coroutines() {
+    struct TestType {
+        TestType(int value) : value(value) {
+            std::println("TestType ctx: {}", value);
+        }
+        TestType(TestType&& other) : value(other.value) {
+            std::println("TestType&& move");
+        }
+        TestType(const TestType& other) : value(other.value) {
+            std::println("TestType& copy");
+        }
+        ~TestType() {
+            std::println("~TestType()");
+        }
 
-	std::println("body child: {}", iter->tag_name());
+        int value;
+    };
 
-	for (auto& attr : iter->attributes()) {
-		std::println("attr {}={}", attr.name(), attr.value());
-	}
+    auto test_coro = []() -> coro::task<TestType> {
+        co_return 10;
+    };
 
-	auto attr = iter->find_attr("id");
-	std::println("Find id: {}", attr ? attr->value() : "nullopt");
-	attr = iter->find_attr("bbbb");
-	std::println("Find bbbb: {}", attr ? attr->value() : "nullopt");
+    auto test_coro2 = []() -> coro::task<TestType> {
+        TestType out = 20;
+        co_return out;
+    };
 
-	std::println("Body text: {}", document.body().text());
+    auto test_coro3 = []() -> coro::task<void> {
+        co_return;
+    };
+
+    //auto my_type = test_ns::MyType{};
+    //auto [a1, a2] = my_type;
+    //std::println("{}, {}", a1, a2);
+
+    auto gather_await = co_await gather_awaitables(test_coro(), test_coro2());
+    constexpr auto gsize = std::tuple_size<decltype(gather_await)>::value;
+    using Ty = typename std::tuple_element<1, decltype(gather_await)>::type;
+    
+    auto val1 = get<0>(std::move(gather_await));
+    auto val2 = get<1>(std::move(gather_await));
+
+    //auto [v1, v2] = std::move(gather_await);
+
+    std::tuple<int, double> test_tuple;
+    auto tuple_val1 = std::get<0>(std::move(test_tuple));
+    auto tuple_val11 = std::get<0>(std::move(test_tuple));
+    auto tuple_val2 = std::get<1>(std::move(test_tuple));
+
+    auto [ca1, ca2, ca3] = co_await gather_awaitables(test_coro(), test_coro2());
+
+    auto [task1, task2] = co_await gather_awaitables(test_coro(), test_coro3());
+    std::println("{}, {}", ca1.value, ca2.value);
+
+    co_return;
 }
 
 int main() {
-	test_aniparse_html();
+    coro::sync_wait(test_coroutines());
 }

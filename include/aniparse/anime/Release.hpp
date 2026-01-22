@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2025-2026 Toilettrauma
  *
- * Author: Toilettrauma <aateam.anianglia@gmail.com>
+ * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
 #include "aniparse/FlagsBitfield.hpp"
@@ -102,26 +102,5 @@ namespace aniparse {
 	protected:
 		GetterContext context;
 	};
-
-	//template<typename T>
-	//class SplittedGetter : public OptionalRequest<T> {
-	//public:
-	//	SplittedGetter(T&& value) : OptionalRequest<T>(std::forward<T>(value)) {}
-	//	SplittedGetter(ClientRequest request) : OptionalRequest<T>(make_parsed_request(std::move(request))) {}
-	//
-	//
-	//private:
-	//	ClientParsedRequest<T> make_parsed_request(ClientRequest&& request) {
-	//		return {
-	//			.request = std::move(request),
-	//			.parse = [this](asyncnet::Response response) {
-	//				return 
-	//			}
-	//		}
-	//	}
-	//};
-
-	//template<typename T>
-	//constexpr OptionalRequest<T> make_request_of();
 
 } // namespace aniparse

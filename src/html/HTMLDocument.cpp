@@ -1,9 +1,10 @@
 /*
  * Copyright (C) 2025-2026 Toilettrauma
  *
- * Author: Toilettrauma <aateam.anianglia@gmail.com>
+ * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #include "aniparse/html/HTMLDocument.hpp"
+#include "aniparse/html/HTMLParser.hpp"
 
 #include <cassert>
 #include <lexbor/html/interfaces/document.h>
@@ -49,6 +50,17 @@ namespace aniparse::html {
 	DOMElementView HTMLDocument::body() const {
 		lxb_dom_element_t* body = lxb_dom_interface_element(lxb_html_document_body_element(document_));
 		return DOMElementView(body);
+	}
+
+	HTMLDocument parse_html(std::string_view text) {
+		//lxb_html_document_t* document = lxb_html_document_create();
+		//lxb_status_t status = lxb_html_document_parse(document, reinterpret_cast<const lxb_char_t*>(text.data()), text.length());
+		//if (status != LXB_STATUS_OK) {
+
+		//}
+
+		HTMLParser parser;
+		return parser.parse(text);
 	}
 
 }

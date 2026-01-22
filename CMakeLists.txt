@@ -49,6 +49,7 @@ add_library(aniparse STATIC
 	"src/html/DOMElement.cpp" "include/aniparse/html/DOMElement.hpp"
 	"src/html/DOMNode.cpp" "include/aniparse/html/DOMNode.hpp"
 	"src/html/HTMLParser.cpp" "include/aniparse/html/HTMLParser.hpp"
+	"src/html/JSParser.cpp" "include/aniparse/html/JSParser.hpp"
 
 	"src/ParserStore.cpp" "include/aniparse/ParserStore.hpp"
 	"src/Parser.cpp" "include/aniparse/Parser.hpp"
@@ -77,10 +78,10 @@ if (ANIPARSE_USE_LIBFMT)
 		$<BUILD_INTERFACE:fmt>
 	)
 
-	target_compile_definitions(aniparse PRIVATE -DANIPARSE_USE_LIBFMT=1)
+	target_compile_definitions(aniparse PUBLIC -DANIPARSE_USE_LIBFMT=1)
 endif()
 if (ANIPARSE_USE_BOOST_REGEX)
-	target_compile_definitions(aniparse PRIVATE -DANIPARSE_USE_BOOST_REGEX=1)
+	target_compile_definitions(aniparse PUBLIC -DANIPARSE_USE_BOOST_REGEX=1)
 endif()
 
 if (ANIPARSE_BUILD_TESTS)

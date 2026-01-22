@@ -1,5 +1,5 @@
 
-add_executable(aniparseTests
+add_executable(aniparse-tests
 	"catch_amalgamated.cpp" "catch_amalgamated.hpp"
 	"CoroTest.hpp"
 	"BitsetLiteTest.cpp"
@@ -9,8 +9,8 @@ add_executable(aniparseTests
 	"CoroutinesTest.cpp"
 )
 
-set_property(TARGET aniparseTests PROPERTY CXX_STANDARD 23)
+set_property(TARGET aniparse-tests PROPERTY CXX_STANDARD 23)
 
-target_link_libraries(aniparseTests PRIVATE 
-	aniparse
-)
+target_link_libraries(aniparse-tests PRIVATE aniparse)
+
+add_test(NAME aniparse-tests COMMAND aniparse-tests)

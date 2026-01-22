@@ -1,13 +1,15 @@
 /*
  * Copyright (C) 2025-2026 Toilettrauma
  *
- * Author: Toilettrauma <aateam.anianglia@gmail.com>
+ * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
 #include "aniparse/FlagsBitfield.hpp"
 #include "aniparse/ClientContext.hpp"
 #include <string>
 #include <vector>
+#include <variant>
+#include <map>
 
 namespace aniparse {
 	using TagID = int;
@@ -218,21 +220,6 @@ namespace aniparse {
 		std::vector<TextAttributeInfo> attributes;
 	};
 
-	template<typename T, typename TContainer = std::vector<T>>
-	struct ForwardPaginator {
-		using Container = TContainer;
-
-		virtual ~ForwardPaginator() = default;
-
-		virtual asyncnet::NetworkTask<Container> current(RequestorContext context) = 0;
-
-		virtual asyncnet::NetworkTask<Container> next(RequestorContext context) = 0;
-
-		virtual bool end() const = 0;
-
-		virtual asyncnet::NetworkTask<size_t> total_items(RequestorContext context) = 0;
-	};
-
 	using pageoff = std::ptrdiff_t;
 	constexpr size_t page_no_limit = static_cast<size_t>(-1);
 
@@ -251,24 +238,99 @@ namespace aniparse {
 		size_t total_count = 0;
 	};
 
-	template<typename T, typename Container = PageResults<T>>
-	struct ForwardHashedPaginator {
-		//using PageResults = PageItemsResults<T, TContainer>;
-		using PageResults = Container;
-
-		static constexpr size_t no_limit = static_cast<size_t>(-1);
-
-		virtual ~ForwardHashedPaginator() = default;
-
-		virtual asyncnet::NetworkTask<PageResults> get_from(
-			RequestorContext context,
-			pageoff pos,
-			size_t limit = no_limit) = 0;
-	};
-
 	struct GetFilters {
 		pageoff from = 0;
 		size_t limit = page_no_limit;
 		FilterSort sort = FilterSort::None;
+	};
+
+
+	// search
+
+	struct TextQuery {
+		std::string text;
+		bool exclusive = false;
+	};
+
+	enum class DirectionalIntervalOperator {
+		None,
+		More,
+		Less,
+		Exact,
+	};
+
+	struct DirectionalInterval {
+		size_t count = 0;
+		DirectionalIntervalOperator direction = DirectionalIntervalOperator::None;
+	};
+
+	struct BidirectionalInterval {
+		std::ptrdiff_t first = 0;
+		std::ptrdiff_t last = 0;
+		bool exclusive = false;
+	};
+
+	struct TimeInterval {
+		std::chrono::system_clock::time_point from = unknown_time;
+		DirectionalIntervalOperator direction = DirectionalIntervalOperator::None;
+	};
+
+	struct BidirectionalTimeInterval {
+		std::chrono::system_clock::time_point from = unknown_time;
+		std::chrono::system_clock::time_point to = unknown_time;
+		bool exclusive = false;
+	};
+
+	//struct TypedQueryItem {
+	//	std::string type;
+	//	std::string name;
+	//};
+
+	struct ItemSelection : std::map<std::string, std::string> {};
+
+	using SearchItemVariant = std::variant<
+		TextQuery,
+		DirectionalInterval,
+		BidirectionalInterval,
+		//TypedQueryItem,
+		ItemSelection,
+		bool>; // checkmark 
+
+	namespace search_keys {
+		/// Filter by @see Series. Usually TextQuery
+		constexpr std::string_view series = "series";
+		/// Filter by pages/episodes count. Usually DirectionalInterval/BidirectionalInterval
+		constexpr std::string_view pages = "icount";
+		constexpr std::string_view episodes = "icount";
+		/// Filter by Tag. Usually TextQuery
+		constexpr std::string_view tag = "tag";
+		/// Filter by upload time (last time when item was updated on specific page). Usually DirectionalInterval/BidirectionalInterval
+		constexpr std::string_view upload_time = "upd_time";
+		/// Filter by release time (actual time when item was released). Usually DirectionalInterval/BidirectionalInterval
+		constexpr std::string_view release_time = "rel_time";
+		/// Filter by title, the text must be contained in title, but maybe not fully. Usually TextQuery
+		constexpr std::string_view title = "title";
+		/// Filter by status like "Announced", "Released" (Aired state of item). Usually ? (TextQuery)
+		constexpr std::string_view status = "status";
+		/// Filter by Rating
+		constexpr std::string_view rating = "rating";
+		/// Filter by 
+		constexpr std::string_view year = "rating";
+		/// Filter by AgeRestriction. Usually DirectionalInterval/ItemSelection
+		constexpr std::string_view age_restriction = "age_res";
+	}
+
+	struct SearchRequestQuery {
+		std::string query;
+		std::map<std::string, SearchItemVariant> filters;
+	};
+
+	enum class SearchItemClass {
+		None,
+		TextQuery,
+		Interval,
+		BidirectInterval,
+		TypedQuery,
+		Checkmark,
 	};
 }

@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2025-2026 Toilettrauma
  *
- * Author: Toilettrauma <aateam.anianglia@gmail.com>
+ * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
 #ifndef ANIPARSE_USE_BOOST_REGEX
@@ -23,6 +23,11 @@ namespace aniparse {
 		using namespace std::regex_constants;
 	}
 
+	using std::sub_match;
+	using std::csub_match;
+	using std::ssub_match;
+	using std::wssub_match;
+
 	using std::match_results;
 	using std::cmatch;
 	using std::wcmatch;
@@ -34,6 +39,11 @@ namespace aniparse {
 	using std::regex_match;
 	using std::regex_search;
 	using std::regex_replace;
+
+	using std::regex_token_iterator;
+	using std::cregex_token_iterator;
+	using std::sregex_token_iterator;
+	using std::wsregex_token_iterator;
 #else
 	using boost::basic_regex;
 	using boost::regex;
@@ -42,6 +52,11 @@ namespace aniparse {
 	namespace regex_constants {
 		using namespace boost::regex_constants;
 	}
+
+	using boost::sub_match;
+	using boost::csub_match;
+	using boost::ssub_match;
+	using boost::wssub_match;
 
 	using boost::match_results;
 	using boost::cmatch;
@@ -54,6 +69,11 @@ namespace aniparse {
 	using boost::regex_match;
 	using boost::regex_search;
 	using boost::regex_replace;
+
+	using boost::regex_token_iterator;
+	using boost::cregex_token_iterator;
+	using boost::sregex_token_iterator;
+	using boost::wsregex_token_iterator;
 #endif
 
 	template<

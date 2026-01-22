@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2025-2026 Toilettrauma
  *
- * Author: Toilettrauma <aateam.anianglia@gmail.com>
+ * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #include "aniparse/ParserStore.hpp"
 
@@ -9,19 +9,6 @@
 
 namespace aniparse {
 	namespace detail {
-		//struct SplitDomains {
-		//	template<std::ranges::viewable_range Range, typename Pattern>
-		//	constexpr auto operator()(Range&& range, Pattern&& pattern) {
-		//		return std::forward<Range>(range)
-		//			// split domain in reverse order
-		//			| std::views::reverse
-		//			| std::views::split('.')
-		//			| std::views::transform(std::views::reverse);
-		//	}
-		//};
-
-		//constexpr SplitDomains split_domains;
-
 		template<std::ranges::viewable_range Range>
 		static constexpr auto split_domains(Range&& range) {
 			return std::forward<Range>(range)

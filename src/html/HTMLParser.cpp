@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2025-2026 Toilettrauma
  *
- * Author: Toilettrauma <aateam.anianglia@gmail.com>
+ * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #include "aniparse/html/HTMLParser.hpp"
 
@@ -30,7 +30,11 @@ namespace aniparse::html {
 		return *this;
 	}
 
-	HTMLDocument HTMLParser::parse(std::string_view text) {
+	HTMLDocument HTMLParser::parse(std::string_view text, bool remove_bom) {
+		if (remove_bom && text.compare(0, 3, "\xEF\xBB\xBF") == 0) {
+			text = text.substr(3);
+		}
+
 		lxb_html_document_t* document = lxb_html_parse(parser_, reinterpret_cast<const lxb_char_t*>(text.data()), text.size());
 		if (!document || parser_->status != LXB_STATUS_OK) {
 			throw HTMLParseError("Failed to parse HTML");

@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2025-2026 Toilettrauma
  *
- * Author: Toilettrauma <aateam.anianglia@gmail.com>
+ * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
 #include "aniparse/html/HTMLDocument.hpp"
@@ -59,7 +59,7 @@ namespace aniparse::html {
 		 * @throw HTMLParseError if parsing failed: invalid DOCTYPE
 		 * @return Parsed HTML document
 		 */
-		HTMLDocument parse(std::string_view text);
+		HTMLDocument parse(std::string_view text, bool remove_bom = true);
 
 	private:
 		lxb_html_parser_t* parser_ = nullptr;

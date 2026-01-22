@@ -159,15 +159,15 @@ void test_bitset_flags() {
 }
 
 void release_test() {
-	Release release;
+	//Release release;
 
-	AsyncClient client;
-	AsyncReleaseGetter release_getter;
+	//AsyncClient client;
+	//AsyncReleaseGetter release_getter;
 
-	auto title_getter = release_getter.title();
-	auto title = coro::sync_wait(client.do_request(std::move(title_getter)));
+	//auto title_getter = release_getter.title();
+	//auto title = coro::sync_wait(client.do_request(std::move(title_getter)));
 
-	std::println("title: {}", title);
+	//std::println("title: {}", title);
 }
 
 //template<typename T>
