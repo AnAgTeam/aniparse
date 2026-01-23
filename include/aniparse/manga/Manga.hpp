@@ -90,6 +90,12 @@ namespace aniparse {
 		CompatibilitiesFlags compatibilities = compatibilities_flags::default_flags;
 	};
 
+	struct SearchCompatibilities {
+		ItemSelection supported_filters;
+		FilteringFlags filtering_support = filtering_flags::default_flags;
+		CompatibilitiesFlags compatibilities = compatibilities_flags::default_flags;
+	};
+
 	struct MangaGetter {
 
 		MangaGetter(RequestorContext context);
@@ -121,6 +127,8 @@ namespace aniparse {
 
 		virtual bool update_context(RequestorContext context);
 
+		virtual asyncnet::NetworkTask<SerializedGetterData> serialize() = 0;
+
 	protected:
 		RequestorContext context;
 	};
@@ -128,7 +136,7 @@ namespace aniparse {
 	struct MangaRootGetter {
 		virtual ~MangaRootGetter() = default;
 
-		virtual MangaGetterRootCompatibilities search_support() const;
+		virtual SearchCompatibilities search_support() const;
 		virtual MangaGetterRootCompatibilities latest_support() const;
 
 		/**
@@ -143,7 +151,7 @@ namespace aniparse {
 		 */
 		virtual asyncnet::NetworkTask<PageResults<std::unique_ptr<MangaGetter>>> search(
 			RequestorContext context,
-			std::string query,
+			SearchRequestQuery query,
 			GetFilters filters);
 
 		/**
@@ -171,6 +179,8 @@ namespace aniparse {
 		virtual asyncnet::NetworkTask<std::unique_ptr<MangaGetter>> parse_url(
 			RequestorContext context, 
 			std::string url);
+
+		virtual asyncnet::NetworkTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData data);
 
 	protected:
 		GetterContext context;

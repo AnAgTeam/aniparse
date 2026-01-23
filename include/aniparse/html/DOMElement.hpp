@@ -198,8 +198,10 @@ namespace aniparse::html {
 		/**
 		 * @brief Get escaped text of element.
 		 * Walks though all chilren of the element.
-		 * Ignores all new line characters (with space),
-		 * and removes leading and trailing spaces.
+		 * Ignores all new line characters,
+		 * removes duplicated space (blank) characters
+		 * and removes first leading and
+		 * last trailing spaces.
 		 * Interprets <BR> element as new line ('\n').
 		 * @return Text of the element or empty string
 		 */

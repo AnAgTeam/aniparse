@@ -204,24 +204,22 @@ namespace aniparse::html {
 		return std::string_view(reinterpret_cast<const char*>(text), length);
 	}
 
-	std::string DOMElementView::text() const {
-		static auto remove_leading_trailing = [](std::string_view text) -> std::string_view {
-			size_t off = text.find_first_not_of("\r\n\t\f ");
-			size_t off_end = text.find_last_not_of("\r\n\t\f ");
-			if (off >= off_end) {
-				return "";
+	struct ElementTextGetterPredicate {
+		bool operator()(lxb_char_t c) {
+			if (std::isspace(c) && c != static_cast<lxb_char_t>(' ')) return false;
+			if (c == static_cast<lxb_char_t>(' ')) {
+				return !std::exchange(is_last_blank, true);
 			}
-			if (off_end == std::string_view::npos) {
-				return text.substr(off);
-			}
-			return text.substr(off, off_end - off + 1);
-		};
-		static auto is_not_escape = [](lxb_char_t c) {
-			return !std::isspace(c)
-				|| std::isblank(c);
-		};
+			is_last_blank = false;
+			return true;
+		}
 
-		size_t output_length = std::accumulate(DOMNodeWalkIterator(*this), DOMNodeWalkIterator{}, 0ULL, [](size_t size, const DOMNodeView& node) {
+		bool is_last_blank = true;
+	};
+
+	std::string DOMElementView::text() const {
+		auto char_predicate = ElementTextGetterPredicate{};
+		size_t output_length = std::accumulate(DOMNodeWalkIterator(*this), DOMNodeWalkIterator{}, 0ULL, [char_predicate](size_t size, const DOMNodeView& node) {
 			if (node.is_element()) {
 				size += node.as_element().tag_name() == "BR" ? 1 : 0;
 				return size;
@@ -229,13 +227,14 @@ namespace aniparse::html {
 			if (!node.is_text()) {
 				return size;
 			}
-			std::string_view node_text = remove_leading_trailing(node.as_text());
-			size += std::count_if(std::begin(node_text), std::end(node_text), is_not_escape);
+			std::string_view node_text = node.as_text();
+			size += std::count_if(std::begin(node_text), std::end(node_text), char_predicate);
 			return size;
 		});
 
 		std::string output_string(output_length, 0);
 		auto output_iterator = std::begin(output_string);
+		char_predicate = ElementTextGetterPredicate{};
 		for (const DOMNodeView& node : DOMNodeWalkIterator(*this)) {
 			if (node.is_element() && node.as_element().tag_name() == "BR") {
 				*output_iterator++ = '\n';
@@ -244,12 +243,17 @@ namespace aniparse::html {
 			if (!node.is_text()) {
 				continue;
 			}
-			std::string_view node_text = remove_leading_trailing(node.as_text());
+			std::string_view node_text = node.as_text();
 			output_iterator = std::copy_if(
 				std::begin(node_text),
 				std::end(node_text),
 				output_iterator,
-				is_not_escape);
+				char_predicate);
+		}
+		// remove trailing spaces
+		size_t last_non_space = output_string.find_last_not_of(" ");
+		if (last_non_space != std::string::npos && last_non_space + 1 != output_string.size()) {
+			output_string = output_string.substr(0, last_non_space + 1);
 		}
 
 		return output_string;

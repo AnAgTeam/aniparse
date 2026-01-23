@@ -294,12 +294,25 @@ TEST_CASE("HTML text") {
             </div><a>. 
 hello</a><br>new line
             <img></img></body>
+    </div>
     </html>)";
+
+    constexpr std::string_view test_html2 = "<!DOCTYPE html>"
+        "<html>"
+        "<body><div class=\"tags\">"
+        "    <b>Desc</b>: <span>   </span><div id=\"news-id-53768\">Simple    man, will it help      him...<br>Link    \v  -\n\t <a href=\"#\">#</a>"
+        "    </div>"
+        "</div>)";
 
     HTMLParser parser;
     HTMLDocument document = parser.parse(test_html);
 
-    REQUIRE(document.body().text() == "blabla. hello\nnew line");
+    REQUIRE(document.body().text() == "blabla . hello\nnew line");
     auto found_img_element = document.body().find("IMG");
     REQUIRE((found_img_element && found_img_element->text().empty()));
+
+    HTMLDocument document2 = parser.parse(test_html2);
+    auto found_div_element = document2.body().find("class", "tags");
+    CHECK(found_div_element);
+    REQUIRE(found_div_element->text() == "Desc: Simple man, will it help him...\nLink - #");
 }

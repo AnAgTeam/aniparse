@@ -42,7 +42,7 @@ namespace aniparse {
 		return true;
 	}
 
-	MangaGetterRootCompatibilities MangaRootGetter::search_support() const {
+	SearchCompatibilities MangaRootGetter::search_support() const {
 		return {};
 	}
 
@@ -50,7 +50,7 @@ namespace aniparse {
 		return {};
 	}
 
-	asyncnet::NetworkTask<PageResults<std::unique_ptr<MangaGetter>>> MangaRootGetter::search(RequestorContext context, std::string query, GetFilters filters) {
+	asyncnet::NetworkTask<PageResults<std::unique_ptr<MangaGetter>>> MangaRootGetter::search(RequestorContext context, SearchRequestQuery query, GetFilters filters) {
 		throw NotImplementedError("The parser cannot search");
 	}
 
@@ -60,5 +60,8 @@ namespace aniparse {
 
 	asyncnet::NetworkTask<std::unique_ptr<MangaGetter>> MangaRootGetter::parse_url(RequestorContext context, std::string url) {
 		throw NotImplementedError("The parser cannot parse url");
+	}
+	asyncnet::NetworkTask<std::unique_ptr<MangaGetter>> MangaRootGetter::from_serialized(SerializedGetterData data) {
+		throw NotImplementedError("The parser cannot deserialize data");
 	}
 }
