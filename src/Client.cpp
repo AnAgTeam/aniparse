@@ -28,11 +28,11 @@ namespace aniparse {
 		co_return co_await session_.perform_request(post_request);
 	}
 
-	NetworkTask<Response> AsyncClient::do_request(PostMultipartRequest request) {
+	NetworkTask<Response> AsyncClient::do_request(PostMultipartRequest) {
 		throw std::logic_error("Not implemented");
 	}
 
-	NetworkTask<Response> AsyncClient::do_request(std::shared_ptr<PolymorphicRequest> request) {
+	NetworkTask<Response> AsyncClient::do_request(std::shared_ptr<PolymorphicRequest>) {
 		throw std::logic_error("Not implemented");
 	}
 

@@ -220,7 +220,7 @@ namespace aniparse {
 				return parser;
 			}
 
-			while (node = get_node_ptr(node->parent())) {
+			while ((node = get_node_ptr(node->parent()))) {
 				if (auto parser = find_parser_by_pred(*node, pred)) {
 					return parser;
 				}

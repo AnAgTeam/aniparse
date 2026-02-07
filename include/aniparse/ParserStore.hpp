@@ -22,8 +22,6 @@ namespace aniparse {
 
 		ParserStore();
 
-		static ParserStore make_default_store();
-
 		/**
 		 * @brief Add parser to the store
 		 * @see Parser

@@ -11,10 +11,12 @@
 #include <lexbor/dom/interfaces/node.h>
 
 namespace aniparse::html {
-	DOMNodeView::DOMNodeView(lxb_dom_node_t* node) noexcept : node_(node) {
+	DOMNodeView::DOMNodeView(lxb_dom_node_t* node) noexcept
+		: node_(node) {
 	}
 
-	DOMNodeView::DOMNodeView(const DOMElementView& element) noexcept : DOMNodeView(lxb_dom_interface_node(element.element_)) {
+	DOMNodeView::DOMNodeView(const DOMElementView& element) noexcept
+		: DOMNodeView(lxb_dom_interface_node(element.element_)) {
 	}
 
 	DOMNodeView::operator bool() const noexcept {
@@ -76,7 +78,8 @@ namespace aniparse::html {
 
 	}
 
-	DOMNodeWalkIterator::DOMNodeWalkIterator(DOMNodeView node) noexcept : DOMNodeWalkIterator(node.node_) {
+	DOMNodeWalkIterator::DOMNodeWalkIterator(DOMNodeView node) noexcept
+		: DOMNodeWalkIterator(node.node_) {
 	}
 
 	const DOMNodeView& DOMNodeWalkIterator::operator*() const noexcept {

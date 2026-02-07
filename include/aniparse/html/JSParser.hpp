@@ -15,6 +15,8 @@
 namespace aniparse::html {
 
 	/**
+	 * @note The method requires boost::regex for windows with MSVC.
+	 *       MSVC cannot compile regex.
 	 * @brief Find JavaScript variable declaration with JSON object.
 	 * Object variable declaration looks like:
 	 *   var <name> = { ... };

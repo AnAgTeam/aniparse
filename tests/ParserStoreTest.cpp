@@ -17,7 +17,7 @@ struct TestParser : aniparse::Parser {
 	}
 
 	bool valid_for_url(std::string_view url) const override {
-		return true;
+		return url.compare(8, 4, "aaa.") != 0;
 	}
 
 	aniparse::ParserCompatibilities compatibilities() const override {
@@ -42,6 +42,7 @@ TEST_CASE("ParserStore add") {
 	REQUIRE(parser_store.find_for_url("https://www.youtube.com"));
 	REQUIRE(parser_store.find_for_url("https://youtu.be"));
 	REQUIRE(parser_store.find_for_url("http://youtu.be"));
+	REQUIRE(!parser_store.find_for_url("http://aaa.youtube.com"));
 
 	REQUIRE(parser_store.find_by_key("TestParser"));
 	REQUIRE(!parser_store.find_by_key("SomeParser"));

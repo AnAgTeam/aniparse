@@ -6,6 +6,8 @@
 #pragma once
 #include "aniparse/Common.hpp"
 
+#include <coro/expected.hpp>
+
 namespace aniparse {
 
 	using MangaID = int;
@@ -55,7 +57,7 @@ namespace aniparse {
 
 		std::optional<RelatedUser> uploader;
 
-		int total_chapters = unknown_manga_chapters;
+		long total_chapters = unknown_manga_chapters;
 
 		bool is_hentai = false;
 	};
@@ -67,8 +69,8 @@ namespace aniparse {
 	};
 
 	struct MangaChapterInfo {
-		int volume = 0;
-		int chapter = 0;
+		long volume = 0;
+		long chapter = 0;
 		std::string name;
 		std::string description;
 		std::vector<Image> previews;
@@ -96,48 +98,69 @@ namespace aniparse {
 		CompatibilitiesFlags compatibilities = compatibilities_flags::default_flags;
 	};
 
+	/**
+	 * @brief Interface for getting one specific manga information.
+	 */
 	struct MangaGetter {
-
-		MangaGetter(RequestorContext context);
-
 		virtual ~MangaGetter() = default;
 
-		virtual MangaGetterCompatibilities compatibilies() const = 0;
+		virtual MangaGetterCompatibilities compatibilies() const noexcept = 0;
 
-		virtual asyncnet::NetworkTask<MangaInfo> preview_info();
+		virtual NetworkRequestTask<MangaInfo> preview_info(RequestorContext context) noexcept;
 
-		virtual asyncnet::NetworkTask<MangaInfo> info() = 0;
+		virtual NetworkRequestTask<MangaInfo> info(RequestorContext context) noexcept = 0;
 
-		virtual asyncnet::NetworkTask<std::vector<MangaTranslationInfo>> translation_info(GetFilters filters);
+		virtual NetworkRequestTask<std::vector<MangaTranslationInfo>> translation_info(
+			RequestorContext context,
+			GetFilters filters) noexcept;
 
-		virtual asyncnet::NetworkTask<PageResults<MangaChapterInfo>> chapters_info(
+		virtual NetworkRequestTask<PageResults<MangaChapterInfo>> chapters_info(
+			RequestorContext context,
 			GetFilters filters,
-			MangaTranslationID translation = any_manga_translation);
+			MangaTranslationID translation = any_manga_translation) noexcept;
 
-		virtual asyncnet::NetworkTask<PageResults<std::unique_ptr<MangaGetter>>> related(GetFilters filters);
+		virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> related(
+			RequestorContext context,
+			GetFilters filters) noexcept;
 
-		virtual asyncnet::NetworkTask<PageResults<std::unique_ptr<MangaGetter>>> similar(GetFilters filters);
+		virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> similar(
+			RequestorContext context,
+			GetFilters filters) noexcept;
 
-		virtual asyncnet::NetworkTask<PageResults<MangaPage>> chapter_pages(
-			int volume, int chapter,
+		virtual NetworkRequestTask<PageResults<MangaPage>> chapter_pages(
+			RequestorContext context,
+			int volume,
+			int chapter,
 			GetFilters filters,
-			MangaTranslationID translation = any_manga_translation) = 0;
+			MangaTranslationID translation = any_manga_translation) noexcept = 0;
 
-		virtual void reset();
+		virtual void reset() noexcept;
 
-		virtual bool update_context(RequestorContext context);
-
-		virtual asyncnet::NetworkTask<SerializedGetterData> serialize() = 0;
-
-	protected:
-		RequestorContext context;
+		virtual NetworkRequestTask<SerializedGetterData> serialize() noexcept = 0;
 	};
 
+	/**
+	 * @brief Root interface for manga. Used to get pages or general information
+	 */
 	struct MangaRootGetter {
 		virtual ~MangaRootGetter() = default;
 
-		virtual SearchCompatibilities search_support() const;
-		virtual MangaGetterRootCompatibilities latest_support() const;
+		virtual SearchCompatibilities search_support() const noexcept;
+		virtual MangaGetterRootCompatibilities latest_support() const noexcept;
+
+		/**
+		 * @brief Request authentification with given data for parser service.
+		 */
+		virtual NetworkRequestTask<RequestorContext> authenticate_context(
+			RequestorContext context,
+			AuthentificationData data) noexcept;
+
+		/**
+		 * @brief Return ready-to-use client with getter
+		 * The context can be custom client or forwarded from argument.
+		 * By default passed client is forwarded.
+		 */
+		virtual RequestorContext default_client_from(RequestorContext context) const noexcept;
 
 		/**
 		 * @todo
@@ -149,10 +172,10 @@ namespace aniparse {
 		 * @throw NotImplementedError If the method isn't implemented by the parser
 		 * @return ...
 		 */
-		virtual asyncnet::NetworkTask<PageResults<std::unique_ptr<MangaGetter>>> search(
+		virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> search(
 			RequestorContext context,
 			SearchRequestQuery query,
-			GetFilters filters);
+			GetFilters filters) noexcept;
 
 		/**
 		 * @todo
@@ -163,9 +186,9 @@ namespace aniparse {
 		 * @throw NotImplementedError If the method isn't implemented by the parser
 		 * @return ...
 		 */
-		virtual asyncnet::NetworkTask<PageResults<std::unique_ptr<MangaGetter>>> latest(
+		virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> latest(
 			RequestorContext context,
-			GetFilters filters);
+			GetFilters filters) noexcept;
 
 		/**
 		 * @see MangaGetter
@@ -176,11 +199,14 @@ namespace aniparse {
 		 * @throw NotImplementedError If the method isn't implemented by the parser
 		 * @return Task to get MangaGetter
 		 */
-		virtual asyncnet::NetworkTask<std::unique_ptr<MangaGetter>> parse_url(
+		virtual NetworkRequestTask<std::unique_ptr<MangaGetter>> parse_url(
 			RequestorContext context, 
-			std::string url);
+			std::string url) noexcept;
 
-		virtual asyncnet::NetworkTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData data);
+		/**
+		 * @brief Getter for serialized data from one of serialize() methods
+		 */
+		virtual NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData data) noexcept = 0;
 
 	protected:
 		GetterContext context;

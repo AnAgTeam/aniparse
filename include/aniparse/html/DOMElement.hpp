@@ -218,6 +218,12 @@ namespace aniparse::html {
 		 */
 		[[nodiscard]] lxb_dom_element_t* get() const;
 
+		/**
+		 * @brief compare two elements
+		 * @return true if elements are the same, false otherwise
+		 */
+		[[nodiscard]] friend bool operator==(const DOMElementView& left, const DOMElementView& right) noexcept;
+
 	private:
 		lxb_dom_element_t* element_ = nullptr;
 	};

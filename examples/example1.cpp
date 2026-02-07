@@ -96,6 +96,8 @@ coro::task<void> test_coroutines() {
     auto [task1, task2] = co_await gather_awaitables(test_coro(), test_coro3());
     std::println("{}, {}", ca1.value, ca2.value);
 
+    [](...) {}(tuple_val1, tuple_val11, tuple_val2, gsize);
+
     co_return;
 }
 

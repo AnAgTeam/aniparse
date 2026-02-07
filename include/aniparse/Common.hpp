@@ -6,6 +6,7 @@
 #pragma once
 #include "aniparse/FlagsBitfield.hpp"
 #include "aniparse/ClientContext.hpp"
+#include "aniparse/utility/Expected.hpp"
 #include <string>
 #include <vector>
 #include <variant>
@@ -22,19 +23,19 @@ namespace aniparse {
 	using FilteringFlags = FlagsBitfield<64, struct FilteringFlagsTag>;
 
 	namespace compatibilities_flags {
-		constexpr auto supports_inplace_get = CompatibilitiesFlags::make_bit(0);
-		constexpr auto supports_images_store = CompatibilitiesFlags::make_bit(1);
-		constexpr auto supports_anime_store = CompatibilitiesFlags::make_bit(2);
-		constexpr auto supports_manga_store = CompatibilitiesFlags::make_bit(3);
-		constexpr auto supports_video_store = CompatibilitiesFlags::make_bit(4);
-		constexpr auto using_custom_store = CompatibilitiesFlags::make_bit(5);
-		constexpr auto adult_source = CompatibilitiesFlags::make_bit(6);
+		inline constexpr auto supports_inplace_get   = CompatibilitiesFlags::make_bit(0);
+		inline constexpr auto supports_images_store  = CompatibilitiesFlags::make_bit(1);
+		inline constexpr auto supports_anime_store   = CompatibilitiesFlags::make_bit(2);
+		inline constexpr auto supports_manga_store   = CompatibilitiesFlags::make_bit(3);
+		inline constexpr auto supports_video_store   = CompatibilitiesFlags::make_bit(4);
+		inline constexpr auto using_custom_store     = CompatibilitiesFlags::make_bit(5);
+		inline constexpr auto adult_source           = CompatibilitiesFlags::make_bit(6);
 
-		constexpr auto supports_images_search = CompatibilitiesFlags::make_bit(7);
-		constexpr auto supports_registration = CompatibilitiesFlags::make_bit(8);
-		constexpr auto supports_voting = CompatibilitiesFlags::make_bit(9);
-		constexpr auto supports_commenting = CompatibilitiesFlags::make_bit(10);
-		constexpr auto supports_online_lists = CompatibilitiesFlags::make_bit(11);
+		inline constexpr auto supports_images_search = CompatibilitiesFlags::make_bit(7);
+		inline constexpr auto supports_registration  = CompatibilitiesFlags::make_bit(8);
+		inline constexpr auto supports_voting        = CompatibilitiesFlags::make_bit(9);
+		inline constexpr auto supports_commenting    = CompatibilitiesFlags::make_bit(10);
+		inline constexpr auto supports_online_lists  = CompatibilitiesFlags::make_bit(11);
 
 		/**
 		 * All the Paginator<T>::next items will be unique over time if true.
@@ -42,46 +43,46 @@ namespace aniparse {
 		 * from next, then 3 new items added at the start and you start getting
 		 * duplicates of 8-10 from previous parsing and only 7 new
 		 */
-		constexpr auto supports_pagination_uniqueness = CompatibilitiesFlags::make_bit(12);
+		inline constexpr auto supports_pagination_uniqueness = CompatibilitiesFlags::make_bit(12);
 
-		constexpr auto unsupported_feature = CompatibilitiesFlags::make_bit(13);
+		inline constexpr auto unsupported_feature    = CompatibilitiesFlags::make_bit(13);
 
-		constexpr CompatibilitiesFlags default_flags;
+		inline constexpr CompatibilitiesFlags default_flags;
 	}
 
 	namespace filtering_flags {
-		constexpr auto sort_popularity_desc = FilteringFlags::make_bit(0);
-		constexpr auto sort_popularity_asc = FilteringFlags::make_bit(1);
-		constexpr auto sort_rating_desc = FilteringFlags::make_bit(2);
-		constexpr auto sort_rating_asc = FilteringFlags::make_bit(3);
-		constexpr auto sort_views_desc = FilteringFlags::make_bit(4);
-		constexpr auto sort_views_asc = FilteringFlags::make_bit(5);
-		constexpr auto sort_title_desc = FilteringFlags::make_bit(6);
-		constexpr auto sort_title_asc = FilteringFlags::make_bit(7);
-		constexpr auto sort_release_time_desc = FilteringFlags::make_bit(8);
-		constexpr auto sort_release_time_asc = FilteringFlags::make_bit(9);
-		constexpr auto sort_update_time_desc = FilteringFlags::make_bit(10);
-		constexpr auto sort_update_time_asc = FilteringFlags::make_bit(11);
-		constexpr auto sort_downloads_desc = FilteringFlags::make_bit(12);
-		constexpr auto sort_downloads_asc = FilteringFlags::make_bit(13);
-		constexpr auto sort_author_desc = FilteringFlags::make_bit(14);
-		constexpr auto sort_author_asc = FilteringFlags::make_bit(15);
+		inline constexpr auto sort_popularity_desc		= FilteringFlags::make_bit(0);
+		inline constexpr auto sort_popularity_asc		= FilteringFlags::make_bit(1);
+		inline constexpr auto sort_rating_desc			= FilteringFlags::make_bit(2);
+		inline constexpr auto sort_rating_asc			= FilteringFlags::make_bit(3);
+		inline constexpr auto sort_views_desc			= FilteringFlags::make_bit(4);
+		inline constexpr auto sort_views_asc			= FilteringFlags::make_bit(5);
+		inline constexpr auto sort_title_desc			= FilteringFlags::make_bit(6);
+		inline constexpr auto sort_title_asc			= FilteringFlags::make_bit(7);
+		inline constexpr auto sort_release_time_desc	= FilteringFlags::make_bit(8);
+		inline constexpr auto sort_release_time_asc	= FilteringFlags::make_bit(9);
+		inline constexpr auto sort_update_time_desc	= FilteringFlags::make_bit(10);
+		inline constexpr auto sort_update_time_asc		= FilteringFlags::make_bit(11);
+		inline constexpr auto sort_downloads_desc		= FilteringFlags::make_bit(12);
+		inline constexpr auto sort_downloads_asc		= FilteringFlags::make_bit(13);
+		inline constexpr auto sort_author_desc			= FilteringFlags::make_bit(14);
+		inline constexpr auto sort_author_asc			= FilteringFlags::make_bit(15);
 
-		constexpr auto sort_popularity_desc_hour = FilteringFlags::make_bit(16);
-		constexpr auto sort_popularity_desc_week = FilteringFlags::make_bit(17);
-		constexpr auto sort_popularity_desc_month = FilteringFlags::make_bit(18);
-		constexpr auto sort_popularity_desc_year = FilteringFlags::make_bit(19);
+		inline constexpr auto sort_popularity_desc_hour  = FilteringFlags::make_bit(16);
+		inline constexpr auto sort_popularity_desc_week  = FilteringFlags::make_bit(17);
+		inline constexpr auto sort_popularity_desc_month = FilteringFlags::make_bit(18);
+		inline constexpr auto sort_popularity_desc_year  = FilteringFlags::make_bit(19);
 
-		constexpr auto sort_popularity = sort_popularity_desc | sort_popularity_asc;
-		constexpr auto sort_rating = sort_rating_desc | sort_rating_asc;
-		constexpr auto sort_views = sort_views_desc | sort_views_asc;
-		constexpr auto sort_title = sort_title_desc | sort_title_asc;
-		constexpr auto sort_release_time = sort_release_time_desc | sort_release_time_asc;
-		constexpr auto sort_update_time = sort_update_time_desc | sort_update_time_asc;
-		constexpr auto sort_downloads = sort_downloads_desc | sort_downloads_asc;
-		constexpr auto sort_author = sort_author_desc | sort_author_asc;
+		inline constexpr auto sort_popularity   = sort_popularity_desc | sort_popularity_asc;
+		inline constexpr auto sort_rating       = sort_rating_desc | sort_rating_asc;
+		inline constexpr auto sort_views        = sort_views_desc | sort_views_asc;
+		inline constexpr auto sort_title        = sort_title_desc | sort_title_asc;
+		inline constexpr auto sort_release_time = sort_release_time_desc | sort_release_time_asc;
+		inline constexpr auto sort_update_time  = sort_update_time_desc | sort_update_time_asc;
+		inline constexpr auto sort_downloads    = sort_downloads_desc | sort_downloads_asc;
+		inline constexpr auto sort_author       = sort_author_desc | sort_author_asc;
 
-		constexpr FilteringFlags default_flags;
+		inline constexpr FilteringFlags default_flags;
 	}
 
 	enum class FilterSort {
@@ -157,9 +158,9 @@ namespace aniparse {
 		Other,
 	};
 
-	constexpr std::string_view aired_status_released  = "released";
-	constexpr std::string_view aired_status_ongoing	  = "ongoing";
-	constexpr std::string_view aired_status_announced = "announced";
+	inline constexpr std::string_view aired_status_released  = "released";
+	inline constexpr std::string_view aired_status_ongoing	  = "ongoing";
+	inline constexpr std::string_view aired_status_announced = "announced";
 
 	struct AiredStatus {
 		std::string name;
@@ -202,13 +203,13 @@ namespace aniparse {
 		Read,
 	};
 
-	constexpr std::string_view user_list_planning	= "planning";
-	constexpr std::string_view user_list_dropped	= "dropped";
-	constexpr std::string_view user_list_favorite	= "favorite";
-	constexpr std::string_view user_list_watched	= "watched";
-	constexpr std::string_view user_list_watching	= "watching";
-	constexpr std::string_view user_list_reading	= "reading";
-	constexpr std::string_view user_list_read		= "read";
+	inline constexpr std::string_view user_list_planning	= "planning";
+	inline constexpr std::string_view user_list_dropped	= "dropped";
+	inline constexpr std::string_view user_list_favorite	= "favorite";
+	inline constexpr std::string_view user_list_watched	= "watched";
+	inline constexpr std::string_view user_list_watching	= "watching";
+	inline constexpr std::string_view user_list_reading	= "reading";
+	inline constexpr std::string_view user_list_read		= "read";
 
 	/**
 	 * Structure representing list, that users added
@@ -240,15 +241,41 @@ namespace aniparse {
 	};
 
 	using pageoff = std::ptrdiff_t;
-	constexpr size_t page_no_limit = static_cast<size_t>(-1);
+	inline constexpr size_t page_no_limit = static_cast<size_t>(-1);
 
-	constexpr std::chrono::system_clock::time_point unknown_time{ std::chrono::system_clock::duration{0} };
+	inline constexpr std::chrono::system_clock::time_point unknown_time{ std::chrono::system_clock::duration{0} };
 
 	template<typename T>
 	struct PageItem {
 		T item;
 		pageoff offset;
 	};
+
+	enum class RequestErrorCode {
+		Unknown,
+		NotImplemented,
+		InvalidArguments,
+		ServerError,
+		InvalidCredentials,
+	};
+
+	struct RequestError {
+		RequestErrorCode code;
+		std::string message;
+	};
+
+	template<typename T, typename Error = RequestError>
+	using Response = expected<T, Error>;
+
+	inline auto make_response_error(RequestErrorCode code, std::string message) {
+		return unexpected(RequestError{
+			.code = code,
+			.message = std::move(message)
+		});
+	}
+
+	template<typename T>
+	using NetworkRequestTask = asyncnet::NetworkTask<Response<T>>;
 
 	template<typename T, typename Container = std::vector<PageItem<T>>>
 	struct PageResults {
@@ -258,8 +285,8 @@ namespace aniparse {
 	};
 
 	struct GetFilters {
-		pageoff from = 0;
-		size_t limit = page_no_limit;
+		pageoff from    = 0;
+		size_t limit    = page_no_limit;
 		FilterSort sort = FilterSort::None;
 	};
 
@@ -300,7 +327,7 @@ namespace aniparse {
 		 * Search context: Value of an item
 		 * Support check: Min/max value of item
 		 */
-		size_t count = 0;
+		std::ptrdiff_t count = 0;
 		DirectionalIntervalOperator direction = DirectionalIntervalOperator::None;
 	};
 
@@ -344,7 +371,7 @@ namespace aniparse {
 	 */
 	struct TimeInterval {
 		std::chrono::system_clock::time_point from = unknown_time;
-		DirectionalIntervalOperator direction = DirectionalIntervalOperator::None;
+		DirectionalIntervalOperator direction      = DirectionalIntervalOperator::None;
 	};
 
 	/**
@@ -353,7 +380,7 @@ namespace aniparse {
 	 */
 	struct BidirectionalTimeInterval {
 		std::chrono::system_clock::time_point from = unknown_time;
-		std::chrono::system_clock::time_point to = unknown_time;
+		std::chrono::system_clock::time_point to   = unknown_time;
 		bool exclusive = false;
 	};
 
@@ -378,6 +405,10 @@ namespace aniparse {
 		bool exclusive = false;
 	};
 
+	/**
+	 * @brief Any type that can be used for search
+	 * @see SearchRequestQuery
+	 */
 	using SearchItemVariant = std::variant<
 		TextQuery,
 		DirectionalInterval,
@@ -386,6 +417,10 @@ namespace aniparse {
 		ItemSelection,
 		Checkmark>;
 
+	/**
+	 * Namespace for default keys, that can be used for search
+	 * @see SearchRequestQuery
+	 */
 	namespace search_keys {
 		/// Filter by @see Series. Usually TextQuery
 		constexpr std::string_view series = "series";
@@ -410,6 +445,11 @@ namespace aniparse {
 		constexpr std::string_view age_restriction = "age_res";
 	}
 
+	/**
+	 * @brief Any type that can be used for search
+	 * @see SearchItemVariant
+	 * @see search_keys
+	 */
 	struct SearchRequestQuery {
 		std::string query;
 		std::map<std::string, SearchItemVariant, std::less<>> filters;
@@ -420,6 +460,9 @@ namespace aniparse {
 		//}
 	};
 
+	/**
+	 * @todo
+	 */
 	enum class SearchItemClass {
 		None,
 		TextQuery,
@@ -429,8 +472,35 @@ namespace aniparse {
 		Checkmark,
 	};
 
+	/**
+	 * @brief Data used to serialize/deserialize "units" from getters
+	 */
 	struct SerializedGetterData {
 		std::string url;
 		std::map<std::string, std::string, std::less<>> params;
 	};
+
+	/**
+	 * @brief Data for authentification using username and password
+	 */
+	struct AuthentificationUserPassword {
+		std::string username;
+		std::string password;
+		bool requires_2fa = false;
+	};
+
+	/**
+	 * @brief Data for authentification using token
+	 *        (some string representing all required information
+	 *        to identify user)
+	 */
+	struct AuthentificationToken {
+		std::string token;
+		std::string type;
+	};
+
+	/**
+	 * @brief Data that can be used for authentification
+	 */
+	using AuthentificationData = std::variant<AuthentificationUserPassword, AuthentificationToken>;
 }

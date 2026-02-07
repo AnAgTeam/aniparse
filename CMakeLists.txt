@@ -5,6 +5,7 @@
 option(ANIPARSE_BUILD_TESTS "build tests, Default=OFF" OFF)
 option(ANIPARSE_BUILD_EXAMPLES "build examples, Default=OFF" OFF)
 option(ANIPARSE_BUILD_TOOLS "build tools, Default=OFF" OFF)
+option(ANIPARSE_USE_TL_EXPECTED "Use tl::expected instead or std::expected if possible, Default=ON" ON)
 option(ANIPARSE_USE_LIBFMT "Use libfmt's 'fmt::format instead of std::format, Default=OFF" OFF)
 option(ANIPARSE_USE_BOOST_REGEX "Use boost::regex instead of std::regex, Default=OFF" OFF)
 
@@ -41,6 +42,7 @@ add_library(aniparse STATIC
 	"src/Common.cpp" "include/aniparse/Common.hpp"
 	"include/aniparse/utility/Format.hpp"
 	"include/aniparse/utility/Coroutines.hpp"
+	"include/aniparse/utility/Expected.hpp"
 	"include/aniparse/utility/Regex.hpp"
 
 	"src/html/HTMLDocument.cpp" "include/aniparse/html/HTMLDocument.hpp"
@@ -63,6 +65,15 @@ add_library(aniparse STATIC
 
 set_property(TARGET aniparse PROPERTY CXX_STANDARD 20)
 set_property(TARGET aniparse PROPERTY CXX_STANDARD_REQUIRED ON)
+
+target_compile_options(aniparse PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/W4>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic>
+)
+
+if (${ANIPARSE_USE_TL_EXPECTED})
+	target_compile_definitions(aniparse PUBLIC -DANIPARSE_USE_TL_EXPECTED=1)
+endif()
 
 target_include_directories(aniparse PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>

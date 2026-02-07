@@ -66,9 +66,9 @@ namespace aniparse::html {
 			std::begin(buffer_space),
 			std::begin(buffer_space) + i);
 		while (iter != end) {
-			const DOMElementView& element = *iter++;
-			if (predicate(element, value)) {
-				out.push_back(element);
+			const DOMElementView& iter_element = *iter++;
+			if (predicate(iter_element, value)) {
+				out.push_back(iter_element);
 			}
 		}
 
@@ -259,11 +259,15 @@ namespace aniparse::html {
 		return output_string;
 	}
 
-	DOMElementWalkIterator::DOMElementWalkIterator(lxb_dom_element_t* element) : root_(lxb_dom_interface_node(element)), node_(root_ ? root_->first_child : nullptr) {
+	DOMElementWalkIterator::DOMElementWalkIterator(lxb_dom_element_t* element)
+		: root_(lxb_dom_interface_node(element))
+		, node_(root_ ? root_->first_child : nullptr) {
 		walk_until_element();
 	}
 
-	DOMElementWalkIterator::DOMElementWalkIterator(const DOMElementView& element) : root_(lxb_dom_interface_node(element.element_)), node_(root_ ? root_->first_child : nullptr) {
+	DOMElementWalkIterator::DOMElementWalkIterator(const DOMElementView& element)
+		: root_(lxb_dom_interface_node(element.element_))
+		, node_(root_ ? root_->first_child : nullptr) {
 		walk_until_element();
 	}
 
@@ -325,7 +329,8 @@ namespace aniparse::html {
 		return left.node_ == right.node_;
 	}
 
-	DOMElementIterator::DOMElementIterator(lxb_dom_element_t* element) : node_(element ? lxb_dom_interface_node(element)->first_child : nullptr) {
+	DOMElementIterator::DOMElementIterator(lxb_dom_element_t* element)
+		: node_(element ? lxb_dom_interface_node(element)->first_child : nullptr) {
 		iterate_until_element();
 	}
 
@@ -372,6 +377,10 @@ namespace aniparse::html {
 			node_ = node_->next;
 		}
 		node_view_.element_ = lxb_dom_interface_element(node_);
+	}
+
+	bool operator==(const DOMElementView& left, const DOMElementView& right) noexcept {
+		return left.element_ == right.element_;
 	}
 
 	bool operator==(const DOMElementIterator& left, const DOMElementIterator& right) {

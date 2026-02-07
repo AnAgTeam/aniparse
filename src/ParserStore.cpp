@@ -18,8 +18,7 @@ namespace aniparse {
 				| std::views::transform(std::views::reverse);
 		}
 
-		//template<typename Char>
-		static constexpr auto split_url_domains(const std::basic_string_view<char>& url) {
+		static constexpr auto split_url_domains(std::string_view url) {
 			size_t protocol_end = url.find("://");
 			return url
 				// cut domain from url
@@ -33,9 +32,9 @@ namespace aniparse {
 
 		class DomainAdder : public aniparse::EmplaceDomainsContext {
 		public:
-			DomainAdder(DomainScanner<std::shared_ptr<Parser>>& scanner, std::shared_ptr<Parser> parser) :
-				scanner_(scanner),
-				parser_(std::move(parser)) {
+			DomainAdder(DomainScanner<std::shared_ptr<Parser>>& scanner, std::shared_ptr<Parser> parser)
+				: scanner_(scanner)
+				, parser_(std::move(parser)) {
 
 			}
 
@@ -52,12 +51,6 @@ namespace aniparse {
 
 	ParserStore::ParserStore() {
 
-	}
-
-	ParserStore ParserStore::make_default_store() {
-		ParserStore store;
-
-		return store;
 	}
 
 	std::shared_ptr<Parser> ParserStore::add_parser(std::shared_ptr<Parser> parser) {

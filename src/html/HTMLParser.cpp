@@ -13,7 +13,6 @@ namespace aniparse::html {
 	}
 
 	HTMLParser::HTMLParser(HTMLParser&& other) noexcept : parser_(std::exchange(other.parser_, nullptr)) {
-
 	}
 
 	HTMLParser::~HTMLParser() {

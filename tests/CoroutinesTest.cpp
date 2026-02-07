@@ -8,6 +8,11 @@
 
 #include <coro/task.hpp>
 #include <coro/thread_pool.hpp>
+#include <coro/expected.hpp>
+
+#include <asyncnet/CancellingTask.hpp>
+
+#include <aniparse/Common.hpp>
 
 using namespace aniparse;
 
@@ -26,4 +31,20 @@ CORO_TEST_CASE("gather_awaitables") {
 		test_coro(pool, "blabla")
 	);
 	REQUIRE((r1 == "bla" && r2 == "blabla"));
+}
+
+struct TestStruct {
+	int value = 4;
+};
+
+NetworkRequestTask<TestStruct> test_coro() {
+	co_return make_response_error(RequestErrorCode::NotImplemented, "blabla");
+}
+
+CORO_TEST_CASE("expected as value") {
+	auto result = co_await test_coro();
+
+	REQUIRE(!result.has_value());
+	REQUIRE(result.error().code == RequestErrorCode::NotImplemented);
+	REQUIRE(result.error().message == "blabla");
 }

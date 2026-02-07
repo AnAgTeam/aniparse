@@ -16,8 +16,8 @@ namespace aniparse::html {
 		assert(document == nullptr || lxb_dom_interface_node(document)->type == LXB_DOM_NODE_TYPE_DOCUMENT);
 	}
 
-	HTMLDocument::HTMLDocument(HTMLDocument&& other) noexcept : document_(std::exchange(other.document_, nullptr)) {
-
+	HTMLDocument::HTMLDocument(HTMLDocument&& other) noexcept
+		: document_(std::exchange(other.document_, nullptr)) {
 	}
 
 	HTMLDocument::~HTMLDocument() {
@@ -43,8 +43,8 @@ namespace aniparse::html {
 	}
 
 	DOMElementView HTMLDocument::head() const {
-		lxb_dom_element_t* body = lxb_dom_interface_element(lxb_html_document_head_element(document_));
-		return DOMElementView(body);
+		lxb_dom_element_t* head = lxb_dom_interface_element(lxb_html_document_head_element(document_));
+		return DOMElementView(head);
 	}
 
 	DOMElementView HTMLDocument::body() const {

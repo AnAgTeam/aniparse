@@ -9,8 +9,8 @@
 #include <lexbor/dom/collection.h>
 
 namespace aniparse::html {
-	DOMCollection::DOMCollection(DOMCollection&& other) noexcept : collection_(std::exchange(other.collection_, nullptr)) {
-
+	DOMCollection::DOMCollection(DOMCollection&& other) noexcept
+		: collection_(std::exchange(other.collection_, nullptr)) {
 	}
 
 	DOMCollection::~DOMCollection() {

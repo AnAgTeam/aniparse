@@ -7,61 +7,66 @@
 #include "aniparse/Exceptions.hpp"
 
 namespace aniparse {
-	MangaGetter::MangaGetter(RequestorContext context) : context(std::move(context)) {
-
+	NetworkRequestTask<MangaInfo> MangaGetter::preview_info(RequestorContext context) noexcept {
+		return info(std::move(context));
 	}
 
-	asyncnet::NetworkTask<MangaInfo> MangaGetter::preview_info() {
-		return info();
+	NetworkRequestTask<std::vector<MangaTranslationInfo>> MangaGetter::translation_info(RequestorContext, GetFilters) noexcept {
+		co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get translation info");
 	}
 
-	asyncnet::NetworkTask<std::vector<MangaTranslationInfo>> MangaGetter::translation_info(GetFilters filters) {
-		throw NotImplementedError("The parser's MangaGetter cannot get translation info");
+	NetworkRequestTask<PageResults<MangaChapterInfo>> MangaGetter::chapters_info(
+		RequestorContext,
+		GetFilters,
+		MangaTranslationID) noexcept {
+		co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get chapters info");
 	}
 
-	asyncnet::NetworkTask<PageResults<MangaChapterInfo>> MangaGetter::chapters_info(
-		GetFilters filters,
-		MangaTranslationID translation) {
-		throw NotImplementedError("The parser's MangaGetter cannot get chapters info");
+	NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaGetter::related(
+		RequestorContext,
+		GetFilters) noexcept {
+		co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get related info");
 	}
 
-	asyncnet::NetworkTask<PageResults<std::unique_ptr<MangaGetter>>> MangaGetter::related(GetFilters filters) {
-		throw NotImplementedError("The parser's MangaGetter cannot get related info");
+	NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaGetter::similar(
+		RequestorContext, 
+		GetFilters) noexcept {
+		co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get similar info");
 	}
 
-	asyncnet::NetworkTask<PageResults<std::unique_ptr<MangaGetter>>> MangaGetter::similar(GetFilters filters) {
-		throw NotImplementedError("The parser's MangaGetter cannot get similar info");
+	void MangaGetter::reset() noexcept {
+		
 	}
 
-	void MangaGetter::reset() {
-		throw NotImplementedError("The parser's MangaGetter cannot be resetted");
-	}
-
-	bool MangaGetter::update_context(RequestorContext context) {
-		this->context = std::move(context);
-		return true;
-	}
-
-	SearchCompatibilities MangaRootGetter::search_support() const {
+	SearchCompatibilities MangaRootGetter::search_support() const noexcept {
 		return {};
 	}
 
-	MangaGetterRootCompatibilities MangaRootGetter::latest_support() const {
+	MangaGetterRootCompatibilities MangaRootGetter::latest_support() const noexcept {
 		return {};
 	}
 
-	asyncnet::NetworkTask<PageResults<std::unique_ptr<MangaGetter>>> MangaRootGetter::search(RequestorContext context, SearchRequestQuery query, GetFilters filters) {
-		throw NotImplementedError("The parser cannot search");
+	NetworkRequestTask<RequestorContext> MangaRootGetter::authenticate_context(RequestorContext, AuthentificationData) noexcept {
+		co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot auth");
 	}
 
-	asyncnet::NetworkTask<PageResults<std::unique_ptr<MangaGetter>>> MangaRootGetter::latest(RequestorContext context, GetFilters filters) {
-		throw NotImplementedError("The parser cannot get latest");
+	RequestorContext MangaRootGetter::default_client_from(RequestorContext old_context) const noexcept {
+		return old_context;
 	}
 
-	asyncnet::NetworkTask<std::unique_ptr<MangaGetter>> MangaRootGetter::parse_url(RequestorContext context, std::string url) {
-		throw NotImplementedError("The parser cannot parse url");
+	NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaRootGetter::search(RequestorContext, SearchRequestQuery, GetFilters) noexcept {
+		co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot search");
 	}
-	asyncnet::NetworkTask<std::unique_ptr<MangaGetter>> MangaRootGetter::from_serialized(SerializedGetterData data) {
-		throw NotImplementedError("The parser cannot deserialize data");
+
+	NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaRootGetter::latest(RequestorContext, GetFilters) noexcept {
+		co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot get latest");
+	}
+
+	NetworkRequestTask<std::unique_ptr<MangaGetter>> MangaRootGetter::parse_url(RequestorContext, std::string) noexcept {
+		co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot parse url");
+	}
+
+	NetworkRequestTask<std::unique_ptr<MangaGetter>> MangaRootGetter::from_serialized(SerializedGetterData) noexcept {
+		co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot deserialize data");
 	}
 }

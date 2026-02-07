@@ -255,7 +255,7 @@ bool all_nodes_is(Iter first, Iter last, const std::vector<std::string_view>& ra
         auto& range_value = range[i++];
         return node.is_element() && range_value == "ELEMENT"
             || node.is_text() && range_value == "TEXT";
-    });
+    }) && i == range.size();
 }
 
 template<std::ranges::range Range>
@@ -270,7 +270,7 @@ TEST_CASE("HTML node constructon") {
         <body class="class1 class2 class3-1">
             <div id="id1" class="class1 class2" attr1="test">
                 blabla
-            </div><a></a>
+            </div><a></a><br>
             <img></img></body>
     </html>)";
 
@@ -280,7 +280,7 @@ TEST_CASE("HTML node constructon") {
     DOMNodeView body_element = document.body();
     REQUIRE(all_nodes_is(DOMNodeWalkIterator(body_element), {
         "TEXT", "ELEMENT", "TEXT", "ELEMENT",
-        "TEXT", "ELEMENT", "TEXT", "ELEMENT"
+        "ELEMENT", "TEXT", "ELEMENT", "TEXT" // text after </body> are placed inside <body>. Idk why, but browser do the same thing
     }));
 }
 
@@ -302,7 +302,7 @@ hello</a><br>new line
         "<body><div class=\"tags\">"
         "    <b>Desc</b>: <span>   </span><div id=\"news-id-53768\">Simple    man, will it help      him...<br>Link    \v  -\n\t <a href=\"#\">#</a>"
         "    </div>"
-        "</div>)";
+        "</div>";
 
     HTMLParser parser;
     HTMLDocument document = parser.parse(test_html);
@@ -315,4 +315,62 @@ hello</a><br>new line
     auto found_div_element = document2.body().find("class", "tags");
     CHECK(found_div_element);
     REQUIRE(found_div_element->text() == "Desc: Simple man, will it help him...\nLink - #");
+}
+
+TEST_CASE("HTML find big count of elements") {
+    constexpr std::string_view test_html = "<!DOCTYPE html>"
+        "<html><body>"
+        "<a id='a'> <br> <a></a> <div><br></div> </a> <a></a>"
+        "<a id='a'> <br> <a></a> <div><br></div> </a> <a></a>"
+        "<a id='a'> <br> <a></a> <div><br></div> </a> <a></a>"
+        "<a id='a'> <br> <a></a> <div><br></div> </a> <a></a>"
+        "<a id='a'> <br> <a></a> <div><br></div> </a> <a></a>"
+        "<a id='a'> <br> <a></a> <div><br></div> </a> <a></a>"
+        "<a id='a'> <br> <a></a> <div><br></div> </a> <a></a>"
+        "<a id='a'> <br> <a></a> <div><br></div> </a> <a></a>"
+        "<a id='a'> <br> <a></a> <div><br></div> </a> <a></a>"
+        "<a id='a'> <br> <a></a> <div><br></div> </a> <a></a>"
+        "<a id='a'> <br> <a></a> <div><br></div> </a> <a></a>"
+        "<a id='a'> <br> <a></a> <div><br></div> </a> <a></a>"
+        "<a id='a'> <br> <a></a> <div><br></div> </a> <a></a>"
+        "<a id='a'> <br> <a></a> <div><br></div> </a> <a></a>"
+        "<a id='a'> <br> <a></a> <div><br></div> </a> <a></a>"
+        "<a id='a'> <br> <a></a> <div><br></div> </a> <a></a>"
+        "<a id='a'> <br> <a></a> <div><br></div> </a> <a></a>"
+        "<a id='a'> <br> <a></a> <div><br></div> </a> <a></a>"
+        "</body></html>";
+
+    HTMLParser parser;
+    HTMLDocument document = parser.parse(test_html);
+
+    REQUIRE(document.body().find_all("A").size() == 54);
+    REQUIRE(document.body().find_all("id", "a").size() == 18);
+}
+
+TEST_CASE("DOMElement copy/move") {
+    HTMLParser parser;
+    HTMLDocument document = parser.parse(inner_test_html);
+
+    DOMElementView body = document.body();
+    DOMElementView body_copy = body;
+    REQUIRE(body == body_copy);
+    REQUIRE(body != DOMElementView{});
+    REQUIRE(body != document.head());
+
+    DOMElementView body_move = std::move(body);
+    REQUIRE(body_move == document.body());
+}
+
+TEST_CASE("DOMNode copy/move") {
+    HTMLParser parser;
+    HTMLDocument document = parser.parse(inner_test_html);
+
+    DOMNodeView body = document.body();
+    DOMNodeView body_copy = body;
+    REQUIRE(body == body_copy);
+    REQUIRE(body != DOMNodeView{});
+    REQUIRE(body != document.head());
+
+    DOMNodeView body_move = std::move(body);
+    REQUIRE(body_move == document.body());
 }

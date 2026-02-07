@@ -13,8 +13,8 @@
 #include <map>
 
 namespace aniparse {
-	class AsyncReleaseGetter;
-	class ImagesGetter;
+	struct AsyncReleaseGetter;
+	struct ImagesGetter;
 
 	using ParseFlags = FlagsBitfield<64, struct ParseFlagsTag>;
 
