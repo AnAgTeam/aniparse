@@ -2,9 +2,6 @@
 
 # aniparse
 
-> [!WARNING]  
-> Библиотека находится в ранней стадии разработки, API может существенно изменятся.
-
 **C++ библиотека для парсинга аниме, манги, изображений и видео**
 
 ![C++20](https://img.shields.io/badge/C%2B%2B-20-blue?logo=cplusplus&logoColor=white)
@@ -13,6 +10,9 @@
 ![Branch: nightly](https://img.shields.io/badge/branch-nightly-purple)
 
 </div>
+
+> [!WARNING]  
+> Библиотека находится в ранней стадии разработки, API может существенно изменятся.
 
 ---
 
