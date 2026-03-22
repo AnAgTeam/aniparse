@@ -13,7 +13,7 @@ static int usage(const char* program_name) {
 		"Usage: {0} [--help] (latest|search|support|parse|list) [<flags> ...]\n"
 		"latest - get latest items: {0} latest -p <parser key> [--from <index>] [--limit <number>] [--sort <sort>]\n"
 		"search - search items: {0} search -p <parser key> -q <query> [--from <index>] [--limit <number>]\n"
-		"        [--filter <key>=<value>] [--filter ...] [--sort <sort>] [--download <output dir>]\n"
+		"         [--filter <key>=<value>] [--filter ...] [--sort <sort>] [--download <output dir>]\n"
 		"parse - get info by url (autodetect): {0} parse <url> [-p <parser key>] [--download <output folder>]\n"
 		"support - check support of parser: {0} support (latest|search) [-p <parser key>]\n"
 		"list - query library list: {0} list (parsers|filters)\n"

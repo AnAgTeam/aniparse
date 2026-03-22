@@ -390,4 +390,58 @@ namespace aniparse::html {
 	DOMElement::DOMElement(lxb_dom_element_t* element) : element_(element) {
 
 	}
+
+	DOMElementFinder::DOMElementFinder(DOMElementView element) noexcept : element_(element)
+	{}
+
+	DOMElementFinder& DOMElementFinder::find(std::string_view tag)& {
+		if (element_) {
+			element_ = element_->find(tag);
+		}
+		return *this;
+	}
+
+	DOMElementFinder&& DOMElementFinder::find(std::string_view tag)&& {
+		if (element_) {
+			element_ = element_->find(tag);
+		}
+		return std::move(*this);
+	}
+
+	DOMElementFinder& DOMElementFinder::find(
+		std::string_view attr,
+		std::string_view value,
+		bool ignore_class_whitespaces) & {
+		if (element_) {
+			element_ = element_->find(attr, value, ignore_class_whitespaces);
+		}
+		return *this;
+	}
+
+
+	DOMElementFinder&& DOMElementFinder::find(
+		std::string_view attr,
+		std::string_view value,
+		bool ignore_class_whitespaces) && {
+		if (element_) {
+			element_ = element_->find(attr, value, ignore_class_whitespaces);
+		}
+		return std::move(*this);
+	}
+
+	DOMElementFinder::operator bool() const noexcept {
+		return element_.has_value();
+	}
+
+	DOMElementView& DOMElementFinder::operator*() noexcept {
+		return *element_;
+	}
+
+	DOMElementView* DOMElementFinder::operator->() noexcept {
+		return element_.operator->();
+	}
+
+	DOMElementView& DOMElementFinder::value() {
+		return element_.value();
+	}
 }

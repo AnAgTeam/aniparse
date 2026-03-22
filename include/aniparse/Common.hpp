@@ -60,8 +60,8 @@ namespace aniparse {
 		inline constexpr auto sort_title_desc			= FilteringFlags::make_bit(6);
 		inline constexpr auto sort_title_asc			= FilteringFlags::make_bit(7);
 		inline constexpr auto sort_release_time_desc	= FilteringFlags::make_bit(8);
-		inline constexpr auto sort_release_time_asc	= FilteringFlags::make_bit(9);
-		inline constexpr auto sort_update_time_desc	= FilteringFlags::make_bit(10);
+		inline constexpr auto sort_release_time_asc		= FilteringFlags::make_bit(9);
+		inline constexpr auto sort_update_time_desc		= FilteringFlags::make_bit(10);
 		inline constexpr auto sort_update_time_asc		= FilteringFlags::make_bit(11);
 		inline constexpr auto sort_downloads_desc		= FilteringFlags::make_bit(12);
 		inline constexpr auto sort_downloads_asc		= FilteringFlags::make_bit(13);
@@ -69,9 +69,10 @@ namespace aniparse {
 		inline constexpr auto sort_author_asc			= FilteringFlags::make_bit(15);
 
 		inline constexpr auto sort_popularity_desc_hour  = FilteringFlags::make_bit(16);
-		inline constexpr auto sort_popularity_desc_week  = FilteringFlags::make_bit(17);
-		inline constexpr auto sort_popularity_desc_month = FilteringFlags::make_bit(18);
-		inline constexpr auto sort_popularity_desc_year  = FilteringFlags::make_bit(19);
+		inline constexpr auto sort_popularity_desc_day   = FilteringFlags::make_bit(17);
+		inline constexpr auto sort_popularity_desc_week  = FilteringFlags::make_bit(18);
+		inline constexpr auto sort_popularity_desc_month = FilteringFlags::make_bit(19);
+		inline constexpr auto sort_popularity_desc_year  = FilteringFlags::make_bit(20);
 
 		inline constexpr auto sort_popularity   = sort_popularity_desc | sort_popularity_asc;
 		inline constexpr auto sort_rating       = sort_rating_desc | sort_rating_asc;
@@ -159,7 +160,7 @@ namespace aniparse {
 	};
 
 	inline constexpr std::string_view aired_status_released  = "released";
-	inline constexpr std::string_view aired_status_ongoing	  = "ongoing";
+	inline constexpr std::string_view aired_status_ongoing   = "ongoing";
 	inline constexpr std::string_view aired_status_announced = "announced";
 
 	struct AiredStatus {
@@ -203,13 +204,13 @@ namespace aniparse {
 		Read,
 	};
 
-	inline constexpr std::string_view user_list_planning	= "planning";
-	inline constexpr std::string_view user_list_dropped	= "dropped";
-	inline constexpr std::string_view user_list_favorite	= "favorite";
-	inline constexpr std::string_view user_list_watched	= "watched";
-	inline constexpr std::string_view user_list_watching	= "watching";
-	inline constexpr std::string_view user_list_reading	= "reading";
-	inline constexpr std::string_view user_list_read		= "read";
+	inline constexpr std::string_view user_list_planning = "planning";
+	inline constexpr std::string_view user_list_dropped  = "dropped";
+	inline constexpr std::string_view user_list_favorite = "favorite";
+	inline constexpr std::string_view user_list_watched	 = "watched";
+	inline constexpr std::string_view user_list_watching = "watching";
+	inline constexpr std::string_view user_list_reading  = "reading";
+	inline constexpr std::string_view user_list_read     = "read";
 
 	/**
 	 * Structure representing list, that users added
@@ -309,52 +310,6 @@ namespace aniparse {
 		bool exclusive = false;
 	};
 
-	enum class DirectionalIntervalOperator {
-		None,
-		More,
-		MoreExact,
-		Less,
-		LessExact,
-		Exact,
-	};
-
-	/**
-	 * @brief Integer interval input
-	 * For example pages count: (dir = MoreExact, count = 10) -> pages >= 10
-	 */
-	struct DirectionalInterval {
-		/**
-		 * Search context: Value of an item
-		 * Support check: Min/max value of item
-		 */
-		std::ptrdiff_t count = 0;
-		DirectionalIntervalOperator direction = DirectionalIntervalOperator::None;
-	};
-
-	/**
-	 * @brief Integer two-side interval input
-	 * For example pages count: (from = 5, to = 10) -> 5 <= pages <= 10
-	 * (from = 5, to = 10, exclusive) -> 5 >= pages >= 10
-	 * @note "from" shouldn't be less that "to", but must be expected as error
-	 */
-	struct BidirectionalInterval {
-		/**
-		 * Search context: Start of iterval
-		 * Support check: Min value of interval
-		 */
-		std::ptrdiff_t from = 0;
-		/**
-		 * Search context: End of interval
-		 * Support check: Max value of interval
-		 */
-		std::ptrdiff_t to = 0;
-		/**
-		 * Search context: Is interval exclusive (not containing in interval)
-		 * Support check: Is exclusive supported
-		 */
-		bool exclusive = false;
-	};
-
 	enum class TimeIntervalPrecision {
 		Any,
 		Now,
@@ -366,28 +321,45 @@ namespace aniparse {
 	};
 
 	/**
-	 * @brief Time interval input
-	 * Same as @see DirectionalInterval
+	 * @brief Basic interval [from, to]
 	 */
-	struct TimeInterval {
-		std::chrono::system_clock::time_point from = unknown_time;
-		DirectionalIntervalOperator direction      = DirectionalIntervalOperator::None;
-	};
-
-	/**
-	 * @brief Time two-side interval input
-	 * Same as @see BidirectionalInterval
-	 */
-	struct BidirectionalTimeInterval {
-		std::chrono::system_clock::time_point from = unknown_time;
-		std::chrono::system_clock::time_point to   = unknown_time;
+	template<typename T>
+	struct Interval {
+		/**
+		 * Search context: No limit or start of interval
+		 * Support check: Min value of interval
+		 */
+		std::optional<T> from;
+		/**
+		 * Search context: No limit or end of interval
+		 * Support check: Max value of interval
+		 */
+		std::optional<T> to;
+		/**
+		 * Search context: Is interval exclusive (not containing in interval).
+		 *                 For example exclusive interval [10, 20] => (-inf;10]U[20;+inf)
+		 * Support check: Is exclusive supported
+		 */
 		bool exclusive = false;
 	};
 
-	//struct TypedQueryItem {
-	//	std::string type;
-	//	std::string name;
-	//};
+	/**
+	 * @brief Integer interval
+	 * Can be used for pages count, episodes count, etc.
+	 */
+	using IntInterval          = Interval<std::ptrdiff_t>;
+
+	/**
+	 * @brief Time interval
+	 * Can be used for update time, etc.
+	 */
+	using TimeInterval         = Interval<std::chrono::system_clock::time_point>;
+
+	/**
+	 * @brief Relative time interval
+	 * Counts time from now(). Can be used for update time, etc.
+	 */
+	using RelativeTimeInterval = Interval<std::chrono::system_clock::duration>;
 
 	struct ItemSelectionValue {
 		std::string value;
@@ -411,11 +383,13 @@ namespace aniparse {
 	 */
 	using SearchItemVariant = std::variant<
 		TextQuery,
-		DirectionalInterval,
-		BidirectionalInterval,
-		//TypedQueryItem,
+		IntInterval,
+		TimeInterval,
+		RelativeTimeInterval,
 		ItemSelection,
 		Checkmark>;
+
+	using SearchItems = std::map<std::string, SearchItemVariant, std::less<>>;
 
 	/**
 	 * Namespace for default keys, that can be used for search
@@ -423,26 +397,26 @@ namespace aniparse {
 	 */
 	namespace search_keys {
 		/// Filter by @see Series. Usually TextQuery
-		constexpr std::string_view series = "series";
+		inline constexpr std::string_view series = "series";
 		/// Filter by pages/episodes count. Usually DirectionalInterval/BidirectionalInterval
-		constexpr std::string_view pages = "icount";
-		constexpr std::string_view episodes = "icount";
+		inline constexpr std::string_view pages = "icount";
+		inline constexpr std::string_view episodes = "icount";
 		/// Filter by Tag. Usually TextQuery
-		constexpr std::string_view tag = "tag";
+		inline constexpr std::string_view tag = "tag";
 		/// Filter by upload time (last time when item was updated on specific page). Usually DirectionalInterval/BidirectionalInterval
-		constexpr std::string_view upload_time = "upd_time";
+		inline constexpr std::string_view upload_time = "upd_time";
 		/// Filter by release time (actual time when item was released). Usually DirectionalInterval/BidirectionalInterval
-		constexpr std::string_view release_time = "rel_time";
+		inline constexpr std::string_view release_time = "rel_time";
 		/// Filter by title, the text must be contained in title, but maybe not fully. Usually TextQuery
-		constexpr std::string_view title = "title";
+		inline constexpr std::string_view title = "title";
 		/// Filter by status like "Announced", "Released" (Aired state of item). Usually ? (TextQuery)
-		constexpr std::string_view status = "status";
+		inline constexpr std::string_view status = "status";
 		/// Filter by Rating. ? (DirectionalInterval/BidirectionalInterval)
-		constexpr std::string_view rating = "rating";
+		inline constexpr std::string_view rating = "rating";
 		/// Filter by year. ? (DirectionalInterval/BidirectionalInterval)
-		constexpr std::string_view year = "year";
+		inline constexpr std::string_view year = "year";
 		/// Filter by AgeRestriction. Usually DirectionalInterval/ItemSelection
-		constexpr std::string_view age_restriction = "age_res";
+		inline constexpr std::string_view age_restriction = "age_res";
 	}
 
 	/**
@@ -452,24 +426,12 @@ namespace aniparse {
 	 */
 	struct SearchRequestQuery {
 		std::string query;
-		std::map<std::string, SearchItemVariant, std::less<>> filters;
+		SearchItems filters;
 
 		//template<typename Value>
 		//SearchItemVariant& insert_filter(Value&& value) {
 
 		//}
-	};
-
-	/**
-	 * @todo
-	 */
-	enum class SearchItemClass {
-		None,
-		TextQuery,
-		Interval,
-		BidirectInterval,
-		TypedQuery,
-		Checkmark,
 	};
 
 	/**

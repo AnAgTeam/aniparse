@@ -11,7 +11,9 @@ namespace aniparse {
 		return info(std::move(context));
 	}
 
-	NetworkRequestTask<std::vector<MangaTranslationInfo>> MangaGetter::translation_info(RequestorContext, GetFilters) noexcept {
+	NetworkRequestTask<PageResults<MangaTranslationInfo>> MangaGetter::translation_info(
+		RequestorContext,
+		GetFilters) noexcept {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get translation info");
 	}
 

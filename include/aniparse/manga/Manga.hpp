@@ -93,7 +93,7 @@ namespace aniparse {
 	};
 
 	struct SearchCompatibilities {
-		ItemSelection supported_filters;
+		SearchItems supported_filters;
 		FilteringFlags filtering_support = filtering_flags::default_flags;
 		CompatibilitiesFlags compatibilities = compatibilities_flags::default_flags;
 	};
@@ -110,7 +110,7 @@ namespace aniparse {
 
 		virtual NetworkRequestTask<MangaInfo> info(RequestorContext context) noexcept = 0;
 
-		virtual NetworkRequestTask<std::vector<MangaTranslationInfo>> translation_info(
+		virtual NetworkRequestTask<PageResults<MangaTranslationInfo>> translation_info(
 			RequestorContext context,
 			GetFilters filters) noexcept;
 
@@ -149,6 +149,7 @@ namespace aniparse {
 		virtual MangaGetterRootCompatibilities latest_support() const noexcept;
 
 		/**
+		 * @todo !
 		 * @brief Request authentification with given data for parser service.
 		 */
 		virtual NetworkRequestTask<RequestorContext> authenticate_context(
@@ -156,6 +157,7 @@ namespace aniparse {
 			AuthentificationData data) noexcept;
 
 		/**
+		 * @todo !
 		 * @brief Return ready-to-use client with getter
 		 * The context can be custom client or forwarded from argument.
 		 * By default passed client is forwarded.

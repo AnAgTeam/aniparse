@@ -482,4 +482,78 @@ namespace aniparse::html {
 	private:
 		lxb_dom_element_t* element_ = nullptr;
 	};
+
+	/**
+	 * @brief Helper class to find DOM elements in chain
+	 * Used when you want to find an element in another elements
+	 */
+	class DOMElementFinder {
+	public:
+		/**
+		 * @brief Construct finder with element
+		 * @param element First element to begin search
+		 */
+		DOMElementFinder(DOMElementView element) noexcept;
+
+		/**
+		 * @brief Find element with tag
+		 * @see DOMElementView::find
+		 */
+		DOMElementFinder& find(std::string_view tag) &;
+
+		/**
+		 * @brief Find element with tag
+		 * @see DOMElementView::find
+		 */
+		DOMElementFinder&& find(std::string_view tag) &&;
+
+		/**
+		 * @brief Find element with tag
+		 * @see DOMElementView::find
+		 */
+		DOMElementFinder& find(
+			std::string_view attr,
+			std::string_view value,
+			bool ignore_class_whitespaces = true) &;
+
+		/**
+		 * @brief Find element with tag
+		 * @see DOMElementView::find
+		 */
+		DOMElementFinder&& find(
+			std::string_view attr,
+			std::string_view value,
+			bool ignore_class_whitespaces = true) &&;
+
+		/**
+		 * @return true if current or previous element is not found, false otherwise
+		 */
+		operator bool() const noexcept;
+
+		/**
+		 * @brief Dereference value in finder.
+		 * @note You must always check if current element is valid through "operator bool()".
+		 *       Or you can use value() instead
+		 * @return Current element
+		 */
+		DOMElementView& operator*() noexcept;
+
+		/**
+		 * @brief Dereference value in finder.
+		 * @note You must always check if current element is valid through "operator bool()".
+		 *       Or you can use value() instead
+		 * @return Current element
+		 */
+		DOMElementView* operator->() noexcept;
+
+		/**
+		 * @brief Dereference value in finder or throw an exception
+		 * @throw std::bad_optional_access If current element invalid
+		 * @return Current element
+		 */
+		DOMElementView& value();
+
+	private:
+		std::optional<DOMElementView> element_;
+	};
 }
