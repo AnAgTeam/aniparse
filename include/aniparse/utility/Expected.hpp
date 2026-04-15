@@ -16,22 +16,34 @@
  * !!!
  */
 
-#if defined(ANIPARSE_USE_TL_EXPECTED) || !defined(__cpp_lib_expected)
+#if !defined(ANIPARSE_USE_TL_EXPECTED) && !defined(__cpp_lib_expected)
+# define ANIPARSE_USE_TL_EXPECTED
+#endif
+
+#ifdef ANIPARSE_USE_TL_EXPECTED
 # include <tl/expected.hpp>
 namespace aniparse {
-    template<typename T, typename E>
-    using expected = tl::expected<T, E>;
+# ifdef _MSC_VER
+#  pragma detect_mismatch("aniparse_expected_version", "tl_expected")
+# else
+    extern const int tl_expected_yes;
+    __attribute__((used)) static inline auto tl_expected_check = tl_expected_yes;
+# endif
 
-    template<typename E>
-    using unexpected = tl::unexpected<E>;
+    using tl::expected;
+    using tl::unexpected;
 }
-#else
+#else // ^^^ ANIPARSE_USE_TL_EXPECTED / !ANIPARSE_USE_TL_EXPECTED vvv
 # include <expected>
 namespace aniparse {
-    template<typename T, typename E>
-    using expected = std::expected<T, E>;
+# ifdef _MSC_VER
+#  pragma detect_mismatch("aniparse_expected_version", "std_expected")
+# else
+    extern const int tl_expected_no;
+    __attribute__((used)) static inline auto tl_expected_check = tl_expected_no;
+# endif
 
-    template<typename E>
-    using unexpected = std::unexpected<E>;
+    using std::expected;
+    using std::unexpected;
 }
-#endif
+#endif // ANIPARSE_USE_TL_EXPECTED

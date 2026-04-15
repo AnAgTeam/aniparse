@@ -8,7 +8,9 @@
 #include <string_view>
 #include <print>
 
-static int usage(const char* program_name) {
+constexpr std::string_view default_program_name = "aniparseExtract";
+
+static int usage(std::string_view program_name) {
 	std::println(stderr,
 		"Usage: {0} [--help] (latest|search|support|parse|list) [<flags> ...]\n"
 		"latest - get latest items: {0} latest -p <parser key> [--from <index>] [--limit <number>] [--sort <sort>]\n"
@@ -31,7 +33,7 @@ static int usage(const char* program_name) {
 
 static int real_main(int argc, const char** argv) {
 	if (argc == 0) {
-		return usage("aniparseExtract");
+		return usage(default_program_name);
 	}
 	if (argc <= 2) {
 		std::println(stderr, "Invalid arguments");

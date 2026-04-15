@@ -44,6 +44,7 @@ add_library(aniparse STATIC
 	"include/aniparse/utility/Coroutines.hpp"
 	"include/aniparse/utility/Expected.hpp"
 	"include/aniparse/utility/Regex.hpp"
+	"src/utility/Utility.cpp"
 
 	"src/html/HTMLDocument.cpp" "include/aniparse/html/HTMLDocument.hpp"
 	"src/html/DOMAttributes.cpp" "include/aniparse/html/DOMAttributes.hpp"
@@ -60,7 +61,7 @@ add_library(aniparse STATIC
 
 	"src/images/Image.cpp" "include/aniparse/images/Image.hpp"
 
-	"src/manga/Manga.cpp" "include/aniparse/manga/Manga.hpp"
+ "src/utility/Utility.cpp"	"src/manga/Manga.cpp" "include/aniparse/manga/Manga.hpp"
 )
 
 set_property(TARGET aniparse PROPERTY CXX_STANDARD 20)
@@ -71,7 +72,7 @@ target_compile_options(aniparse PRIVATE
     $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic>
 )
 
-if (${ANIPARSE_USE_TL_EXPECTED})
+if (ANIPARSE_USE_TL_EXPECTED)
 	target_compile_definitions(aniparse PUBLIC -DANIPARSE_USE_TL_EXPECTED=1)
 endif()
 
