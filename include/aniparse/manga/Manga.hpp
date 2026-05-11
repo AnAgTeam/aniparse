@@ -152,17 +152,16 @@ namespace aniparse {
 		 * @todo !
 		 * @brief Request authentification with given data for parser service.
 		 */
-		virtual NetworkRequestTask<RequestorContext> authenticate_context(
+		virtual NetworkRequestTask<std::shared_ptr<const ClientConfig>> authenticate_context(
 			RequestorContext context,
-			AuthentificationData data) noexcept;
+			AuthenticationData data) noexcept;
 
 		/**
 		 * @todo !
-		 * @brief Return ready-to-use client with getter
-		 * The context can be custom client or forwarded from argument.
-		 * By default passed client is forwarded.
+
+		 * @note By default passed client is forwarded.
 		 */
-		virtual RequestorContext default_client_from(RequestorContext context) const noexcept;
+		virtual std::shared_ptr<ClientConfig> default_config_from(std::shared_ptr<const ClientConfig> base_config) const;
 
 		/**
 		 * @todo

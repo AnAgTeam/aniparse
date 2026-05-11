@@ -27,6 +27,7 @@ namespace aniparse {
 #  pragma detect_mismatch("aniparse_expected_version", "tl_expected")
 # else
     extern const int tl_expected_yes;
+    /// If you see linker error here, probably the library was compiled with std::expected
     __attribute__((used)) static inline auto tl_expected_check = tl_expected_yes;
 # endif
 
@@ -40,6 +41,7 @@ namespace aniparse {
 #  pragma detect_mismatch("aniparse_expected_version", "std_expected")
 # else
     extern const int tl_expected_no;
+    /// If you see linker error here, probably the library was compiled with tl::expected
     __attribute__((used)) static inline auto tl_expected_check = tl_expected_no;
 # endif
 

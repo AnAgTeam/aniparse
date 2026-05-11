@@ -208,10 +208,17 @@ public:
 	}
 
 	// Авторизация клиента, если для получения какой-то информации необходимо входить в сервис
-	NetworkRequestTask<RequestorContext> authenticate_context(
+	NetworkRequestTask<std::shared_ptr<const ClientConfig>> authenticate_context(
 		RequestorContext context,
-		AuthentificationData data) noexcept override {
-		co_return context;
+		AuthenticationData data) noexcept override {
+		co_return context.config();
+	}
+
+	// Создать готовый конфиг для парсера
+	std::shared_ptr<ClientConfig> default_config_from(std::shared_ptr<const ClientConfig> base_config) const override {
+		auto new_config = std::make_shared<ClientConfig>(*base_config);
+		new_config->headers["User-Agent"] = "ExampleParser/1.0";
+		return new_config;
 	}
 
 	// Поиск по указаным критериям. Для получения возможностей поиска используется search_support()
@@ -227,7 +234,9 @@ public:
 		RequestorContext context,
 		GetFilters filters) noexcept override {
 		PageResults<std::unique_ptr<MangaGetter>> pages;
-		
+		// Логирование
+		context.info("Вызван latest(), от {}, лимит {}", filters.from, filters.limit);
+
 		// Вернуть 0 страниц, если столько запрашивается.
 		// Иначе вернуть сколько возможно, то есть 1. Лимит лишь указывает максимальное количество
 		if (filters.limit <= 0) {
@@ -309,6 +318,45 @@ class ExampleParser : public Parser {
 	}
 };
 
+template<>
+struct std::formatter<LogLevel> {
+	constexpr auto parse(auto& ctx) {
+		return ctx.begin();
+	}
+
+	auto format(LogLevel level, auto& ctx) const {
+		std::string_view name;
+		switch (level) {
+		case LogLevel::Debug:   name = "DEBUG"; break;
+		case LogLevel::Info:    name = "INFO"; break;
+		case LogLevel::Warning: name = "WARNING"; break;
+		case LogLevel::Error:   name = "ERROR"; break;
+		case LogLevel::Fatal:   name = "FATAL"; break;
+		default:                name = "UNKNOWN";
+		}
+		return std::format_to(ctx.out(), "{}", name);
+	}
+};
+
+struct ConsoleLogger : LoggerContext {
+	void log(LogLevel message_type,
+		std::string_view message,
+		const std::source_location loc = std::source_location::current()) override {
+		using namespace std::chrono;
+
+		auto now = floor<seconds>(system_clock::now());
+		auto zoned_now = zoned_time{ current_zone(), now };
+
+		std::format_to(std::ostream_iterator<char>(std::cout),
+			"[{:%T} {} {}:{}] {}",
+			zoned_now,
+			message_type,
+			loc.file_name(),
+			loc.line(),
+			message) = '\n';
+	}
+};
+
 int main() {
 	std::locale::global(std::locale("ru.utf-8"));
 
@@ -318,10 +366,7 @@ int main() {
 	// Базовый клиент, которым парсер будет получать информации из интернета
 	auto client = std::make_shared<AsyncClient>();
 	// Контекст для парсера, который содержит клиент, логгер и указание на альт. ссылку
-	RequestorContext client_context = {
-		.client = client,
-		.alt_link = 0,
-	};
+	RequestorContext client_context(client, std::make_shared<ConsoleLogger>(), nullptr);
 
 	// Добавить парсер в список
 	parser_store.add_parser(std::make_shared<ExampleParser>());
@@ -332,8 +377,8 @@ int main() {
 	// Получить геттер для манги у парсера
 	auto example_manga_root = example_parser->mangas_getter();
 
-	// Получить клиант, готовый для работы для данного парсера
-	auto ready_to_work_client = example_manga_root->default_client_from(client_context);
+	// Получить клиент, готовый для работы для данного парсера
+	auto ready_to_work_client = client_context.new_with_config(example_manga_root->default_config_from(client_context.config()));
 
 	// Получить список последних манг у парсера.
 	// Также корутина выполняется синхронно благодаря sync_wait.

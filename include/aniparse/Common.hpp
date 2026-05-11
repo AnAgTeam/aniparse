@@ -347,13 +347,13 @@ namespace aniparse {
 	 * @brief Integer interval
 	 * Can be used for pages count, episodes count, etc.
 	 */
-	using IntInterval          = Interval<std::ptrdiff_t>;
+	using IntInterval = Interval<std::ptrdiff_t>;
 
 	/**
 	 * @brief Time interval
 	 * Can be used for update time, etc.
 	 */
-	using TimeInterval         = Interval<std::chrono::system_clock::time_point>;
+	using TimeInterval = Interval<std::chrono::system_clock::time_point>;
 
 	/**
 	 * @brief Relative time interval
@@ -445,7 +445,7 @@ namespace aniparse {
 	/**
 	 * @brief Data for authentification using username and password
 	 */
-	struct AuthentificationUserPassword {
+	struct AuthenticationUserPassword {
 		std::string username;
 		std::string password;
 		bool requires_2fa = false;
@@ -456,7 +456,7 @@ namespace aniparse {
 	 *        (some string representing all required information
 	 *        to identify user)
 	 */
-	struct AuthentificationToken {
+	struct AuthenticationToken {
 		std::string token;
 		std::string type;
 	};
@@ -464,5 +464,5 @@ namespace aniparse {
 	/**
 	 * @brief Data that can be used for authentification
 	 */
-	using AuthentificationData = std::variant<AuthentificationUserPassword, AuthentificationToken>;
+	using AuthenticationData = std::variant<AuthenticationUserPassword, AuthenticationToken>;
 }
