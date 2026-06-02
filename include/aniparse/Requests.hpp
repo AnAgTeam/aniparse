@@ -26,6 +26,8 @@ namespace aniparse {
 		std::string url;
 		asyncnet::UrlParameters url_params;
 		std::list<std::string> headers;
+
+		friend bool operator==(const GetRequest& left, const GetRequest& right);
 	};
 
 	/**
@@ -36,6 +38,8 @@ namespace aniparse {
 		asyncnet::UrlParameters url_params;
 		std::list<std::string> headers;
 		std::string body;
+
+		friend bool operator==(const PostRequest& left, const PostRequest& right);
 	};
 
 	/**
@@ -46,6 +50,8 @@ namespace aniparse {
 		asyncnet::UrlParameters url_params;
 		std::list<std::string> headers;
 		asyncnet::MultipartForms forms;
+
+		friend bool operator==(const PostMultipartRequest& left, const PostMultipartRequest& right);
 	};
 
 	/**
@@ -103,4 +109,14 @@ namespace aniparse {
 
 		GetterContextFlags flags = getter_flags::default_flags;
 	};
+
+	template<typename T>
+	struct ConfiguredRequest {
+		T request;
+		std::shared_ptr<class CookieJar> cookies;
+	};
+
+	using ConfiguredGetRequest = ConfiguredRequest<GetRequest>;
+	using ConfiguredPostRequest = ConfiguredRequest<PostRequest>;
+	using ConfiguredPostMultipartRequest = ConfiguredRequest<PostMultipartRequest>;
 }

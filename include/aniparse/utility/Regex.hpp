@@ -4,24 +4,11 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#ifndef ANIPARSE_USE_BOOST_REGEX
-# include <regex>
-#else
-# include <boost/regex.hpp>
-#endif
-
+#include <boost/regex.hpp>
 #include <ranges>
 #include <string_view>
 
 namespace aniparse {
-#ifdef ANIPARSE_USE_BOOST_REGEX
-# ifdef _MSC_VER
-#  pragma detect_mismatch("aniparse_regex_version", "boost_regex")
-# else
-	extern const int boost_regex_yes;
-	__attribute__((used)) static inline auto boost_regex_check = boost_regex_yes;
-# endif
-
 	using boost::basic_regex;
 	using boost::regex;
 	using boost::wregex;
@@ -51,44 +38,6 @@ namespace aniparse {
 	using boost::cregex_token_iterator;
 	using boost::sregex_token_iterator;
 	using boost::wsregex_token_iterator;
-#else // ^^^ ANIPARSE_USE_BOOST_REGEX / !ANIPARSE_USE_BOOST_REGEX vvv
-# ifdef _MSC_VER
-#  pragma detect_mismatch("aniparse_regex_version", "std_regex")
-# else
-	extern const int boost_regex_no;
-	__attribute__((used)) static inline auto boost_regex_check = boost_regex_no;
-# endif
-
-	using std::basic_regex;
-	using std::regex;
-	using std::wregex;
-
-	namespace regex_constants {
-		using namespace std::regex_constants;
-	}
-
-	using std::sub_match;
-	using std::csub_match;
-	using std::ssub_match;
-	using std::wssub_match;
-
-	using std::match_results;
-	using std::cmatch;
-	using std::wcmatch;
-	using std::smatch;
-	using std::wsmatch;
-	using svmatch = match_results<std::string_view::const_iterator>;
-	using wsvmatch = match_results<std::wstring_view::const_iterator>;
-
-	using std::regex_match;
-	using std::regex_search;
-	using std::regex_replace;
-
-	using std::regex_token_iterator;
-	using std::cregex_token_iterator;
-	using std::sregex_token_iterator;
-	using std::wsregex_token_iterator;
-#endif // ANIPARSE_USE_BOOST_REGEX
 
 	template<
 		std::ranges::range Range,

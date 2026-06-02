@@ -48,13 +48,13 @@ namespace aniparse {
 		return {};
 	}
 
-	NetworkRequestTask<std::shared_ptr<const ClientConfig>> MangaRootGetter::authenticate_context(RequestorContext, AuthenticationData) noexcept {
+	NetworkRequestTask<std::shared_ptr<const ParserConfig>> MangaRootGetter::authenticate_context(RequestorContext, AuthenticationData) noexcept {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot auth");
 	}
 
-	std::shared_ptr<ClientConfig> MangaRootGetter::default_config_from(std::shared_ptr<const ClientConfig> base_config) const {
+	std::shared_ptr<ParserConfig> MangaRootGetter::default_config_from(std::shared_ptr<const ParserConfig> base_config) const {
 		if (!base_config) return nullptr;
-		return std::make_shared<ClientConfig>(*base_config);
+		return std::make_shared<ParserConfig>(*base_config);
 	}
 
 	NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaRootGetter::search(RequestorContext, SearchRequestQuery, GetFilters) noexcept {

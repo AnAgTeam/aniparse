@@ -8,8 +8,32 @@
 #include "aniparse/ClientContext.hpp"
 
 #include <asyncnet/AsyncSession.hpp>
+#include <asyncnet/Requestor.hpp>
 
 namespace aniparse {
+
+	class CurlCookieJar : public CookieJar {
+	public:
+		CurlCookieJar();
+		CurlCookieJar(std::shared_ptr<asyncnet::CurlShared> shared);
+
+		// @todo
+		std::optional<std::string> find_cookie(std::string_view name) const override;
+
+		// @todo
+		void set_cookie(std::string cookie) override;
+
+		// @todo
+		void clear() override;
+
+		std::vector<std::string> serialize() const override;
+		void deserialize(std::span<std::string> cookies) override;
+
+		const std::shared_ptr<asyncnet::CurlShared>& shared() const;
+
+	private:
+		std::shared_ptr<asyncnet::CurlShared> shared_;
+	};
 
 	/**
 	 * @brief Class for performing asyncronous HTTP requests
@@ -18,6 +42,8 @@ namespace aniparse {
 	 */
 	class AsyncClient : public ClientContext {
 	public:
+		static constexpr size_t default_max_retries = 4;
+
 		/**
 		 * @bief Initialize client
 		 */
@@ -28,37 +54,33 @@ namespace aniparse {
 		 * @param request HTTP request
 		 * @return Task with response
 		 */
-		asyncnet::NetworkTask<asyncnet::Response> do_request(GetRequest request);
+		asyncnet::NetworkTask<asyncnet::Response> do_request(ConfiguredGetRequest request) override;
 
 		/**
 		 * @bief Perform HTTP POST request
 		 * @param request HTTP request
 		 * @return Task with response
 		 */
-		asyncnet::NetworkTask<asyncnet::Response> do_request(PostRequest request);
+		asyncnet::NetworkTask<asyncnet::Response> do_request(ConfiguredPostRequest request) override;
 
 		/**
 		 * @bief Perform HTTP POST multipart/form-data request
 		 * @param request HTTP request
 		 * @return Task with response
 		 */
-		asyncnet::NetworkTask<asyncnet::Response> do_request(PostMultipartRequest request);
+		asyncnet::NetworkTask<asyncnet::Response> do_request(ConfiguredPostMultipartRequest request) override;
 
-		/**
-		 * @bief Perform custom HTTP request
-		 * @param request HTTP request
-		 * @return Task with response
-		 */
-		asyncnet::NetworkTask<asyncnet::Response> do_request(std::shared_ptr<PolymorphicRequest> request);
+		ClientConfig config() const;
 
-		void set_timeout(const std::optional<std::chrono::system_clock::duration>& timeout);
-		
-		void set_user_agent(std::string_view user_agent);
+		void set_config(ClientConfig new_config) override;
+
+		std::shared_ptr<CookieJar> make_cookie_jar() override;
 
 	private:
 
-		std::list<std::string> get_default_headers();
+		std::shared_ptr<asyncnet::Requestor> core_;
+		std::atomic<std::shared_ptr<asyncnet::AsyncSession>> session_;
 
-		asyncnet::AsyncSession session_;
+		uint32_t max_retries_;
 	};
 }

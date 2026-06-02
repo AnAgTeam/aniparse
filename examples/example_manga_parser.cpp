@@ -208,15 +208,15 @@ public:
 	}
 
 	// Авторизация клиента, если для получения какой-то информации необходимо входить в сервис
-	NetworkRequestTask<std::shared_ptr<const ClientConfig>> authenticate_context(
+	NetworkRequestTask<std::shared_ptr<const ParserConfig>> authenticate_context(
 		RequestorContext context,
 		AuthenticationData data) noexcept override {
 		co_return context.config();
 	}
 
 	// Создать готовый конфиг для парсера
-	std::shared_ptr<ClientConfig> default_config_from(std::shared_ptr<const ClientConfig> base_config) const override {
-		auto new_config = std::make_shared<ClientConfig>(*base_config);
+	std::shared_ptr<ParserConfig> default_config_from(std::shared_ptr<const ParserConfig> base_config) const override {
+		auto new_config = std::make_shared<ParserConfig>(*base_config);
 		new_config->headers["User-Agent"] = "ExampleParser/1.0";
 		return new_config;
 	}

@@ -19,5 +19,5 @@
 	TEST_CASE(__VA_ARGS__) {									\
 		coro::sync_wait(name());								\
 	}															\
-	coro::task<void> name()
+	static coro::task<void> name()
 #define CORO_TEST_CASE(...) CORO_TEST_CASE_IMPL(CORO_TEST_TEST_UNIQUE_NAME, __VA_ARGS__)

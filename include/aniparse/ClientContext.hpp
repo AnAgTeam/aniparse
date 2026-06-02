@@ -5,6 +5,7 @@
  */
 #pragma once
 #include "aniparse/Requests.hpp"
+#include "aniparse/CookieJar.hpp"
 #include "aniparse/utility/Format.hpp"
 
 #include <asyncnet/CancellingTask.hpp>
@@ -13,10 +14,14 @@
 namespace aniparse {
 
 	using ClientConfigFlags = FlagsBitfield<64, struct ClientConfigFlagsTag>;
+	using ParserConfigFlags = FlagsBitfield<64, struct ParserConfigFlagsTag>;
 
-	namespace client_flags {
-		inline constexpr auto follow_redirects = ClientConfigFlags::make_bit(0);
-		inline constexpr auto verify_ssl       = ClientConfigFlags::make_bit(1);
+	namespace client_config_flags {
+		inline constexpr auto verify_ssl       = ClientConfigFlags::make_bit(0);
+	}
+
+	namespace parser_config_flags {
+		inline constexpr auto follow_redirects = ParserConfigFlags::make_bit(0);
 	}
 
 	struct ClientProxy {
@@ -25,15 +30,25 @@ namespace aniparse {
 		uint16_t port = 0;
 	};
 
-	struct ClientConfig {
+	/**
+	 * @brief Parser configuration for all its requests
+	 * @see RequestorContext
+	 * @todo Make requets parameters priority more than config
+	 */
+	struct ParserConfig {
 		std::map<std::string, std::string> headers;
 		std::map<std::string, std::string> url_params;
-		ClientConfigFlags flags;
-		std::optional<std::chrono::milliseconds> timeout;
-		std::optional<ClientProxy> proxy;
-		std::optional<uint32_t> max_retries;
+		std::shared_ptr<CookieJar> cookie_jar;
+		ParserConfigFlags flags;
 
 		std::vector<std::function<void(aniparse::ClientRequest&)>> modifiers;
+	};
+
+	struct ClientConfig {
+		std::optional<ClientProxy> proxy;
+		std::optional<uint32_t> max_retries;
+		std::optional<std::chrono::milliseconds> timeout;
+		ClientConfigFlags flags;
 	};
 
 	/**
@@ -47,28 +62,28 @@ namespace aniparse {
 		 * @param request HTTP request
 		 * @return Task with response
 		 */
-		virtual asyncnet::NetworkTask<asyncnet::Response> do_request(GetRequest request) = 0;
+		virtual asyncnet::NetworkTask<asyncnet::Response> do_request(ConfiguredGetRequest request) = 0;
 
 		/**
 		 * @bief Perform HTTP POST request
 		 * @param request HTTP request
 		 * @return Task with response
 		 */
-		virtual asyncnet::NetworkTask<asyncnet::Response> do_request(PostRequest request) = 0;
+		virtual asyncnet::NetworkTask<asyncnet::Response> do_request(ConfiguredPostRequest request) = 0;
 		
 		/**
 		 * @bief Perform HTTP POST multipart/form-data request
 		 * @param request HTTP request
 		 * @return Task with response
 		 */
-		virtual asyncnet::NetworkTask<asyncnet::Response> do_request(PostMultipartRequest request) = 0;
-		
+		virtual asyncnet::NetworkTask<asyncnet::Response> do_request(ConfiguredPostMultipartRequest request) = 0;
+
 		/**
-		 * @bief Perform custom HTTP request
-		 * @param request HTTP request
-		 * @return Task with response
+		 * @todo docs
 		 */
-		virtual asyncnet::NetworkTask<asyncnet::Response> do_request(std::shared_ptr<PolymorphicRequest> request) = 0;
+		virtual void set_config(ClientConfig config) = 0;
+
+		virtual std::shared_ptr<CookieJar> make_cookie_jar() = 0;
 	};
 
 	enum class LogLevel {
@@ -93,31 +108,11 @@ namespace aniparse {
 		virtual void log(LogLevel message_type,
 			std::string_view message,
 			const std::source_location loc = std::source_location::current()) = 0;
-
-		/**
-		 * @brief Output INFO text
-		 * @param message Message text to output
-		 */
-		void log_info(std::string_view message,
-			const std::source_location loc = std::source_location::current());
-
-		/**
-		 * @brief Output DEBUG text
-		 * @param message Message text to output
-		 */
-		void log_debug(std::string_view message,
-			const std::source_location loc = std::source_location::current());
-
-		/**
-		 * @brief Output ERROR text
-		 * @param message Message text to output
-		 */
-		void log_error(std::string_view message,
-			const std::source_location loc = std::source_location::current());
 	};
 
 	/**
 	 * @brief General context for parsers with client, its config and logger
+	 * @see ParserConfig
 	 */
 	class RequestorContext {
 	public:
@@ -133,7 +128,7 @@ namespace aniparse {
 		 */
 		RequestorContext(std::shared_ptr<ClientContext> client,
 			std::shared_ptr<LoggerContext> logger,
-			std::shared_ptr<ClientConfig> config);
+			std::shared_ptr<ParserConfig> config);
 
 		/**
 		 * @bief Perform HTTP GET request with respect to client config
@@ -237,17 +232,13 @@ namespace aniparse {
 		}
 
 		/**
-		 * @brief Returns HTTP client configuration. Always valie
+		 * @brief Returns HTTP client configuration. Always valid
 		 * @return HTTP client configuration
 		 */
-		std::shared_ptr<const ClientConfig> config() const;
+		std::shared_ptr<const ParserConfig> config() const;
 
 		size_t alt_link() const;
 		void set_alt_link(size_t alt_link);
-
-		//std::shared_ptr<LoggerContext> logger() const;
-		//void set_logger(std::shared_ptr<LoggerContext> logger);
-
 
 		/**
 		 * @brief Make new context for parsers with new logger
@@ -259,18 +250,18 @@ namespace aniparse {
 		 * @brief Make new context for parsers with new client
 		 * @return New context with inherited properties and new client
 		 */
-		RequestorContext new_with_client(std::shared_ptr<ClientContext> client) const;
+		//RequestorContext new_with_client(std::shared_ptr<ClientContext> client) const;
 
 		/**
 		 * @brief Make new context for parsers with new HTTP client config
 		 * @return New context with inherited properties and new HTTP client config
 		 */
-		RequestorContext new_with_config(std::shared_ptr<ClientConfig> config) const;
+		RequestorContext new_with_config(std::shared_ptr<ParserConfig> config) const;
 
 	private:
 		std::shared_ptr<ClientContext> client_;
 		std::shared_ptr<LoggerContext> logger_;
-		std::shared_ptr<ClientConfig> config_;
+		std::shared_ptr<ParserConfig> config_;
 		size_t alt_link_ = 0;
 	};
 }
