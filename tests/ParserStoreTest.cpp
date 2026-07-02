@@ -40,8 +40,10 @@ TEST_CASE("ParserStore add") {
 
 	REQUIRE(!parser_store.find_for_url("https://youtube.com"));
 	REQUIRE(parser_store.find_for_url("https://www.youtube.com"));
+	REQUIRE(parser_store.find_for_url("https://aaa.www.youtube.com"));
 	REQUIRE(parser_store.find_for_url("https://youtu.be"));
 	REQUIRE(parser_store.find_for_url("http://youtu.be"));
+	REQUIRE(parser_store.find_for_url("http://www.youtu.be"));
 	REQUIRE(!parser_store.find_for_url("http://aaa.youtube.com"));
 
 	REQUIRE(parser_store.find_by_key("TestParser"));
