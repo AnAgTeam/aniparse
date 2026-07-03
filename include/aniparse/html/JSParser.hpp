@@ -37,9 +37,10 @@ extern std::string_view find_json_var(std::string_view variable_name, std::strin
  * it with boost::json (comments and trailing commas are tolerated). Unlike
  * find_json_var it returns an owning value, so @p text may be a temporary and
  * no dangling can occur.
- * @note Only (lenient) JSON is accepted. JavaScript that is not valid JSON —
- *       e.g. single quoted strings — yields std::nullopt; use @ref find_json_var
- *       and handle such data yourself.
+ * @note Tolerates common JS-isms: single quoted strings (normalized to double
+ *       quotes), comments and trailing commas. JavaScript that is still not
+ *       valid JSON after that yields std::nullopt; use @ref find_json_var and
+ *       handle such data yourself.
  * @param variable_name The name of the variable to search for
  * @param text The text to search in
  * @return The parsed value, or std::nullopt if not found or not valid JSON

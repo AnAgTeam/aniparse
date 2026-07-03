@@ -150,6 +150,97 @@ std::string_view scan_json_var(std::string_view variable_name, std::string_view 
 	return {};
 }
 
+/// Transcode a JS object/array literal into JSON: single-quoted strings become
+/// double-quoted (embedded double quotes escaped, \' unescaped), while
+/// double-quoted strings and comments are copied through untouched.
+std::string normalize_js_to_json(std::string_view src) {
+	std::string out;
+	out.reserve(src.size());
+
+	size_t i = 0;
+	while (i < src.size()) {
+		const char c = src[i];
+
+		if (c == '"') { // double-quoted string: copy verbatim
+			out.push_back(c);
+			++i;
+			while (i < src.size()) {
+				if (src[i] == '\\' && i + 1 < src.size()) {
+					out.push_back(src[i]);
+					out.push_back(src[i + 1]);
+					i += 2;
+					continue;
+				}
+				const char d = src[i++];
+				out.push_back(d);
+				if (d == '"') {
+					break;
+				}
+			}
+			continue;
+		}
+
+		if (c == '\'') { // single-quoted string: transcode to double-quoted
+			out.push_back('"');
+			++i;
+			while (i < src.size()) {
+				if (src[i] == '\\' && i + 1 < src.size()) {
+					const char e = src[i + 1];
+					if (e == '\'') {
+						out.push_back('\''); // \' is not a JSON escape
+					}
+					else {
+						out.push_back('\\');
+						out.push_back(e);
+					}
+					i += 2;
+					continue;
+				}
+				const char d = src[i++];
+				if (d == '\'') {
+					out.push_back('"'); // closing quote
+					break;
+				}
+				if (d == '"') {
+					out.push_back('\\'); // escape a double quote inside the string
+				}
+				out.push_back(d);
+			}
+			continue;
+		}
+
+		if (c == '/' && i + 1 < src.size() && src[i + 1] == '/') { // line comment
+			out.push_back(src[i]);
+			out.push_back(src[i + 1]);
+			i += 2;
+			while (i < src.size() && src[i] != '\n') {
+				out.push_back(src[i++]);
+			}
+			continue;
+		}
+
+		if (c == '/' && i + 1 < src.size() && src[i + 1] == '*') { // block comment
+			out.push_back(src[i]);
+			out.push_back(src[i + 1]);
+			i += 2;
+			while (i < src.size()) {
+				const char d = src[i++];
+				out.push_back(d);
+				if (d == '*' && i < src.size() && src[i] == '/') {
+					out.push_back(src[i++]);
+					break;
+				}
+			}
+			continue;
+		}
+
+		out.push_back(c);
+		++i;
+	}
+
+	return out;
+}
+
 } // namespace
 
 std::string_view find_json_var(std::string_view variable_name, const std::string& text) {
@@ -162,12 +253,14 @@ std::optional<boost::json::value> parse_json_var(std::string_view variable_name,
 		return std::nullopt;
 	}
 
+	const std::string normalized = normalize_js_to_json(slice);
+
 	boost::json::parse_options options;
 	options.allow_comments        = true;
 	options.allow_trailing_commas = true;
 
 	boost::system::error_code ec;
-	boost::json::value value = boost::json::parse(slice, ec, {}, options);
+	boost::json::value value = boost::json::parse(normalized, ec, {}, options);
 	if (ec) {
 		return std::nullopt;
 	}

@@ -79,9 +79,55 @@ TEST_CASE("parse_json_var owns its result, so temporary text is fine") {
     CHECK(v->as_array().size() == 2);
 }
 
-TEST_CASE("parse_json_var returns nullopt for non-JSON JavaScript or when absent") {
-    // Single quoted strings are valid JS but not JSON.
+TEST_CASE("parse_json_var normalizes single-quoted JS strings") {
     std::string js = "var imgs = ['a', 'b'];";
-    CHECK_FALSE(parse_json_var("imgs", js).has_value());
+    std::optional<boost::json::value> v = parse_json_var("imgs", js);
+    REQUIRE(v.has_value());
+    REQUIRE(v->is_array());
+    REQUIRE(v->as_array().size() == 2);
+    CHECK(std::string_view(v->as_array()[0].as_string()) == "a");
+}
+
+TEST_CASE("parse_json_var single-quote normalization handles embedded and escaped quotes") {
+    std::string a = R"(var a = ['say "hi"'];)";
+    std::optional<boost::json::value> va = parse_json_var("a", a);
+    REQUIRE(va.has_value());
+    CHECK(std::string_view(va->as_array()[0].as_string()) == "say \"hi\"");
+
+    std::string b = R"(var b = ['it\'s'];)";
+    std::optional<boost::json::value> vb = parse_json_var("b", b);
+    REQUIRE(vb.has_value());
+    CHECK(std::string_view(vb->as_array()[0].as_string()) == "it's");
+
+    // An apostrophe inside a double-quoted string is left untouched.
+    std::string c = R"(var c = { "k": "it's fine" };)";
+    std::optional<boost::json::value> vc = parse_json_var("c", c);
+    REQUIRE(vc.has_value());
+    CHECK(std::string_view(vc->as_object().at("k").as_string()) == "it's fine");
+}
+
+TEST_CASE("parse_json_var returns nullopt when the variable is absent") {
+    std::string js = "var imgs = ['a', 'b'];";
     CHECK_FALSE(parse_json_var("missing", js).has_value());
+}
+
+TEST_CASE("find_json_var and parse_json_var handle the henchan /online page shape") {
+    // The array is a quoted key inside `var data = {...}`, with two decoys
+    // that must be skipped: `var fullimg = data.fullimg` and `fullimg[...]`.
+    std::string js =
+        "var data = { \"title\": \"x\", "
+        "\"fullimg\": ['https://cdn/1.jpg', 'https://cdn/2.jpg', 'https://cdn/3.jpg'] };\n"
+        "var fullimg = data.fullimg;\n"
+        "function f(x) { return fullimg[x - 1]; }";
+
+    std::string_view slice = find_json_var("fullimg", js);
+    CHECK(slice.substr(0, 1) == "[");
+    CHECK(slice.find("3.jpg") != std::string_view::npos);
+
+    std::optional<boost::json::value> v = parse_json_var("fullimg", js);
+    REQUIRE(v.has_value());
+    REQUIRE(v->is_array());
+    REQUIRE(v->as_array().size() == 3);
+    CHECK(std::string_view(v->as_array()[0].as_string()) == "https://cdn/1.jpg");
+    CHECK(std::string_view(v->as_array()[2].as_string()) == "https://cdn/3.jpg");
 }
