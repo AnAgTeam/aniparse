@@ -114,3 +114,54 @@ TEST_CASE("Bitset bit access") {
 TEST_CASE("Zero size bitset") {
 	BitsetLite<0> bitset1;
 }
+
+TEST_CASE("Bitset all/any/none") {
+	BitsetLite<64> empty_bitset;
+	CHECK(empty_bitset.any() == false);
+	CHECK(empty_bitset.none() == true);
+	CHECK(empty_bitset.all() == false);
+
+	BitsetLite<64> one_bit = 0b100;
+	CHECK(one_bit.any() == true);
+	CHECK(one_bit.none() == false);
+	CHECK(one_bit.all() == false);
+
+	BitsetLite<64> full_bitset;
+	full_bitset.set();
+	CHECK(full_bitset.all() == true);
+	CHECK(full_bitset.any() == true);
+	CHECK(full_bitset.none() == false);
+}
+
+TEST_CASE("Bitset all() across multiple words") {
+	BitsetLite<128> bitset;
+	for (size_t i = 0; i < 64; ++i) {
+		bitset.set(i);
+	}
+	// only the low word is filled, so not every bit is set
+	CHECK(bitset.all() == false);
+
+	bitset.set();
+	CHECK(bitset.all() == true);
+}
+
+TEST_CASE("Bitset all() respects the partial last word") {
+	BitsetLite<60> bitset;
+	for (size_t i = 0; i < 60; ++i) {
+		bitset.set(i);
+	}
+	CHECK(bitset.all() == true);
+}
+
+TEST_CASE("Bitset query methods on const object") {
+	const BitsetLite<64> empty_bitset;
+	const BitsetLite<64> one_bit = 0b10;
+
+	CHECK(empty_bitset.none() == true);
+	CHECK(empty_bitset.any() == false);
+	CHECK(empty_bitset.all() == false);
+
+	CHECK(one_bit.any() == true);
+	CHECK(one_bit.size() == 64);
+	CHECK((~one_bit).any() == true);
+}
