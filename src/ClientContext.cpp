@@ -18,17 +18,11 @@ static void apply_config_to(ClientRequest& any_request, const ParserConfig& conf
 	std::visit(Overloaded{
 	               [](std::shared_ptr<PolymorphicRequest>& request) {},
 	               [&](auto& request) {
-		               auto joined_headers = config.headers | std::views::transform([](auto& header) {
-			                                     return header.first + ": " + header.second;
-		                                     });
+		               // Request headers take priority over config: insert() keeps existing keys.
+		               request.headers.insert(config.headers.begin(), config.headers.end());
 
-		               std::ranges::copy(joined_headers, std::back_inserter(request.headers));
-
-		               // UrlParameters doesn't have an iterator
-		               //std::ranges::copy(config.url_params, std::back_inserter(request.url_params));
-
-		               for (auto& header : config.url_params) {
-			               request.url_params += header;
+		               for (auto& param : config.url_params) {
+			               request.url_params += param;
 		               }
 	               }},
 	           any_request);
@@ -41,7 +35,9 @@ static void apply_config_to(ClientRequest& any_request, const ParserConfig& conf
 RequestorContext::RequestorContext(std::shared_ptr<ClientContext> client,
                                    std::shared_ptr<LoggerContext> logger,
                                    std::shared_ptr<ParserConfig> config)
-    : client_(std::move(client)), logger_(std::move(logger)), config_(config ? std::move(config) : std::make_shared<ParserConfig>()) {
+    : client_(std::move(client))
+    , logger_(std::move(logger))
+    , config_(config ? std::move(config) : std::make_shared<ParserConfig>()) {
 	if (!client_) {
 		throw std::invalid_argument("Client has to be valid");
 	}

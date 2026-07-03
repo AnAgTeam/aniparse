@@ -5,6 +5,7 @@
  */
 #pragma once
 #include "aniparse/FlagsBitfield.hpp"
+#include "aniparse/Headers.hpp"
 
 #include <asyncnet/Request.hpp>
 #include <asyncnet/Response.hpp>
@@ -25,7 +26,7 @@ constexpr GetterContextFlags default_flags;
 struct GetRequest {
 	std::string url;
 	asyncnet::UrlParameters url_params;
-	std::list<std::string> headers;
+	Headers headers;
 
 	friend bool operator==(const GetRequest& left, const GetRequest& right);
 };
@@ -36,7 +37,7 @@ struct GetRequest {
 struct PostRequest {
 	std::string url;
 	asyncnet::UrlParameters url_params;
-	std::list<std::string> headers;
+	Headers headers;
 	std::string body;
 
 	friend bool operator==(const PostRequest& left, const PostRequest& right);
@@ -48,7 +49,7 @@ struct PostRequest {
 struct PostMultipartRequest {
 	std::string url;
 	asyncnet::UrlParameters url_params;
-	std::list<std::string> headers;
+	Headers headers;
 	asyncnet::MultipartForms forms;
 
 	friend bool operator==(const PostMultipartRequest& left, const PostMultipartRequest& right);

@@ -4,6 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #include "aniparse/Client.hpp"
+#include "aniparse/Headers.hpp"
 
 #include <asyncnet/Exceptions.hpp>
 #include <curlpp/Options.hpp>
@@ -29,7 +30,7 @@ NetworkTask<Response> with_retry(uint32_t max_retries,
 			//}
 		}
 	}
-	assert(false); // unreachable
+	throw std::logic_error("with_retry: unreachable");
 }
 
 AsyncClient::AsyncClient()
@@ -114,7 +115,7 @@ NetworkTask<Response> AsyncClient::do_request(ConfiguredGetRequest configured_re
 	auto& request = configured_request.request;
 
 	auto get_request = session->make_request<asyncnet::GetRequest>(std::move(request.url));
-	get_request.add_headers(std::move(request.headers));
+	get_request.add_headers(to_header_lines(request.headers));
 	get_request.set_url_parameters(std::move(request.url_params));
 	if (auto cookies = std::dynamic_pointer_cast<CurlCookieJar>(configured_request.cookies)) {
 		get_request.set_share(cookies->shared());
@@ -133,7 +134,7 @@ NetworkTask<Response> AsyncClient::do_request(ConfiguredPostRequest configured_r
 	auto& request = configured_request.request;
 
 	auto post_request = session->make_request<asyncnet::PostRequest>(std::move(request.url), std::move(request.body));
-	post_request.add_headers(std::move(request.headers));
+	post_request.add_headers(to_header_lines(request.headers));
 	post_request.set_url_parameters(std::move(request.url_params));
 
 	// Okay to hold references (ref to frame variable), because we will wait for next coroutine end

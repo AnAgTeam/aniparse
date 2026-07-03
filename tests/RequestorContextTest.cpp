@@ -16,7 +16,7 @@ struct MockSuccess : std::runtime_error {
 struct ClientContextMock : ClientContext {
 
 	ClientContextMock(std::shared_ptr<CookieJar> cookie_jar) : cookie_jar(cookie_jar) {}
-	
+
 	asyncnet::NetworkTask<asyncnet::Response> do_request(ConfiguredGetRequest request) override {
 		this->request = request;
 		throw MockSuccess("Success");
@@ -136,8 +136,8 @@ CORO_TEST_CASE("RequestorContext GET with empty config") {
 			{ "version", "1.0" },
 		},
 		.headers = {
-			"User-Agent: 123",
-			"Authorization: some-password",
+			{ "User-Agent", "123" },
+			{ "Authorization", "some-password" },
 		},
 	};
 
@@ -168,8 +168,8 @@ CORO_TEST_CASE("RequestorContext GET with normal config") {
 			{ "version", "1.0" },
 		},
 		.headers = {
-			"User-Agent: 123",
-			"Authorization: some-password",
+			{ "User-Agent", "123" },
+			{ "Authorization", "some-password" },
 		},
 	};
 
@@ -179,7 +179,7 @@ CORO_TEST_CASE("RequestorContext GET with normal config") {
 			{ "token", "mytoken" },
 		},
 		.headers = {
-			"User-Agent: 123",
+			{ "User-Agent", "123" },
 		},
 	};
 
@@ -240,7 +240,33 @@ CORO_TEST_CASE("RequestorContext all with empty config") {
 	REQUIRE(check_request(test_post_multipart_request));
 }
 
-// TODO:
-//  Test for correct response
-//  Test for errors
-//  Test for config priority
+CORO_TEST_CASE("RequestorContext request headers take priority over config") {
+	GetRequest test_request = {
+		.url = "/api/test",
+		.headers = {
+			{ "Authorization", "from-request" },
+		},
+	};
+
+	auto parser_config = std::make_shared<ParserConfig>();
+	parser_config->headers["Authorization"] = "from-config"; // must lose to the request
+	parser_config->headers["X-Extra"]       = "config-only"; // must still be merged in
+
+	auto client_cookie_jar = std::make_shared<DummyCookieJar>();
+	auto mock_client = std::make_shared<ClientContextMock>(client_cookie_jar);
+
+	RequestorContext context(mock_client, nullptr, parser_config);
+
+	REQUIRE_THROWS_AS(co_await context.request(test_request), MockSuccess);
+
+	auto* captured = std::get_if<ConfiguredGetRequest>(&mock_client->request);
+	REQUIRE(captured != nullptr);
+
+	const Headers& headers = captured->request.headers;
+	// request value wins on collision
+	REQUIRE(headers.at("Authorization") == "from-request");
+	// config-only header still merged in
+	REQUIRE(headers.at("X-Extra") == "config-only");
+	// header names are matched case-insensitively
+	REQUIRE(headers.contains("authorization"));
+}

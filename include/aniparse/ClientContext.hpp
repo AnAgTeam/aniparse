@@ -33,10 +33,9 @@ struct ClientProxy {
 /**
  * @brief Parser configuration for all its requests
  * @see RequestorContext
- * @todo Make requets parameters priority more than config
  */
 struct ParserConfig {
-	std::map<std::string, std::string> headers;
+	Headers headers;
 	std::map<std::string, std::string> url_params;
 	std::shared_ptr<CookieJar> cookie_jar;
 	ParserConfigFlags flags;
