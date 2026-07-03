@@ -196,14 +196,19 @@ public:
 	}
 
 	// Получение информации о возможных способах получениия последний манг.
+	// Ключи сортировки открытые: стандартные лежат в sort_keys, но сайт может
+	// декларировать и свои. Дескриптор задаёт поддерживаемые направления
+	// (descending = true по умолчанию).
 	MangaGetterRootCompatibilities latest_support() const noexcept override {
-		using namespace filtering_flags;
+		using namespace sort_keys;
 		return {
-			.filtering_support = sort_title
-				| sort_popularity
-				| sort_release_time
-				| sort_downloads_desc
-				| sort_views_desc
+			.supported_sorts = {
+				{ std::string(title), { .ascending = true } },
+				{ std::string(popularity), { .ascending = true } },
+				{ std::string(release_time), { .ascending = true } },
+				{ std::string(downloads), {} },
+				{ std::string(views), {} },
+			}
 		};
 	}
 
@@ -388,7 +393,7 @@ int main() {
 		.from = 0,
 		.limit = 10,
 		// Можно указать сортировку, но в парсере для примера это не используется
-		.sort = FilterSort::TitleAsc
+		.sort = SortOrder{ .key = std::string(sort_keys::title), .ascending = true }
 		}));
 
 	if (!latest_mangas_response) {

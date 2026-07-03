@@ -70,6 +70,10 @@ std::string_view reason_text(SearchQueryError::Reason reason) noexcept {
 		return "exclusion is not supported for filter";
 	case SearchQueryError::Reason::InvalidValue:
 		return "invalid value for filter";
+	case SearchQueryError::Reason::UnknownSortKey:
+		return "unknown sort";
+	case SearchQueryError::Reason::SortDirectionNotSupported:
+		return "unsupported direction for sort";
 	}
 	return "invalid filter";
 }
@@ -101,6 +105,23 @@ std::vector<SearchQueryError> validate_search_query(
 		}, found->second);
 	}
 	return errors;
+}
+
+std::vector<SearchQueryError> validate_sort(
+	const SupportedSorts& supported,
+	const std::optional<SortOrder>& sort) {
+	if (!sort) {
+		return {};
+	}
+	auto found = supported.find(sort->key);
+	if (found == supported.end()) {
+		return { { .reason = SearchQueryError::Reason::UnknownSortKey, .key = sort->key } };
+	}
+	bool direction_supported = sort->ascending ? found->second.ascending : found->second.descending;
+	if (!direction_supported) {
+		return { { .reason = SearchQueryError::Reason::SortDirectionNotSupported, .key = sort->key } };
+	}
+	return {};
 }
 
 std::string describe_search_query_errors(std::span<const SearchQueryError> errors) {

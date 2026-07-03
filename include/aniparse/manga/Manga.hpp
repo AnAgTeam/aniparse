@@ -95,13 +95,13 @@ struct MangaGetterCompatibilities {
 };
 
 struct MangaGetterRootCompatibilities {
-	FilteringFlags filtering_support     = filtering_flags::default_flags;
+	SupportedSorts supported_sorts;
 	CompatibilitiesFlags compatibilities = compatibilities_flags::default_flags;
 };
 
 struct SearchCompatibilities {
 	SearchItems supported_filters;
-	FilteringFlags filtering_support     = filtering_flags::default_flags;
+	SupportedSorts supported_sorts;
 	CompatibilitiesFlags compatibilities = compatibilities_flags::default_flags;
 };
 
@@ -156,13 +156,23 @@ struct MangaRootGetter {
 	virtual MangaGetterRootCompatibilities latest_support() const noexcept;
 
 	/**
-	 * @brief Check query filters against this getter's own search_support().
-	 * Keeps the declaration the single source of truth: call at the start of
-	 * search() and report InvalidArguments (see describe_search_query_errors)
-	 * instead of silently ignoring unsupported filters.
+	 * @brief Check query filters and the requested sort against this getter's
+	 * own search_support(). Keeps the declaration the single source of truth:
+	 * call at the start of search() and report InvalidArguments (see
+	 * describe_search_query_errors) instead of silently ignoring unsupported
+	 * filters.
 	 * @return Empty if the query is valid; otherwise all violations found
 	 */
-	[[nodiscard]] std::vector<SearchQueryError> validate_query(const SearchRequestQuery& query) const;
+	[[nodiscard]] std::vector<SearchQueryError> validate_query(
+	    const SearchRequestQuery& query,
+	    const GetFilters& filters) const;
+
+	/**
+	 * @brief Check the requested sort against this getter's own
+	 * latest_support(). Same contract as validate_query, for latest().
+	 * @return Empty if the filters are valid; otherwise the violation
+	 */
+	[[nodiscard]] std::vector<SearchQueryError> validate_latest_filters(const GetFilters& filters) const;
 
 	/**
 	 * @todo !

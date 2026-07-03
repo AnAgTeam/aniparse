@@ -119,6 +119,33 @@ TEST_CASE("Search validation rejects interval below the declared minimum") {
 	REQUIRE(has_error(errors, SearchQueryError::Reason::InvalidValue, search_keys::pages));
 }
 
+TEST_CASE("Sort validation accepts declared sorts and the default order") {
+	SupportedSorts supported = {
+		{ std::string(sort_keys::popularity), { .ascending = true } },
+		{ std::string(sort_keys::downloads), {} },
+	};
+
+	// No sort requested = the source's default order.
+	REQUIRE(validate_sort(supported, std::nullopt).empty());
+	REQUIRE(validate_sort(supported, SortOrder{ .key = "popularity", .ascending = true }).empty());
+	REQUIRE(validate_sort(supported, SortOrder{ .key = "popularity" }).empty());
+	REQUIRE(validate_sort(supported, SortOrder{ .key = "downloads" }).empty());
+}
+
+TEST_CASE("Sort validation rejects unknown keys and denied directions") {
+	SupportedSorts supported = { { std::string(sort_keys::downloads), {} } };
+
+	auto unknown = validate_sort(supported, SortOrder{ .key = "comments" });
+	REQUIRE(unknown.size() == 1);
+	REQUIRE(unknown.front().reason == SearchQueryError::Reason::UnknownSortKey);
+	REQUIRE(unknown.front().key == "comments");
+
+	// downloads declares descending only
+	auto direction = validate_sort(supported, SortOrder{ .key = "downloads", .ascending = true });
+	REQUIRE(direction.size() == 1);
+	REQUIRE(direction.front().reason == SearchQueryError::Reason::SortDirectionNotSupported);
+}
+
 TEST_CASE("Search validation describes all violations in one line") {
 	std::vector<SearchQueryError> errors = {
 		{ .reason = SearchQueryError::Reason::UnknownKey, .key = "made_up" },
@@ -133,7 +160,14 @@ namespace {
 
 struct FilteringRootGetter : MangaRootGetter {
 	SearchCompatibilities search_support() const noexcept override {
-		return { .supported_filters = make_supported() };
+		return {
+			.supported_filters = make_supported(),
+			.supported_sorts   = { { std::string(sort_keys::popularity), {} } },
+		};
+	}
+
+	MangaGetterRootCompatibilities latest_support() const noexcept override {
+		return { .supported_sorts = { { std::string(sort_keys::update_time), { .ascending = true } } } };
 	}
 
 	NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData) noexcept override {
@@ -149,12 +183,21 @@ TEST_CASE("MangaRootGetter validates against its own declaration") {
 	SearchRequestQuery valid{
 		.filters = { { std::string(search_keys::tag), TextQuery{ .text = "vanilla" } } },
 	};
-	REQUIRE(getter.validate_query(valid).empty());
+	GetFilters valid_filters{ .sort = SortOrder{ .key = std::string(sort_keys::popularity) } };
+	REQUIRE(getter.validate_query(valid, valid_filters).empty());
 
+	// Filter and sort violations are collected together.
 	SearchRequestQuery invalid{
 		.filters = { { "made_up", Checkmark{} } },
 	};
-	auto errors = getter.validate_query(invalid);
-	REQUIRE(errors.size() == 1);
+	GetFilters invalid_filters{ .sort = SortOrder{ .key = "comments" } };
+	auto errors = getter.validate_query(invalid, invalid_filters);
+	REQUIRE(errors.size() == 2);
 	REQUIRE(has_error(errors, SearchQueryError::Reason::UnknownKey, "made_up"));
+	REQUIRE(has_error(errors, SearchQueryError::Reason::UnknownSortKey, "comments"));
+
+	// latest() validates against its own, separate declaration.
+	GetFilters latest_filters{ .sort = SortOrder{ .key = std::string(sort_keys::update_time), .ascending = true } };
+	REQUIRE(getter.validate_latest_filters(latest_filters).empty());
+	REQUIRE_FALSE(getter.validate_latest_filters(invalid_filters).empty());
 }
