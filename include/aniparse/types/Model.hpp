@@ -6,6 +6,7 @@
 #pragma once
 #include "aniparse/types/Ids.hpp"
 
+#include <span>
 #include <array>
 #include <chrono>
 #include <optional>
@@ -68,20 +69,65 @@ struct AiredStatus {
 	DefaultAiredStatuses to_enum() const;
 };
 
-inline constexpr std::chrono::system_clock::time_point unknown_time{ std::chrono::system_clock::duration{0} };
+inline constexpr std::chrono::system_clock::time_point unknown_time{std::chrono::system_clock::duration{0}};
 
 /**
  * Structure representing rating (score) of the item (release, manga, etc.)
  */
-struct Rating {
-	/// Release rating is from 0 to 10. If the rating is from 0 to 5, just multiple it by 2 (3/5 -> 6/10)
-	double total_rating = 0;
-	/// Total sum of the 'rating' field. Used to calculate overall rating
-	int total_raters = 0;
-	/// Maximum rate in the 'rating' field, cannot be more than 10. Often sets to 2/5/10
-	int max_rating = 0;
-	/// Count for each of the rates positions. Undefined if max_rating == 0
-	std::array<int, 10> rating = {};
+class Rating {
+public:
+	/**
+	 * @brief Construct rating from general information
+	 * @param score Score [1, max]
+	 * @param max_score Maximum score value
+	 * @param raters Optionally, total count of votes
+	 * @return rating
+	 */
+	static Rating from_score(double score, int max_score, std::optional<int> raters = std::nullopt) noexcept;
+
+	/**
+	 * @brief Construct rating from distrubution.
+	 *        Other values i.e. 'score' is calculated from it.
+	 * @param distribution Array of vote counts starting from 1, where distribution[i] = i vote count
+	 * @throw Logic error if distribution.size() > 10
+	 * @return rating
+	 */
+	static Rating from_distribution(std::span<const int> distribution);
+
+	Rating(const Rating& other) noexcept = default;
+	Rating(Rating&& other) noexcept      = default;
+	~Rating() noexcept                   = default;
+
+	Rating& operator=(const Rating& other) noexcept = default;
+	Rating& operator=(Rating&& other) noexcept      = default;
+
+	/**
+	 * @return Normalized score [1, max]
+	 */
+	double score() const noexcept;
+
+	/**
+	 * @return max score value [1, 10]
+	 */
+	int max_score() const noexcept;
+
+	/**
+	 * @return Total raters count (votes count)
+	 */
+	std::optional<int> raters() const noexcept;
+
+	/**
+	 * @return Optional distribution for rating
+	 */
+	std::optional<std::span<const int>> distribution() const noexcept;
+
+private:
+	Rating() noexcept = default;
+
+	double score_              = 0;
+	int max_score_             = 0;
+	std::optional<int> raters_ = 0;
+	std::optional<std::array<int, 10>> distribution_;
 };
 
 /**
