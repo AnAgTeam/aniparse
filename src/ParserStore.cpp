@@ -11,19 +11,28 @@ namespace aniparse {
 namespace detail {
 template <std::ranges::viewable_range Range>
 static constexpr auto split_domains(Range&& range) {
+	// clang-format off
 	return std::forward<Range>(range)
 	       // split domain in reverse order
-	       | std::views::reverse | std::views::split('.') | std::views::transform(std::views::reverse);
+	       | std::views::reverse
+	       | std::views::split('.')
+	       | std::views::transform(std::views::reverse);
+	// clang-format on
 }
 
 static constexpr auto split_url_domains(std::string_view url) {
 	size_t protocol_end = url.find("://");
 	size_t drop_start   = protocol_end == std::string_view::npos ? 0 : protocol_end + 3;
+	// clang-format off
 	return url
 	       // cut domain from url
-	       | std::views::drop(drop_start) | std::views::take_while([](char c) { return c != '/' && c != '\\' && c != /*params*/ '?' && c != /*id*/ '#' && c != /*port*/ ':'; })
+	       | std::views::drop(drop_start)
+	       | std::views::take_while([](char c) { return c != '/' && c != '\\' && c != /*params*/ '?' && c != /*id*/ '#' && c != /*port*/ ':'; })
 	       // split domain in reverse order
-	       | std::views::reverse | std::views::split('.') | std::views::transform(std::views::reverse);
+	       | std::views::reverse
+	       | std::views::split('.')
+	       | std::views::transform(std::views::reverse);
+	// clang-format on
 }
 
 class DomainAdder : public aniparse::EmplaceDomainsContext {
