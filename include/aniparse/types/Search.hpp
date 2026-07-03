@@ -9,9 +9,11 @@
 #include <functional>
 #include <map>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <variant>
+#include <vector>
 
 namespace aniparse {
 /**
@@ -120,6 +122,49 @@ struct SearchRequestQuery {
 	std::string query;
 	SearchItems filters;
 };
+
+/**
+ * @brief One violation found by validate_search_query
+ * @see validate_search_query
+ */
+struct SearchQueryError {
+	enum class Reason {
+		/// The filter key is not present in the supported set
+		UnknownKey,
+		/// The filter holds a different SearchItemVariant alternative than declared
+		TypeMismatch,
+		/// The filter requests exclusion, but the descriptor does not allow it
+		ExclusionNotSupported,
+		/// The value itself is malformed: empty text, inverted or out-of-bounds
+		/// interval, selection of an undeclared item
+		InvalidValue,
+	};
+
+	Reason reason;
+	/// Key of the offending entry in SearchRequestQuery::filters
+	std::string key;
+
+	friend bool operator==(const SearchQueryError&, const SearchQueryError&) = default;
+};
+
+/**
+ * @brief Validate query filters against a declared support table.
+ * Keeps supported_filters the single source of truth: parsers call it at the
+ * start of search(), UI can call it pre-flight to highlight invalid inputs.
+ * @param supported Declared filters (SearchCompatibilities::supported_filters)
+ * @param query The query to check
+ * @return Empty if the query is valid; otherwise all violations found
+ */
+[[nodiscard]] std::vector<SearchQueryError> validate_search_query(
+	const SearchItems& supported,
+	const SearchRequestQuery& query);
+
+/**
+ * @brief Human-readable one-line summary of validation errors.
+ * For the RequestError::message channel; UI should use the typed
+ * errors from validate_search_query instead.
+ */
+[[nodiscard]] std::string describe_search_query_errors(std::span<const SearchQueryError> errors);
 } // namespace aniparse
 
 /**

@@ -156,6 +156,15 @@ struct MangaRootGetter {
 	virtual MangaGetterRootCompatibilities latest_support() const noexcept;
 
 	/**
+	 * @brief Check query filters against this getter's own search_support().
+	 * Keeps the declaration the single source of truth: call at the start of
+	 * search() and report InvalidArguments (see describe_search_query_errors)
+	 * instead of silently ignoring unsupported filters.
+	 * @return Empty if the query is valid; otherwise all violations found
+	 */
+	[[nodiscard]] std::vector<SearchQueryError> validate_query(const SearchRequestQuery& query) const;
+
+	/**
 	 * @todo !
 
 	 * @note By default passed client is forwarded.

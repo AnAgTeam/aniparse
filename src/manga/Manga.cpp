@@ -47,6 +47,10 @@ MangaGetterRootCompatibilities MangaRootGetter::latest_support() const noexcept 
 	return {};
 }
 
+std::vector<SearchQueryError> MangaRootGetter::validate_query(const SearchRequestQuery& query) const {
+	return validate_search_query(search_support().supported_filters, query);
+}
+
 std::shared_ptr<ParserConfig> MangaRootGetter::default_config_from(std::shared_ptr<const ParserConfig> base_config) const {
 	if (!base_config)
 		return nullptr;
