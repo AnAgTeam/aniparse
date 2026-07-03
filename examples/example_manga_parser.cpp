@@ -126,10 +126,11 @@ public:
 	}
 
 	// Получение всех страниц у конкретной главы с ссылками на изображения.
+	// Глава идентифицируется round-trip'ом: сюда передаётся ref() элемента
+	// из chapters_info() (его id может нести внутренний ключ парсера).
 	NetworkRequestTask<PageResults<MangaPage>> chapter_pages(
 		RequestorContext context,
-		int volume,
-		int chapter,
+		MangaChapterRef chapter,
 		GetFilters filters,
 	    std::optional<MangaTranslationID> translation) noexcept override {
 		PageResults<MangaPage> pages;

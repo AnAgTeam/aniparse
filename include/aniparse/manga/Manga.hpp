@@ -68,14 +68,42 @@ struct MangaTranslationInfo {
 	RelatedUser translator;
 };
 
-struct MangaChapterInfo {
+/**
+ * @brief Identity of one chapter: everything chapter_pages() needs and
+ * nothing else, so the call stays cheap (typically zero heap: two longs
+ * plus an empty/SSO string).
+ * Obtained via MangaChapterInfo::ref() and round-tripped unchanged; for
+ * simple numerically-addressed sources it can also be constructed
+ * directly, e.g. MangaChapterRef{ .chapter = 12 }.
+ */
+struct MangaChapterRef {
 	long volume  = 0;
 	long chapter = 0;
+	/// Opaque handle from the getter that produced the info.
+	/// Empty = the getter identifies the chapter by the numeric fields
+	std::string id;
+};
+
+struct MangaChapterInfo {
+	/// Numeric hints for grouping/ordering in UI; not the chapter's identity.
+	/// Sources with fractional or unnumbered chapters ("7.5", "Extra") cannot
+	/// express them losslessly here — that is what number and id are for
+	long volume  = 0;
+	long chapter = 0;
+	/// Chapter number exactly as the source spells it: "7.5", "Extra".
+	/// Empty = render from volume/chapter
+	std::string number;
+	/// Opaque chapter handle, understood only by the getter that produced
+	/// this info; round-trips into chapter_pages() via ref().
+	std::string id;
 	std::string name;
 	std::string description;
 	std::vector<Image> previews;
 	std::chrono::system_clock::time_point update_time  = unknown_time;
 	std::chrono::system_clock::time_point release_time = unknown_time;
+
+	/// Identity for the chapter_pages() round-trip
+	[[nodiscard]] MangaChapterRef ref() const { return { volume, chapter, id }; }
 };
 
 struct MangaPage {
@@ -134,10 +162,15 @@ struct MangaGetter {
 	    RequestorContext context,
 	    GetFilters filters) noexcept;
 
+	/**
+	 * Get the pages of one chapter.
+	 * The chapter is identified by round-trip: pass MangaChapterInfo::ref()
+	 * of an item from chapters_info() (its id may carry a source-specific
+	 * handle). @see MangaChapterRef
+	 */
 	virtual NetworkRequestTask<PageResults<MangaPage>> chapter_pages(
 	    RequestorContext context,
-	    int volume,
-	    int chapter,
+	    MangaChapterRef chapter,
 	    GetFilters filters,
 	    std::optional<MangaTranslationID> translation = std::nullopt) noexcept = 0;
 
