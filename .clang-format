@@ -26,6 +26,12 @@ ContinuationIndentWidth: 4
 # ── скобки: на той же строке (K&R), как сейчас в проекте ──────────
 BreakBeforeBraces: Attach
 
+# ── список инициализации конструктора: ведущая запятая, по одному на строку ──
+#   : client_(std::move(client))
+#   , logger_(std::move(logger))
+BreakConstructorInitializers: BeforeComma
+PackConstructorInitializers: Never
+
 # ── выравнивание ──────────────────────────────────────────────────
 # Выравнивать = в колонку у блоков констант/флагов (читается как таблица).
 # AcrossComments: не рвётся на doc-комментарии внутри группы,
