@@ -38,7 +38,16 @@ add_library(aniparse STATIC
 	"include/aniparse/utility/Coroutines.hpp"
 	"include/aniparse/utility/Expected.hpp"
 	"include/aniparse/utility/Regex.hpp"
-	
+
+	"include/aniparse/types/Ids.hpp"
+	"include/aniparse/types/Flags.hpp"
+	"include/aniparse/types/Text.hpp"
+	"src/types/Model.cpp" "include/aniparse/types/Model.hpp"
+	"include/aniparse/types/Pagination.hpp"
+	"include/aniparse/types/Response.hpp"
+	"include/aniparse/types/Search.hpp"
+	"include/aniparse/types/Serialization.hpp"
+	"include/aniparse/types/Authentication.hpp"
 
 	"src/html/HTMLDocument.cpp" "include/aniparse/html/HTMLDocument.hpp"
 	"src/html/DOMAttributes.cpp" "include/aniparse/html/DOMAttributes.hpp"

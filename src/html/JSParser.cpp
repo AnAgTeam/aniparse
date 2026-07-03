@@ -8,10 +8,10 @@
 
 namespace aniparse::html {
 
-	// TODO:
-	std::string_view find_json_var_object(std::string_view variable_name, const std::string& text) {
-		static const regex var_object_re(R"(\{(?:[^{}]+|(?0))*\})");
-		
-		return "";
-	}
+// TODO:
+std::string_view find_json_var_object(std::string_view variable_name, const std::string& text) {
+	static const regex var_object_re(R"(\{(?:[^{}]+|(?0))*\})");
+
+	return "";
 }
+} // namespace aniparse::html

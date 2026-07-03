@@ -8,32 +8,32 @@
 #include "aniparse/Common.hpp"
 
 namespace aniparse {
-	struct ImageContainerGetter {
-		virtual ~ImageContainerGetter() = default;
+struct ImageContainerGetter {
+	virtual ~ImageContainerGetter() = default;
 
-		virtual asyncnet::NetworkTask<std::string> title();
+	virtual asyncnet::NetworkTask<std::string> title();
 
-		virtual asyncnet::NetworkTask<std::string> description();
-		
-		virtual asyncnet::NetworkTask<std::vector<std::string>> tags();
+	virtual asyncnet::NetworkTask<std::string> description();
 
-		virtual bool update_client(std::shared_ptr<ClientContext> new_client);
+	virtual asyncnet::NetworkTask<std::vector<std::string>> tags();
 
-	protected:
-		std::shared_ptr<ClientContext> client;
-	};
+	virtual bool update_client(std::shared_ptr<ClientContext> new_client);
 
-	struct ImagesGetter {
-		virtual ~ImagesGetter() = default;
+protected:
+	std::shared_ptr<ClientContext> client;
+};
 
-		virtual asyncnet::NetworkTask<PageResults<std::unique_ptr<ImageContainerGetter>>> search(
-			std::shared_ptr<ClientContext> client,
-			std::string query, GetFilters filters);
+struct ImagesGetter {
+	virtual ~ImagesGetter() = default;
 
-		virtual asyncnet::NetworkTask<PageResults<std::unique_ptr<ImageContainerGetter>>> latest(
-			std::shared_ptr<ClientContext> client, GetFilters filters);
+	virtual asyncnet::NetworkTask<PageResults<std::unique_ptr<ImageContainerGetter>>> search(
+	    std::shared_ptr<ClientContext> client,
+	    std::string query, GetFilters filters);
 
-	protected:
-		GetterContext context;
-	};
-}
+	virtual asyncnet::NetworkTask<PageResults<std::unique_ptr<ImageContainerGetter>>> latest(
+	    std::shared_ptr<ClientContext> client, GetFilters filters);
+
+protected:
+	GetterContext context;
+};
+} // namespace aniparse

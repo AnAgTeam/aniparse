@@ -1,0 +1,41 @@
+---
+# libaniparse — стиль форматирования
+# Ключевое здесь — блок "namespace B-style" ниже.
+Language: Cpp
+BasedOnStyle: LLVM
+Standard: c++20
+
+# ── namespace (стиль B: раздельные плоские блоки) ─────────────────
+# Не индентить тело namespace — весь файл прижат влево.
+NamespaceIndentation: None
+# Автоматически проставлять/чинить  } // namespace aniparse::foo.
+FixNamespaceComments: true
+# Порог 0 = «коротких» namespace нет: подписывать ВСЕ содержательные
+# блоки, включая 1-2 строки (без 0 берётся дефолт с малым порогом).
+ShortNamespaceLines: 0
+# НЕ схлопывать соседние namespace в одну строку — держим B-стиль
+# с раздельными блоками `namespace aniparse::foo {`.
+CompactNamespaces: false
+
+# ── отступы: табы, как в текущем коде ─────────────────────────────
+UseTab: ForIndentation   # таб для отступа, пробелы для выравнивания
+TabWidth: 4
+IndentWidth: 4
+ContinuationIndentWidth: 4
+
+# ── скобки: на той же строке (K&R), как сейчас в проекте ──────────
+BreakBeforeBraces: Attach
+
+# ── выравнивание ──────────────────────────────────────────────────
+# Выравнивать = в колонку у блоков констант/флагов (читается как таблица).
+# AcrossComments: не рвётся на doc-комментарии внутри группы,
+# но пустая строка по-прежнему начинает новую колонку (сохраняет группировку).
+AlignConsecutiveAssignments: AcrossComments
+
+# ── прочее, чтобы не переворотило файл ────────────────────────────
+ColumnLimit: 0           # не переносить длинные строки по ширине
+ReflowComments: false    # НЕ трогать/не переносить doxygen-блоки
+SortIncludes: false      # не переупорядочивать #include
+PointerAlignment: Left   # int* p
+AccessModifierOffset: -4
+...

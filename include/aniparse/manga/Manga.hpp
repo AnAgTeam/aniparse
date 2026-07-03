@@ -10,206 +10,206 @@
 
 namespace aniparse {
 
-	using MangaID = int;
-	using MangaTranslationID = int;
+using MangaID            = int;
+using MangaTranslationID = int;
 
-	struct MangaGetter;
+struct MangaGetter;
 
-	enum class DefaultMangaType {
-		Manga,
-		Dojinshi,
-		Manhwa,
-		Manhua,
-		Other
-	};
+enum class DefaultMangaType {
+	Manga,
+	Dojinshi,
+	Manhwa,
+	Manhua,
+	Other
+};
 
-	struct MangaType {
-		MangaType(DefaultMangaType type);
+struct MangaType {
+	MangaType(DefaultMangaType type);
 
-		std::string name;
-	};
+	std::string name;
+};
 
-	constexpr int unknown_manga_chapters = -1;
-	constexpr MangaTranslationID any_manga_translation = -1;
+inline constexpr MangaID invalid_manga_id                 = MangaID{ 0 };
+inline constexpr MangaTranslationID any_manga_translation = -1;
 
-	struct MangaInfo {
-		MangaID id = MangaID(0);
+struct MangaInfo {
+	MangaID id = invalid_manga_id;
 
-		std::string title;
-		std::optional<std::string> original_title;
-		AttributedText description;
+	std::string title;
+	std::optional<std::string> original_title;
+	AttributedText description;
 
-		std::chrono::system_clock::time_point update_time = unknown_time;
-		std::chrono::system_clock::time_point release_time = unknown_time;
-		AiredStatus status;
-		
-		RelatedUser author;
-		RelatedUser artist;
-		std::optional<Series> series;
+	std::chrono::system_clock::time_point update_time  = unknown_time;
+	std::chrono::system_clock::time_point release_time = unknown_time;
+	AiredStatus status;
 
-		std::vector<Image> previews;
-		std::vector<Tag> tags;
+	RelatedUser author;
+	RelatedUser artist;
+	std::optional<Series> series;
 
-		std::optional<Rating> rating;
-		std::optional<ViewStats> views;
-		std::optional<UserList> user_lists;
-		AgeRestriction age_restriction = 0;
+	std::vector<Image> previews;
+	std::vector<Tag> tags;
 
-		std::optional<RelatedUser> uploader;
+	std::optional<Rating> rating;
+	std::optional<ViewStats> views;
+	std::optional<UserList> user_lists;
+	AgeRestriction age_restriction = 0;
 
-		long total_chapters = unknown_manga_chapters;
+	std::optional<RelatedUser> uploader;
 
-		bool is_hentai = false;
-	};
+	std::optional<long> total_chapters;
 
-	struct MangaTranslationInfo {
-		MangaTranslationID id;
-		std::string language;
-		RelatedUser translator;
-	};
+	bool is_hentai = false;
+};
 
-	struct MangaChapterInfo {
-		long volume = 0;
-		long chapter = 0;
-		std::string name;
-		std::string description;
-		std::vector<Image> previews;
-		std::chrono::system_clock::time_point update_time = unknown_time;
-		std::chrono::system_clock::time_point release_time = unknown_time;
-	};
+struct MangaTranslationInfo {
+	MangaTranslationID id;
+	std::string language;
+	RelatedUser translator;
+};
 
-	struct MangaPage {
-		Image image;
-	};
+struct MangaChapterInfo {
+	long volume  = 0;
+	long chapter = 0;
+	std::string name;
+	std::string description;
+	std::vector<Image> previews;
+	std::chrono::system_clock::time_point update_time  = unknown_time;
+	std::chrono::system_clock::time_point release_time = unknown_time;
+};
 
-	struct MangaGetterCompatibilities {
-		size_t alt_links_count;
-		CompatibilitiesFlags flags = compatibilities_flags::default_flags;
-	};
+struct MangaPage {
+	Image image;
+};
 
-	struct MangaGetterRootCompatibilities {
-		FilteringFlags filtering_support = filtering_flags::default_flags;
-		CompatibilitiesFlags compatibilities = compatibilities_flags::default_flags;
-	};
+struct MangaGetterCompatibilities {
+	size_t alt_links_count;
+	CompatibilitiesFlags flags = compatibilities_flags::default_flags;
+};
 
-	struct SearchCompatibilities {
-		SearchItems supported_filters;
-		FilteringFlags filtering_support = filtering_flags::default_flags;
-		CompatibilitiesFlags compatibilities = compatibilities_flags::default_flags;
-	};
+struct MangaGetterRootCompatibilities {
+	FilteringFlags filtering_support     = filtering_flags::default_flags;
+	CompatibilitiesFlags compatibilities = compatibilities_flags::default_flags;
+};
+
+struct SearchCompatibilities {
+	SearchItems supported_filters;
+	FilteringFlags filtering_support     = filtering_flags::default_flags;
+	CompatibilitiesFlags compatibilities = compatibilities_flags::default_flags;
+};
+
+/**
+ * @brief Interface for getting one specific manga information.
+ */
+struct MangaGetter {
+	virtual ~MangaGetter() = default;
+
+	virtual MangaGetterCompatibilities compatibilies() const noexcept = 0;
+
+	virtual NetworkRequestTask<MangaInfo> preview_info(RequestorContext context) noexcept;
+
+	virtual NetworkRequestTask<MangaInfo> info(RequestorContext context) noexcept = 0;
+
+	virtual NetworkRequestTask<PageResults<MangaTranslationInfo>> translation_info(
+	    RequestorContext context,
+	    GetFilters filters) noexcept;
+
+	virtual NetworkRequestTask<PageResults<MangaChapterInfo>> chapters_info(
+	    RequestorContext context,
+	    GetFilters filters,
+	    std::optional<MangaTranslationID> translation = std::nullopt) noexcept;
+
+	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> related(
+	    RequestorContext context,
+	    GetFilters filters) noexcept;
+
+	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> similar(
+	    RequestorContext context,
+	    GetFilters filters) noexcept;
+
+	virtual NetworkRequestTask<PageResults<MangaPage>> chapter_pages(
+	    RequestorContext context,
+	    int volume,
+	    int chapter,
+	    GetFilters filters,
+	    std::optional<MangaTranslationID> translation = std::nullopt) noexcept = 0;
+
+	virtual void reset() noexcept;
+
+	virtual NetworkRequestTask<SerializedGetterData> serialize() noexcept = 0;
+};
+
+/**
+ * @brief Root interface for manga. Used to get pages or general information
+ */
+struct MangaRootGetter {
+	virtual ~MangaRootGetter() = default;
+
+	virtual SearchCompatibilities search_support() const noexcept;
+	virtual MangaGetterRootCompatibilities latest_support() const noexcept;
 
 	/**
-	 * @brief Interface for getting one specific manga information.
+	 * @todo !
+	 * @brief Request authentification with given data for parser service.
 	 */
-	struct MangaGetter {
-		virtual ~MangaGetter() = default;
-
-		virtual MangaGetterCompatibilities compatibilies() const noexcept = 0;
-
-		virtual NetworkRequestTask<MangaInfo> preview_info(RequestorContext context) noexcept;
-
-		virtual NetworkRequestTask<MangaInfo> info(RequestorContext context) noexcept = 0;
-
-		virtual NetworkRequestTask<PageResults<MangaTranslationInfo>> translation_info(
-			RequestorContext context,
-			GetFilters filters) noexcept;
-
-		virtual NetworkRequestTask<PageResults<MangaChapterInfo>> chapters_info(
-			RequestorContext context,
-			GetFilters filters,
-			MangaTranslationID translation = any_manga_translation) noexcept;
-
-		virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> related(
-			RequestorContext context,
-			GetFilters filters) noexcept;
-
-		virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> similar(
-			RequestorContext context,
-			GetFilters filters) noexcept;
-
-		virtual NetworkRequestTask<PageResults<MangaPage>> chapter_pages(
-			RequestorContext context,
-			int volume,
-			int chapter,
-			GetFilters filters,
-			MangaTranslationID translation = any_manga_translation) noexcept = 0;
-
-		virtual void reset() noexcept;
-
-		virtual NetworkRequestTask<SerializedGetterData> serialize() noexcept = 0;
-	};
+	virtual NetworkRequestTask<std::shared_ptr<const ParserConfig>> authenticate_context(
+	    RequestorContext context,
+	    AuthenticationData data) noexcept;
 
 	/**
-	 * @brief Root interface for manga. Used to get pages or general information
+	 * @todo !
+
+	 * @note By default passed client is forwarded.
 	 */
-	struct MangaRootGetter {
-		virtual ~MangaRootGetter() = default;
+	virtual std::shared_ptr<ParserConfig> default_config_from(std::shared_ptr<const ParserConfig> base_config) const;
 
-		virtual SearchCompatibilities search_support() const noexcept;
-		virtual MangaGetterRootCompatibilities latest_support() const noexcept;
+	/**
+	 * @todo
+	 * Search mangas with query and/or filters (advanced query may come as filters)
+	 * By default throws NotImplementedError
+	 * @param context Client to perform HTTP requests
+	 * @param query Query string, plain text
+	 * @param filters Filters to apply to results (e.g. sort ...)
+	 * @throw NotImplementedError If the method isn't implemented by the parser
+	 * @return ...
+	 */
+	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> search(
+	    RequestorContext context,
+	    SearchRequestQuery query,
+	    GetFilters filters) noexcept;
 
-		/**
-		 * @todo !
-		 * @brief Request authentification with given data for parser service.
-		 */
-		virtual NetworkRequestTask<std::shared_ptr<const ParserConfig>> authenticate_context(
-			RequestorContext context,
-			AuthenticationData data) noexcept;
+	/**
+	 * @todo
+	 * Get latest parser source released mangas
+	 * By default throws NotImplementedError
+	 * @param context Client to perform HTTP requests
+	 * @param filters Filters to apply to results (e.g. sort ...)
+	 * @throw NotImplementedError If the method isn't implemented by the parser
+	 * @return ...
+	 */
+	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> latest(
+	    RequestorContext context,
+	    GetFilters filters) noexcept;
 
-		/**
-		 * @todo !
+	/**
+	 * @see MangaGetter
+	 * Parse the url and return corresponding getter
+	 * By default throws NotImplementedError
+	 * @param context Client to perform HTTP requests
+	 * @param url The url to parse
+	 * @throw NotImplementedError If the method isn't implemented by the parser
+	 * @return Task to get MangaGetter
+	 */
+	virtual NetworkRequestTask<std::unique_ptr<MangaGetter>> parse_url(
+	    RequestorContext context,
+	    std::string url) noexcept;
 
-		 * @note By default passed client is forwarded.
-		 */
-		virtual std::shared_ptr<ParserConfig> default_config_from(std::shared_ptr<const ParserConfig> base_config) const;
+	/**
+	 * @brief Getter for serialized data from one of serialize() methods
+	 */
+	virtual NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData data) noexcept = 0;
 
-		/**
-		 * @todo
-		 * Search mangas with query and/or filters (advanced query may come as filters)
-		 * By default throws NotImplementedError
-		 * @param context Client to perform HTTP requests
-		 * @param query Query string, plain text
-		 * @param filters Filters to apply to results (e.g. sort ...)
-		 * @throw NotImplementedError If the method isn't implemented by the parser
-		 * @return ...
-		 */
-		virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> search(
-			RequestorContext context,
-			SearchRequestQuery query,
-			GetFilters filters) noexcept;
-
-		/**
-		 * @todo
-		 * Get latest parser source released mangas
-		 * By default throws NotImplementedError
-		 * @param context Client to perform HTTP requests
-		 * @param filters Filters to apply to results (e.g. sort ...)
-		 * @throw NotImplementedError If the method isn't implemented by the parser
-		 * @return ...
-		 */
-		virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> latest(
-			RequestorContext context,
-			GetFilters filters) noexcept;
-
-		/**
-		 * @see MangaGetter
-		 * Parse the url and return corresponding getter
-		 * By default throws NotImplementedError
-		 * @param context Client to perform HTTP requests
-		 * @param url The url to parse
-		 * @throw NotImplementedError If the method isn't implemented by the parser
-		 * @return Task to get MangaGetter
-		 */
-		virtual NetworkRequestTask<std::unique_ptr<MangaGetter>> parse_url(
-			RequestorContext context, 
-			std::string url) noexcept;
-
-		/**
-		 * @brief Getter for serialized data from one of serialize() methods
-		 */
-		virtual NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData data) noexcept = 0;
-
-	protected:
-		GetterContext context;
-	};
-}
+protected:
+	GetterContext context;
+};
+} // namespace aniparse

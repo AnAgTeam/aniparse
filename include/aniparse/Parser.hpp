@@ -13,103 +13,103 @@
 #include <map>
 
 namespace aniparse {
-	struct AsyncReleaseGetter;
-	struct ImagesGetter;
+struct AsyncReleaseGetter;
+struct ImagesGetter;
 
-	using ParseFlags = FlagsBitfield<64, struct ParseFlagsTag>;
+using ParseFlags = FlagsBitfield<64, struct ParseFlagsTag>;
 
-	namespace parse_flags {
-		constexpr auto supports_inplace_get = ParseFlags::make_bit(0);
+namespace parse_flags {
+constexpr auto supports_inplace_get = ParseFlags::make_bit(0);
 
-		constexpr ParseFlags default_flags;
-	}
+constexpr ParseFlags default_flags;
+} // namespace parse_flags
 
-	struct ParseContext {
-		std::string url;
+struct ParseContext {
+	std::string url;
 
-		std::map<std::string, std::string> user_args;
-	};
+	std::map<std::string, std::string> user_args;
+};
 
-	struct ParseQueryResult {
+struct ParseQueryResult {
 
-		ParseFlags flags = parse_flags::default_flags;
-	};
+	ParseFlags flags = parse_flags::default_flags;
+};
 
-	struct ParserCompatibilities {
-		std::string primary_language;
-		CompatibilitiesFlags flags = compatibilities_flags::default_flags;
-	};
+struct ParserCompatibilities {
+	std::string primary_language;
+	CompatibilitiesFlags flags = compatibilities_flags::default_flags;
+};
 
-	template<typename T>
-	struct ParseResult {
-		T data;
-		ParseQueryResult meta;
-	};
+template <typename T>
+struct ParseResult {
+	T data;
+	ParseQueryResult meta;
+};
 
-	struct EmplaceDomainsContext {
-		virtual ~EmplaceDomainsContext() = default;
+struct EmplaceDomainsContext {
+	virtual ~EmplaceDomainsContext() = default;
 
-		virtual void add_domain(std::string_view domain) = 0;
-	};
+	virtual void add_domain(std::string_view domain) = 0;
+};
 
-	enum class GetterSuggestionType {
-		Unknown,
-		Anime,
-		Images,
-		Manga,
-		Video
-	};
+enum class GetterSuggestionType {
+	Unknown,
+	Anime,
+	Images,
+	Manga,
+	Video
+};
 
-	struct GetterSuggestionResult {
-		GetterSuggestionType type;
-	};
+struct GetterSuggestionResult {
+	GetterSuggestionType type;
+};
 
-	struct Parser {
-		virtual ~Parser() = default;
+struct Parser {
+	virtual ~Parser() = default;
 
-		/**
-		 * @return Name/display name of the parser
-		 */
-		virtual std::string name() const = 0;
+	/**
+	 * @return Name/display name of the parser
+	 */
+	virtual std::string name() const = 0;
 
-		/** 
-		 * @return Unique identifier for the parser
-		 */
-		virtual std::string identifier() const = 0;
+	/** 
+	 * @return Unique identifier for the parser
+	 */
+	virtual std::string identifier() const = 0;
 
-		/**
-		 * @brief Check if the parser can handle given url
-		 * @param url Url to check
-		 * @return true if the parser can handle, false otherwise
-		 */
-		virtual bool valid_for_url(std::string_view url) const = 0;
+	/**
+	 * @brief Check if the parser can handle given url
+	 * @param url Url to check
+	 * @return true if the parser can handle, false otherwise
+	 */
+	virtual bool valid_for_url(std::string_view url) const = 0;
 
-		/**
-		 * @see ParserCompatibilities, @see namespace compatibilities_flags
-		 * Get compatibilies, that parser can handle.
-		 * For example, if the parser support anime it should
-		 * set the compatibilities_flags::supports_images_search flag.
-		 * @return Compatibilities of the parser
-		 */
-		virtual ParserCompatibilities compatibilities() const = 0;
+	/**
+	 * @see ParserCompatibilities, @see namespace compatibilities_flags
+	 * Get compatibilies, that parser can handle.
+	 * For example, if the parser support anime it should
+	 * set the compatibilities_flags::supports_images_search flag.
+	 * @return Compatibilities of the parser
+	 */
+	virtual ParserCompatibilities compatibilities() const = 0;
 
-		/**
-		 * @see EmplaceDomainsContext
-		 * Add parser domains to the context
-		 * This function is called whenever someone wants
-		 * to add the parser domains to store
-		 * @param context Context to use to add domains
-		 */
-		virtual void emplace_domains(EmplaceDomainsContext& context) const = 0;
+	/**
+	 * @see EmplaceDomainsContext
+	 * Add parser domains to the context
+	 * This function is called whenever someone wants
+	 * to add the parser domains to store
+	 * @param context Context to use to add domains
+	 */
+	virtual void emplace_domains(EmplaceDomainsContext& context) const = 0;
 
-		//virtual ParseResult<std::unique_ptr<AsyncReleaseGetter>> async_release_getter(ParseContext& ctx);
+	//virtual ParseResult<std::unique_ptr<AsyncReleaseGetter>> async_release_getter(ParseContext& ctx);
 
-		//virtual GetterSuggestionResult suggest_getter(std::string_view url) = 0;
+	//virtual GetterSuggestionResult suggest_getter(std::string_view url) = 0;
 
-		virtual std::unique_ptr<ImagesGetter> images_getter() const;
+	virtual std::unique_ptr<ImagesGetter> images_getter() const;
 
-		virtual std::unique_ptr<MangaRootGetter> mangas_getter() const;
-	};
+	virtual std::unique_ptr<MangaRootGetter> mangas_getter() const;
+};
 
-	//using ParserProvider = std::function<
-}
+//using ParserProvider = std::function<
+} // namespace aniparse

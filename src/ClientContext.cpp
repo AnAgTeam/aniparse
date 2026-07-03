@@ -7,105 +7,103 @@
 #include "aniparse/utility/Format.hpp"
 #include <ranges>
 
-template<class... Ts> struct Overloaded : Ts... { using Ts::operator()...; };
+template <class... Ts>
+struct Overloaded : Ts... {
+	using Ts::operator()...;
+};
 
 namespace aniparse {
 
-    static void apply_config_to(ClientRequest& any_request, const ParserConfig& config) {
-        std::visit(Overloaded{
-            [](std::shared_ptr<PolymorphicRequest>& request) {},
-            [&](auto& request) {
-                auto joined_headers = config.headers | std::views::transform([](auto& header) {
-                    return header.first + ": " + header.second;
-                });
+static void apply_config_to(ClientRequest& any_request, const ParserConfig& config) {
+	std::visit(Overloaded{
+	               [](std::shared_ptr<PolymorphicRequest>& request) {},
+	               [&](auto& request) {
+		               auto joined_headers = config.headers | std::views::transform([](auto& header) {
+			                                     return header.first + ": " + header.second;
+		                                     });
 
-                std::ranges::copy(joined_headers, std::back_inserter(request.headers));
+		               std::ranges::copy(joined_headers, std::back_inserter(request.headers));
 
-                // UrlParameters doesn't have an iterator
-                //std::ranges::copy(config.url_params, std::back_inserter(request.url_params));
+		               // UrlParameters doesn't have an iterator
+		               //std::ranges::copy(config.url_params, std::back_inserter(request.url_params));
 
-                for (auto& header : config.url_params) {
-                    request.url_params += header;
-                }
-            }
-        }, any_request);
+		               for (auto& header : config.url_params) {
+			               request.url_params += header;
+		               }
+	               }},
+	           any_request);
 
-        for (auto& modifier : config.modifiers) {
-            modifier(any_request);
-        }
-    }
+	for (auto& modifier : config.modifiers) {
+		modifier(any_request);
+	}
+}
 
-    RequestorContext::RequestorContext(std::shared_ptr<ClientContext> client,
-        std::shared_ptr<LoggerContext> logger,
-        std::shared_ptr<ParserConfig> config)
-        : client_(std::move(client))
-        , logger_(std::move(logger))
-        , config_(config ? std::move(config) : std::make_shared<ParserConfig>()) {
-        if (!client_) {
-            throw std::invalid_argument("Client has to be valid");
-        }
-        config_->cookie_jar = client_->make_cookie_jar();
-    }
+RequestorContext::RequestorContext(std::shared_ptr<ClientContext> client,
+                                   std::shared_ptr<LoggerContext> logger,
+                                   std::shared_ptr<ParserConfig> config)
+    : client_(std::move(client)), logger_(std::move(logger)), config_(config ? std::move(config) : std::make_shared<ParserConfig>()) {
+	if (!client_) {
+		throw std::invalid_argument("Client has to be valid");
+	}
+	config_->cookie_jar = client_->make_cookie_jar();
+}
 
-    asyncnet::NetworkTask<asyncnet::Response> RequestorContext::request(GetRequest request) {
-        ClientRequest any_request = std::move(request);
-        apply_config_to(any_request, *config_);
-        assert(std::holds_alternative<GetRequest>(any_request));
+asyncnet::NetworkTask<asyncnet::Response> RequestorContext::request(GetRequest request) {
+	ClientRequest any_request = std::move(request);
+	apply_config_to(any_request, *config_);
+	assert(std::holds_alternative<GetRequest>(any_request));
 
-        return client_->do_request(ConfiguredGetRequest{
-            .request = std::get<GetRequest>(std::move(any_request)),
-            .cookies = config_->cookie_jar
-        });
-    }
+	return client_->do_request(ConfiguredGetRequest{
+	    .request = std::get<GetRequest>(std::move(any_request)),
+	    .cookies = config_->cookie_jar});
+}
 
-    asyncnet::NetworkTask<asyncnet::Response> RequestorContext::request(PostRequest request) {
-        ClientRequest any_request = std::move(request);
-        apply_config_to(any_request, *config_);
-        assert(std::holds_alternative<PostRequest>(any_request));
+asyncnet::NetworkTask<asyncnet::Response> RequestorContext::request(PostRequest request) {
+	ClientRequest any_request = std::move(request);
+	apply_config_to(any_request, *config_);
+	assert(std::holds_alternative<PostRequest>(any_request));
 
-        return client_->do_request(ConfiguredPostRequest{
-            .request = std::get<PostRequest>(std::move(any_request)),
-            .cookies = config_->cookie_jar
-        });
-    }
+	return client_->do_request(ConfiguredPostRequest{
+	    .request = std::get<PostRequest>(std::move(any_request)),
+	    .cookies = config_->cookie_jar});
+}
 
-    asyncnet::NetworkTask<asyncnet::Response> RequestorContext::request(PostMultipartRequest request) {
-        ClientRequest any_request = std::move(request);
-        apply_config_to(any_request, *config_);
-        assert(std::holds_alternative<PostMultipartRequest>(any_request));
+asyncnet::NetworkTask<asyncnet::Response> RequestorContext::request(PostMultipartRequest request) {
+	ClientRequest any_request = std::move(request);
+	apply_config_to(any_request, *config_);
+	assert(std::holds_alternative<PostMultipartRequest>(any_request));
 
-        return client_->do_request(ConfiguredPostMultipartRequest{
-            .request = std::get<PostMultipartRequest>(std::move(any_request)),
-            .cookies = config_->cookie_jar
-        });
-    }
+	return client_->do_request(ConfiguredPostMultipartRequest{
+	    .request = std::get<PostMultipartRequest>(std::move(any_request)),
+	    .cookies = config_->cookie_jar});
+}
 
-    asyncnet::NetworkTask<asyncnet::Response> RequestorContext::request(std::shared_ptr<PolymorphicRequest> request) {
-        throw std::runtime_error("Unsupported");
-    }
+asyncnet::NetworkTask<asyncnet::Response> RequestorContext::request(std::shared_ptr<PolymorphicRequest> request) {
+	throw std::runtime_error("Unsupported");
+}
 
-    std::shared_ptr<const ParserConfig> RequestorContext::config() const {
-        return config_;
-    }
+std::shared_ptr<const ParserConfig> RequestorContext::config() const {
+	return config_;
+}
 
-    size_t RequestorContext::alt_link() const {
-        return alt_link_;
-    }
+size_t RequestorContext::alt_link() const {
+	return alt_link_;
+}
 
-    void RequestorContext::set_alt_link(size_t alt_link) {
-        alt_link_ = alt_link;
-    }
+void RequestorContext::set_alt_link(size_t alt_link) {
+	alt_link_ = alt_link;
+}
 
-    RequestorContext RequestorContext::new_with_logger(std::shared_ptr<LoggerContext> logger) const {
-        return RequestorContext(client_, logger, config_);
-    }
+RequestorContext RequestorContext::new_with_logger(std::shared_ptr<LoggerContext> logger) const {
+	return RequestorContext(client_, logger, config_);
+}
 
-    //RequestorContext RequestorContext::new_with_client(std::shared_ptr<ClientContext> client) const {
-    //    return RequestorContext(client, logger_, config_);
-    //}
+//RequestorContext RequestorContext::new_with_client(std::shared_ptr<ClientContext> client) const {
+//    return RequestorContext(client, logger_, config_);
+//}
 
-    RequestorContext RequestorContext::new_with_config(std::shared_ptr<ParserConfig> config) const {
-        return RequestorContext(client_, logger_, config);
-    }
+RequestorContext RequestorContext::new_with_config(std::shared_ptr<ParserConfig> config) const {
+	return RequestorContext(client_, logger_, config);
+}
 
-};
+}; // namespace aniparse

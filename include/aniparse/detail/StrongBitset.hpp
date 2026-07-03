@@ -28,13 +28,6 @@ namespace aniparse::detail {
 	public:
 		using Bit = BitsetBit;
 
-		//constexpr StrongBitset(const StrongBitset& other) noexcept(std::is_nothrow_copy_constructible_v<Container>) : storage_(other.storage_) {
-		//	std::println("Copy ctx");
-		//}
-		//constexpr StrongBitset(StrongBitset&& other) noexcept(std::is_nothrow_move_constructible_v<Container>) : storage_(std::move(other.storage_)) {
-		//	std::println("move ctx");
-		//}
-
 		constexpr StrongBitset(const StrongBitset& other) noexcept(std::is_nothrow_copy_constructible_v<Container>) = default;
 		constexpr StrongBitset(StrongBitset&& other) noexcept(std::is_nothrow_move_constructible_v<Container>) = default;
 
@@ -42,7 +35,7 @@ namespace aniparse::detail {
 		constexpr explicit StrongBitset(const Container& val) noexcept(std::is_nothrow_copy_constructible_v<Container>) : storage_(val) {}
 		constexpr explicit StrongBitset(Container&& val) noexcept(std::is_nothrow_move_constructible_v<Container>) : storage_(std::move(val)) {}
 
-		constexpr explicit StrongBitset(Bit val) { // noexcept(std::is_nothrow_constructible_v<Container>) {
+		constexpr explicit StrongBitset(Bit val) {
 			storage_.set(static_cast<size_t>(val));
 		}
 
@@ -53,10 +46,6 @@ namespace aniparse::detail {
 		constexpr explicit operator const Container() const noexcept {
 			return storage_;
 		}
-
-		//constexpr operator bool() noexcept {
-		//	return storage_.all();
-		//}
 
 		StrongBitset& operator=(const StrongBitset& other) & noexcept = default;
 		StrongBitset& operator=(StrongBitset&& other) & noexcept = default;

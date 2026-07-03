@@ -4,14 +4,9 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
+#include <climits>
 #include <algorithm>
 #include <stdexcept>
-#include <limits>
-
-#pragma push_macro("max")
-#pragma push_macro("min")
-#undef min
-#undef max
 
 namespace aniparse::detail {
 
@@ -21,7 +16,7 @@ namespace aniparse::detail {
 	 */
 	template<size_t BitCount>
 	class BitsetLite {
-		static constexpr size_t char_bits = std::numeric_limits<unsigned char>::digits;
+		static constexpr size_t char_bits = CHAR_BIT;
 
 		using Word = std::conditional_t<BitCount <= sizeof(unsigned long) * char_bits, unsigned long, unsigned long long>;
 
@@ -30,8 +25,11 @@ namespace aniparse::detail {
 		/// Minimum count of words needed to store this bits count
 		static constexpr size_t word_count = BitCount == 0 ? 0 : (BitCount - 1) / word_bits + 1;
 
+		static constexpr Word all_ones_word  = ~Word{ 0 };
+		static constexpr Word all_zeros_word = Word{ 0 };
+
 		/// Mask needed for the last word. Used to obtain real value in to_ulong() and to_ullong()
-		static constexpr Word last_word_mask = BitCount == word_bits ? ~Word{ 0 } : (Word{ 1 } << (BitCount % word_bits)) - 1;
+	    static constexpr Word last_word_mask = BitCount == word_bits ? all_ones_word : (Word{ 1 } << (BitCount % word_bits)) - 1;
 		
 		/// Is it needed to mask the word in to_ulong() and to_ullong()
 		static constexpr bool retain_mask_needed = BitCount <= word_bits;
@@ -69,29 +67,8 @@ namespace aniparse::detail {
 		 * @brief Initialize empty (filled with zeros) bitset
 		 */
 		constexpr BitsetLite() noexcept : array_() {
-			//std::fill(array_, array_ + word_count, Word{ 0 });
-		}
 
-		//constexpr BitsetLite(const BitsetLite& other) noexcept {
-		//	std::copy(other.array_, other.array_ + word_count + 1, array_);
-		//	std::cout << "BitsetLite(const BitsetLite&)\n";
-		//}
-		//
-		//constexpr BitsetLite(BitsetLite&& other) noexcept {
-		//	std::copy(other.array_, other.array_ + word_count + 1, array_);
-		//	std::cout << "BitsetLite(BitsetLite&&)\n";
-		//}
-		//
-		//constexpr BitsetLite& operator=(const BitsetLite& other) & noexcept {
-		//	std::copy(other.array_, other.array_ + word_count + 1, array_);
-		//	std::cout << "BitsetLite operator=(const BitsetLite&)\n";
-		//	return *this;
-		//}
-		//constexpr BitsetLite& operator=(BitsetLite&& other) & noexcept {
-		//	std::copy(other.array_, other.array_ + word_count + 1, array_);
-		//	std::cout << "BitsetLite operator=(BitsetLite&&)\n";
-		//	return *this;
-		//}
+		}
 
 		/**
 		 * @brief Initialize bitset with the least bits from the value.
@@ -120,14 +97,14 @@ namespace aniparse::detail {
 		 * @return true if all the bits are '1', false otherwise
 		 */
 		constexpr bool all() noexcept {
-			return std::find(array_, array_ + word_count, std::numeric_limits<Word>::max()) != array_ + word_count;
+			return std::find(array_, array_ + word_count, all_ones_word) != array_ + word_count;
 		}
 
 		/**
 		 * @return true if at least one of the bits are '1', false otherwise
 		 */
 		constexpr bool any() noexcept {
-			return std::find_if(array_, array_ + word_count, std::numeric_limits<Word>::min()) != array_ + word_count;
+			return std::find_if(array_, array_ + word_count, all_zeros_word) != array_ + word_count;
 		}
 
 		/**
@@ -185,7 +162,7 @@ namespace aniparse::detail {
 		 * @return this reference
 		 */
 		constexpr BitsetLite& set() & noexcept {
-			std::fill(array_, array_ + word_count, std::numeric_limits<Word>::max());
+			std::fill(array_, array_ + word_count, all_ones_word);
 			return *this;
 		}
 
@@ -209,7 +186,7 @@ namespace aniparse::detail {
 		 * @return this reference
 		 */
 		constexpr BitsetLite& reset() & noexcept {
-			std::fill(array_, array_ + word_count, std::numeric_limits<Word>::min());
+		    std::fill(array_, array_ + word_count, all_zeros_word);
 			return *this;
 		}
 
@@ -226,13 +203,6 @@ namespace aniparse::detail {
 
 			return operator[](pos);
 		}
-
-		//constexpr BitsetLite& operator|=(BitsetLite& other) noexcept {
-		//	std::transform(array_, array_ + word_count, other.array_, array_, [](Word lword, Word rword) {
-		//		return lword | rword;
-		//	});
-		//	return *this;
-		//}
 
 		/**
 		 * @brief Perform binary OR
@@ -274,7 +244,7 @@ namespace aniparse::detail {
 		constexpr BitsetLite operator~() noexcept {
 			BitsetLite tmp;
 			std::transform(array_, array_ + word_count, tmp.array_, [](Word word) {
-				return word ^ std::numeric_limits<Word>::max();
+				return word ^ all_ones_word;
 			});
 			return tmp;
 		}
@@ -474,6 +444,3 @@ namespace aniparse::detail {
 		Word array_[word_count == 0 ? 1 : word_count];
 	};
 }
-
-#pragma pop_macro("min")
-#pragma pop_macro("max")
