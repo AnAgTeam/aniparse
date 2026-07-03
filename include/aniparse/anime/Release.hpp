@@ -5,7 +5,7 @@
  */
 #pragma once
 #include "aniparse/FlagsBitfield.hpp"
-#include "aniparse/Requests.hpp"
+#include "aniparse/types/Request.hpp"
 
 #include <asyncnet/CancellingTask.hpp>
 #include <string>

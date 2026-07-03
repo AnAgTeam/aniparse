@@ -4,7 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/Requests.hpp"
+#include "aniparse/types/Request.hpp"
 #include "aniparse/CookieJar.hpp"
 #include "aniparse/utility/Format.hpp"
 

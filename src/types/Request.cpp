@@ -3,8 +3,7 @@
  *
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
-#pragma once
-#include "aniparse/Requests.hpp"
+#include "aniparse/types/Request.hpp"
 
 namespace utilspp {
 template <typename T>
