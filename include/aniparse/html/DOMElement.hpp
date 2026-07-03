@@ -50,7 +50,7 @@ public:
 	DOMElementView(const DOMElementView& other) = default;
 
 	/**
-	 * @brief Copy view of the same DOM element
+	 * @brief Move view of the same DOM element
 	 * @param other DOM element
 	 */
 	DOMElementView(DOMElementView&& other) = default;
@@ -67,7 +67,7 @@ public:
 	DOMElementView& operator=(const DOMElementView& other) & noexcept = default;
 
 	/**
-	 * @brief Copy view of the same DOM element
+	 * @brief Move view of the same DOM element
 	 * @param other DOM element
 	 */
 	DOMElementView& operator=(DOMElementView&& other) & noexcept = default;
@@ -261,8 +261,8 @@ public:
 	DOMElementIterator(const DOMElementIterator& other) noexcept = default;
 
 	/**
-	 * @brief Copy state of other iterator
-	 * @param other Iterator to copy
+	 * @brief Move state of other iterator
+	 * @param other Iterator to move
 	 */
 	DOMElementIterator(DOMElementIterator&& other) noexcept = default;
 
@@ -278,8 +278,8 @@ public:
 	DOMElementIterator& operator=(const DOMElementIterator& other) & = default;
 
 	/**
-	 * @brief Copy state of other iterator
-	 * @param other Iterator to copy
+	 * @brief Move state of other iterator
+	 * @param other Iterator to move
 	 */
 	DOMElementIterator& operator=(DOMElementIterator&& other) & noexcept = default;
 
@@ -377,8 +377,8 @@ public:
 	DOMElementWalkIterator(const DOMElementWalkIterator& other) noexcept = default;
 
 	/**
-	 * @brief Copy state of other iterator
-	 * @param other Iterator to copy
+	 * @brief Move state of other iterator
+	 * @param other Iterator to move
 	 */
 	DOMElementWalkIterator(DOMElementWalkIterator&& other) noexcept = default;
 
@@ -394,8 +394,8 @@ public:
 	DOMElementWalkIterator& operator=(const DOMElementWalkIterator& other) & = default;
 
 	/**
-	 * @brief Copy state of other iterator
-	 * @param other Iterator to copy
+	 * @brief Move state of other iterator
+	 * @param other Iterator to move
 	 */
 	DOMElementWalkIterator& operator=(DOMElementWalkIterator&& other) & noexcept = default;
 
@@ -505,7 +505,7 @@ public:
 	DOMElementFinder&& find(std::string_view tag) &&;
 
 	/**
-	 * @brief Find element with tag
+	 * @brief Find element with attribute and value
 	 * @see DOMElementView::find
 	 */
 	DOMElementFinder& find(
@@ -514,7 +514,7 @@ public:
 	    bool ignore_class_whitespaces = true) &;
 
 	/**
-	 * @brief Find element with tag
+	 * @brief Find element with attribute and value
 	 * @see DOMElementView::find
 	 */
 	DOMElementFinder&& find(
