@@ -88,11 +88,11 @@ std::shared_ptr<const ParserConfig> RequestorContext::config() const {
 }
 
 size_t RequestorContext::alt_link() const {
-	return alt_link_;
+	return config_->alt_link;
 }
 
 void RequestorContext::set_alt_link(size_t alt_link) {
-	alt_link_ = alt_link;
+	config_->alt_link = alt_link;
 }
 
 RequestorContext RequestorContext::new_with_logger(std::shared_ptr<LoggerContext> logger) const {

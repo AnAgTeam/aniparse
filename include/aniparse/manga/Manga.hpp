@@ -82,8 +82,15 @@ struct MangaPage {
 	Image image;
 };
 
+/// A selectable mirror (base URL) for a source. Selected by index via
+/// RequestorContext::alt_link(). Kept as a struct so per-mirror metadata can be
+/// added later without changing the collection type.
+struct AltLink {
+	std::string url;
+};
+
 struct MangaGetterCompatibilities {
-	size_t alt_links_count;
+	std::vector<AltLink> alt_links;
 	CompatibilitiesFlags flags = compatibilities_flags::default_flags;
 };
 

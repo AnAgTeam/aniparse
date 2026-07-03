@@ -40,6 +40,9 @@ struct ParserConfig {
 	std::shared_ptr<CookieJar> cookie_jar;
 	ParserConfigFlags flags;
 
+	/// Selected alternative link (mirror) index. @see AltLink, RequestorContext::alt_link
+	size_t alt_link = 0;
+
 	std::vector<std::function<void(aniparse::ClientRequest&)>> modifiers;
 };
 
@@ -261,6 +264,5 @@ private:
 	std::shared_ptr<ClientContext> client_;
 	std::shared_ptr<LoggerContext> logger_;
 	std::shared_ptr<ParserConfig> config_;
-	size_t alt_link_ = 0;
 };
 } // namespace aniparse

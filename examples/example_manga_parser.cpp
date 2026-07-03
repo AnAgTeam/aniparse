@@ -26,8 +26,8 @@ public:
 	MangaGetterCompatibilities compatibilies() const noexcept override {
 		using namespace compatibilities_flags;
 		return {
-			// Общее количество альтернативных ссылок у геттера
-			.alt_links_count = 1,
+			// Список альтернативных ссылок (зеркал) геттера
+			.alt_links = { { "https://example.com" } },
 			// Поддерживает комментарии, поддерживает голоса (пока не сделано)
 			.flags = supports_commenting
 				| supports_voting
@@ -91,7 +91,7 @@ public:
 	NetworkRequestTask<PageResults<MangaChapterInfo>> chapters_info(
 		RequestorContext context,
 		GetFilters filters,
-		MangaTranslationID translation = any_manga_translation) noexcept override {
+		std::optional<MangaTranslationID> translation) noexcept override {
 		PageResults<MangaChapterInfo> pages;
 
 		// Вернуть 0 страниц, если столько запрашивается.
@@ -131,7 +131,7 @@ public:
 		int volume,
 		int chapter,
 		GetFilters filters,
-		MangaTranslationID translation = any_manga_translation) noexcept override {
+	    std::optional<MangaTranslationID> translation) noexcept override {
 		PageResults<MangaPage> pages;
 
 		// Вернуть 0 страниц, если столько запрашивается.
