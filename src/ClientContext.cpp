@@ -41,7 +41,12 @@ RequestorContext::RequestorContext(std::shared_ptr<ClientContext> client,
 	if (!client_) {
 		throw std::invalid_argument("Client has to be valid");
 	}
-	config_->cookie_jar = client_->make_cookie_jar();
+	// Provision a jar only if the config does not already carry one. Overwriting
+	// would drop a session established earlier (login, or a restored jar) and
+	// would make new_with_logger/new_with_config silently wipe cookies.
+	if (!config_->cookie_jar) {
+		config_->cookie_jar = client_->make_cookie_jar();
+	}
 }
 
 asyncnet::NetworkTask<asyncnet::Response> RequestorContext::request(GetRequest request) {

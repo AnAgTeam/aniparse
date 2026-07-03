@@ -5,6 +5,7 @@
  */
 #include "CoroTest.hpp"
 #include <aniparse/Client.hpp>
+#include <aniparse/manga/Manga.hpp>
 
 using namespace aniparse;
 using namespace std::string_view_literals;
@@ -80,6 +81,25 @@ struct DummyLogger : public LoggerContext {
 	}
 };
 
+// Client whose make_cookie_jar() hands out a fresh jar on every call, matching
+// AsyncClient's contract (each call -> new CurlCookieJar). The base mock returns
+// a fixed jar so other tests can assert against it; here we need distinct jars.
+struct FreshJarClientMock : ClientContextMock {
+	using ClientContextMock::ClientContextMock;
+
+	std::shared_ptr<CookieJar> make_cookie_jar() override {
+		return std::make_shared<DummyCookieJar>();
+	}
+};
+
+// Minimal concrete root getter: MangaRootGetter is abstract (from_serialized is
+// pure). Everything else uses the base implementation, which is what we test.
+struct DummyMangaRootGetter : MangaRootGetter {
+	asyncnet::NetworkTask<Response<std::unique_ptr<MangaGetter>>> from_serialized(SerializedGetterData) noexcept override {
+		co_return make_response_error(RequestErrorCode::NotImplemented, "n/a");
+	}
+};
+
 template<class... Ts> struct Overloaded : Ts... { using Ts::operator()...; };
 
 //template<class Base, class... Ts> struct OverloadedFrom : Overloaded<Ts...> {
@@ -124,6 +144,72 @@ CORO_TEST_CASE("RequestorContext construct") {
 	RequestorContext context(mock_client, client_logger, parser_config);
 
 	REQUIRE(context.config() == parser_config);
+
+	co_return;
+}
+
+CORO_TEST_CASE("RequestorContext provisions a cookie jar when config has none") {
+	auto parser_config     = std::make_shared<ParserConfig>();
+	auto client_cookie_jar = std::make_shared<DummyCookieJar>();
+	auto mock_client       = std::make_shared<ClientContextMock>(client_cookie_jar);
+
+	REQUIRE(parser_config->cookie_jar == nullptr);
+
+	RequestorContext context(mock_client, nullptr, parser_config);
+
+	// Empty config gets the client-provided jar.
+	REQUIRE(context.config()->cookie_jar == client_cookie_jar);
+
+	co_return;
+}
+
+CORO_TEST_CASE("RequestorContext keeps an existing cookie jar") {
+	auto preset_jar        = std::make_shared<DummyCookieJar>();
+	auto parser_config     = std::make_shared<ParserConfig>();
+	parser_config->cookie_jar = preset_jar; // e.g. a session established earlier or a restored jar
+
+	auto client_cookie_jar = std::make_shared<DummyCookieJar>();
+	auto mock_client       = std::make_shared<ClientContextMock>(client_cookie_jar);
+
+	RequestorContext context(mock_client, nullptr, parser_config);
+
+	// The pre-existing jar must survive; it must not be replaced by make_cookie_jar().
+	REQUIRE(context.config()->cookie_jar == preset_jar);
+	REQUIRE(context.config()->cookie_jar != client_cookie_jar);
+
+	co_return;
+}
+
+CORO_TEST_CASE("default_config_from does not inherit the base cookie jar") {
+	DummyMangaRootGetter getter;
+
+	auto base        = std::make_shared<ParserConfig>();
+	base->cookie_jar = std::make_shared<DummyCookieJar>(); // pretend the base carries a live session
+
+	auto derived = getter.default_config_from(base);
+
+	REQUIRE(derived != nullptr);
+	// A derived config belongs to a distinct instance and must not share the store.
+	REQUIRE(derived->cookie_jar == nullptr);
+
+	co_return;
+}
+
+CORO_TEST_CASE("RequestorContext isolates cookie jars across parser instances") {
+	DummyMangaRootGetter getter;
+	auto base = std::make_shared<ParserConfig>();
+
+	auto config_a = getter.default_config_from(base);
+	auto config_b = getter.default_config_from(base);
+
+	auto client = std::make_shared<FreshJarClientMock>(std::make_shared<DummyCookieJar>());
+	RequestorContext context_a(client, nullptr, config_a);
+	RequestorContext context_b(client, nullptr, config_b);
+
+	// Each instance provisions its own store; two instances never share cookies.
+	REQUIRE(context_a.config()->cookie_jar != nullptr);
+	REQUIRE(context_b.config()->cookie_jar != nullptr);
+	REQUIRE(context_a.config()->cookie_jar != context_b.config()->cookie_jar);
 
 	co_return;
 }

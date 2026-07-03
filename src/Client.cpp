@@ -33,6 +33,18 @@ NetworkTask<Response> with_retry(uint32_t max_retries,
 	throw std::logic_error("with_retry: unreachable");
 }
 
+// Route the request onto the cookie jar's own share handle so that every
+// request type (GET/POST/multipart) reads and writes the same cookie store.
+// Without this a POST login would land in the session-default store while GET
+// reads from the per-config jar, and two parser instances would collide.
+static void apply_cookie_share(asyncnet::Request& request, const std::shared_ptr<CookieJar>& jar) {
+	if (auto curl_jar = std::dynamic_pointer_cast<CurlCookieJar>(jar)) {
+		request.set_share(curl_jar->shared());
+	} else {
+		request.set_share(nullptr);
+	}
+}
+
 AsyncClient::AsyncClient()
     : core_(asyncnet::Requestor::make_shared()), session_(std::make_shared<asyncnet::AsyncSession>(core_)), max_retries_(default_max_retries) {
 }
@@ -117,11 +129,7 @@ NetworkTask<Response> AsyncClient::do_request(ConfiguredGetRequest configured_re
 	auto get_request = session->make_request<asyncnet::GetRequest>(std::move(request.url));
 	get_request.add_headers(to_header_lines(request.headers));
 	get_request.set_url_parameters(std::move(request.url_params));
-	if (auto cookies = std::dynamic_pointer_cast<CurlCookieJar>(configured_request.cookies)) {
-		get_request.set_share(cookies->shared());
-	} else {
-		get_request.set_share(nullptr);
-	}
+	apply_cookie_share(get_request, configured_request.cookies);
 
 	// Okay to hold references (ref to frame variable), because we will wait for next coroutine end
 	co_return co_await with_retry(max_retries_, [&get_request, &session]() {
@@ -136,6 +144,7 @@ NetworkTask<Response> AsyncClient::do_request(ConfiguredPostRequest configured_r
 	auto post_request = session->make_request<asyncnet::PostRequest>(std::move(request.url), std::move(request.body));
 	post_request.add_headers(to_header_lines(request.headers));
 	post_request.set_url_parameters(std::move(request.url_params));
+	apply_cookie_share(post_request, configured_request.cookies);
 
 	// Okay to hold references (ref to frame variable), because we will wait for next coroutine end
 	co_return co_await with_retry(max_retries_, [&post_request, &session]() {
