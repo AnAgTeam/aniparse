@@ -15,6 +15,7 @@ typedef struct lxb_dom_node lxb_dom_node_t;
 namespace aniparse::html {
 class DOMAttrView;
 class DOMElementAttrsView;
+class CompiledSelector;
 
 class DOMElementIterator;
 
@@ -145,6 +146,24 @@ public:
 	    std::string_view attr,
 	    std::string_view value,
 	    bool ignore_class_whitespaces = true) const;
+
+	/**
+	 * @brief Find the first descendant matching a CSS selector.
+	 * @note The element itself is not matched, only its descendants.
+	 * @param selector Compiled CSS selector
+	 * @return DOM element view if found, nullopt otherwise
+	 */
+	[[nodiscard]] std::optional<DOMElementView> query(const CompiledSelector& selector) const;
+
+	/**
+	 * @brief Find all descendants matching a CSS selector, in document order.
+	 * @note The element itself is not matched, only its descendants.
+	 *       Each matching element appears once even if it matches several
+	 *       selectors of a comma separated list.
+	 * @param selector Compiled CSS selector
+	 * @return All found DOM element views
+	 */
+	[[nodiscard]] std::vector<DOMElementView> query_all(const CompiledSelector& selector) const;
 
 	/**
 	 * @brief Find all elements with tag

@@ -6,6 +6,7 @@
 #include "aniparse/html/DOMElement.hpp"
 #include "aniparse/html/DOMAttributes.hpp"
 #include "aniparse/html/DOMNode.hpp"
+#include "aniparse/html/CompiledSelector.hpp"
 
 #include <cassert>
 #include <array>
@@ -14,6 +15,7 @@
 #include <numeric>
 #include <cctype>
 #include <lexbor/dom/interfaces/element.h>
+#include <lexbor/selectors/selectors.h>
 
 /// Reserved space in the stack for find methods
 constexpr size_t reserved_stack_size = 48;
@@ -73,7 +75,53 @@ static std::vector<DOMElementView> find_all_elements_predicate(lxb_dom_element_t
 	return out;
 }
 
-DOMElementView::DOMElementView(lxb_dom_element_t* element) : element_(element) {
+namespace {
+
+/// RAII wrapper over a lexbor selectors search engine.
+class SelectorEngine {
+public:
+	SelectorEngine() {
+		engine_ = lxb_selectors_create();
+		if (engine_ != nullptr && lxb_selectors_init(engine_) != LXB_STATUS_OK) {
+			engine_ = lxb_selectors_destroy(engine_, true);
+		}
+	}
+
+	SelectorEngine(const SelectorEngine&)            = delete;
+	SelectorEngine& operator=(const SelectorEngine&) = delete;
+
+	~SelectorEngine() {
+		if (engine_ != nullptr) {
+			lxb_selectors_destroy(engine_, true);
+		}
+	}
+
+	explicit operator bool() const noexcept {
+		return engine_ != nullptr;
+	}
+
+	lxb_selectors_t* get() const noexcept {
+		return engine_;
+	}
+
+private:
+	lxb_selectors_t* engine_ = nullptr;
+};
+
+lxb_status_t query_first_cb(lxb_dom_node_t* node, lxb_css_selector_specificity_t, void* ctx) {
+	*static_cast<DOMElementView*>(ctx) = DOMElementView(lxb_dom_interface_element(node));
+	return LXB_STATUS_STOP; // first match found, stop the search
+}
+
+lxb_status_t query_all_cb(lxb_dom_node_t* node, lxb_css_selector_specificity_t, void* ctx) {
+	static_cast<std::vector<DOMElementView>*>(ctx)->emplace_back(lxb_dom_interface_element(node));
+	return LXB_STATUS_OK;
+}
+
+} // namespace
+
+DOMElementView::DOMElementView(lxb_dom_element_t* element)
+    : element_(element) {
 	assert(element->node.type == LXB_DOM_NODE_TYPE_ELEMENT);
 }
 
@@ -156,6 +204,39 @@ std::vector<DOMElementView> DOMElementView::find_all(std::string_view attr, std:
 	auto predicate = get_attr_value_predicate(attr, ignore_class_whitespaces);
 
 	return find_all_elements_predicate(element_, value, predicate);
+}
+
+std::optional<DOMElementView> DOMElementView::query(const CompiledSelector& selector) const {
+	if (element_ == nullptr || !selector) {
+		return std::nullopt;
+	}
+	SelectorEngine engine;
+	if (!engine) {
+		return std::nullopt;
+	}
+
+	DOMElementView found;
+	lxb_selectors_find(engine.get(), lxb_dom_interface_node(element_), selector.get(), query_first_cb, &found);
+	if (!found) {
+		return std::nullopt;
+	}
+	return found;
+}
+
+std::vector<DOMElementView> DOMElementView::query_all(const CompiledSelector& selector) const {
+	std::vector<DOMElementView> out;
+	if (element_ == nullptr || !selector) {
+		return out;
+	}
+	SelectorEngine engine;
+	if (!engine) {
+		return out;
+	}
+
+	// Match each node once even if it satisfies several selectors of a list.
+	lxb_selectors_opt_set(engine.get(), LXB_SELECTORS_OPT_MATCH_FIRST);
+	lxb_selectors_find(engine.get(), lxb_dom_interface_node(element_), selector.get(), query_all_cb, &out);
+	return out;
 }
 
 /// actually might have side effect as some cached allocations
@@ -259,12 +340,14 @@ std::string DOMElementView::text() const {
 }
 
 DOMElementWalkIterator::DOMElementWalkIterator(lxb_dom_element_t* element)
-    : root_(lxb_dom_interface_node(element)), node_(root_ ? root_->first_child : nullptr) {
+    : root_(lxb_dom_interface_node(element))
+    , node_(root_ ? root_->first_child : nullptr) {
 	walk_until_element();
 }
 
 DOMElementWalkIterator::DOMElementWalkIterator(const DOMElementView& element)
-    : root_(lxb_dom_interface_node(element.element_)), node_(root_ ? root_->first_child : nullptr) {
+    : root_(lxb_dom_interface_node(element.element_))
+    , node_(root_ ? root_->first_child : nullptr) {
 	walk_until_element();
 }
 
@@ -383,10 +466,12 @@ bool operator==(const DOMElementIterator& left, const DOMElementIterator& right)
 	return left.node_ == right.node_;
 }
 
-DOMElement::DOMElement(lxb_dom_element_t* element) : element_(element) {
+DOMElement::DOMElement(lxb_dom_element_t* element)
+    : element_(element) {
 }
 
-DOMElementFinder::DOMElementFinder(DOMElementView element) noexcept : element_(element) {}
+DOMElementFinder::DOMElementFinder(DOMElementView element) noexcept
+    : element_(element) {}
 
 DOMElementFinder& DOMElementFinder::find(std::string_view tag) & {
 	if (element_) {

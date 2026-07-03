@@ -8,10 +8,13 @@
 
 #include <string_view>
 #include <optional>
+#include <vector>
 
 typedef struct lxb_html_document lxb_html_document_t;
 
 namespace aniparse::html {
+
+class CompiledSelector;
 
 /**
  * @brief Class for storing HTML document and all
@@ -74,6 +77,20 @@ public:
 	 * @return <BODY> element view
 	 */
 	[[nodiscard]] DOMElementView body() const;
+
+	/**
+	 * @brief Find the first element in the document matching a CSS selector.
+	 * @param selector Compiled CSS selector
+	 * @return DOM element view if found, nullopt otherwise
+	 */
+	[[nodiscard]] std::optional<DOMElementView> query(const CompiledSelector& selector) const;
+
+	/**
+	 * @brief Find all elements in the document matching a CSS selector.
+	 * @param selector Compiled CSS selector
+	 * @return All found DOM element views, in document order
+	 */
+	[[nodiscard]] std::vector<DOMElementView> query_all(const CompiledSelector& selector) const;
 
 private:
 	lxb_html_document_t* document_ = nullptr;

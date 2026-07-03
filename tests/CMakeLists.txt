@@ -10,6 +10,7 @@ add_executable(aniparse-tests
 	"CookiesAndConfigTest.cpp"
 	"RequestorContextTest.cpp"
 	"SearchValidationTest.cpp"
+	"CssSelectorTest.cpp"
 )
 
 set_property(TARGET aniparse-tests PROPERTY CXX_STANDARD 23)

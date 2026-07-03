@@ -52,6 +52,14 @@ DOMElementView HTMLDocument::body() const {
 	return DOMElementView(body);
 }
 
+std::optional<DOMElementView> HTMLDocument::query(const CompiledSelector& selector) const {
+	return as_element().query(selector);
+}
+
+std::vector<DOMElementView> HTMLDocument::query_all(const CompiledSelector& selector) const {
+	return as_element().query_all(selector);
+}
+
 HTMLDocument parse_html(std::string_view text) {
 	//lxb_html_document_t* document = lxb_html_document_create();
 	//lxb_status_t status = lxb_html_document_parse(document, reinterpret_cast<const lxb_char_t*>(text.data()), text.length());
