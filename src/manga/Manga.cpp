@@ -20,7 +20,7 @@ NetworkRequestTask<PageResults<MangaTranslationInfo>> MangaGetter::translation_i
 NetworkRequestTask<PageResults<MangaChapterInfo>> MangaGetter::chapters_info(
     RequestorContext,
     GetFilters,
-    MangaTranslationID) noexcept {
+    std::optional<MangaTranslationID>) noexcept {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get chapters info");
 }
 
