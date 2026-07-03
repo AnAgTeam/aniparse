@@ -1,0 +1,87 @@
+/*
+ * Copyright (C) 2025-2026 Toilettrauma
+ *
+ * Author: Toilettrauma <macosinternal@gmail.com>
+ */
+#include "catch_amalgamated.hpp"
+
+#include <aniparse/html/JSParser.hpp>
+
+#include <string>
+
+using namespace aniparse::html;
+
+TEST_CASE("find_json_var extracts an array literal") {
+    std::string js = "var x = 1; var fullimg = [\"a\", \"b}c\", 'd'];\nfoo();";
+    CHECK(find_json_var("fullimg", js) == R"(["a", "b}c", 'd'])");
+}
+
+TEST_CASE("find_json_var extracts a nested object literal") {
+    std::string js = "window.data = { \"a\": [1, 2], \"b\": {\"c\": 3} };";
+    CHECK(find_json_var("data", js) == R"({ "a": [1, 2], "b": {"c": 3} })");
+}
+
+TEST_CASE("find_json_var ignores brackets inside strings and comments") {
+    std::string js = "var v = { \"k\": \"}]\", /* } ] */ \"n\": 1 };";
+    CHECK(find_json_var("v", js) == R"({ "k": "}]", /* } ] */ "n": 1 })");
+}
+
+TEST_CASE("find_json_var matches whole identifiers only") {
+    std::string js = "var xfullimg = [9]; var fullimg = [1, 2];";
+    CHECK(find_json_var("fullimg", js) == "[1, 2]");
+}
+
+TEST_CASE("find_json_var supports quoted keys with a colon") {
+    std::string js = "{ \"fullimg\": [\"u1\", \"u2\"] }";
+    CHECK(find_json_var("fullimg", js) == R"(["u1", "u2"])");
+}
+
+TEST_CASE("find_json_var returns empty when absent, unbalanced or not a literal") {
+    // The rvalue overload is deleted, so the searched text must outlive the
+    // returned view; bind each string to a named variable.
+    std::string absent      = "var other = [1];";
+    std::string unbalanced  = "var v = [1, 2, 3";
+    std::string not_literal = "var v = 42;";
+    CHECK(find_json_var("fullimg", absent).empty());
+    CHECK(find_json_var("v", unbalanced).empty());
+    CHECK(find_json_var("v", not_literal).empty());
+}
+
+TEST_CASE("parse_json_var parses an object literal") {
+    std::string js = R"(window.data = { "a": 1, "b": [2, 3] };)";
+    std::optional<boost::json::value> v = parse_json_var("data", js);
+    REQUIRE(v.has_value());
+    REQUIRE(v->is_object());
+    CHECK(v->as_object().at("a").as_int64() == 1);
+    CHECK(v->as_object().at("b").as_array().size() == 2);
+}
+
+TEST_CASE("parse_json_var parses an array literal") {
+    std::string js = R"(var nums = [10, 20, 30];)";
+    std::optional<boost::json::value> v = parse_json_var("nums", js);
+    REQUIRE(v.has_value());
+    REQUIRE(v->is_array());
+    CHECK(v->as_array().size() == 3);
+    CHECK(v->as_array()[1].as_int64() == 20);
+}
+
+TEST_CASE("parse_json_var tolerates comments and trailing commas") {
+    std::string js = R"(var cfg = { "a": 1, /* note */ "b": 2, };)";
+    std::optional<boost::json::value> v = parse_json_var("cfg", js);
+    REQUIRE(v.has_value());
+    CHECK(v->as_object().at("b").as_int64() == 2);
+}
+
+TEST_CASE("parse_json_var owns its result, so temporary text is fine") {
+    // string_view param + owning return: no dangling, no deleted overload.
+    std::optional<boost::json::value> v = parse_json_var("x", std::string_view(R"(var x = [1, 2];)"));
+    REQUIRE(v.has_value());
+    CHECK(v->as_array().size() == 2);
+}
+
+TEST_CASE("parse_json_var returns nullopt for non-JSON JavaScript or when absent") {
+    // Single quoted strings are valid JS but not JSON.
+    std::string js = "var imgs = ['a', 'b'];";
+    CHECK_FALSE(parse_json_var("imgs", js).has_value());
+    CHECK_FALSE(parse_json_var("missing", js).has_value());
+}

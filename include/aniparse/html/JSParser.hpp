@@ -3,27 +3,47 @@
  *
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
+#pragma once
+#include <string>
 #include <string_view>
+#include <optional>
 #include <boost/json.hpp>
-
-/*
-	 In future maybe add dedicated parser for JavaScript.
-	 Right now it isn't something important, because
-	 in most cases can use regex.
- */
 
 namespace aniparse::html {
 
 /**
- * @note The method requires boost::regex for windows with MSVC.
- *       MSVC cannot compile regex.
- * @brief Find JavaScript variable declaration with JSON object.
- * Object variable declaration looks like:
+ * @brief Find the literal value assigned to a JavaScript variable.
+ * Locates a top level assignment of an object or array literal by name:
  *   var <name> = { ... };
- * @param variable_name The "name" of the variable to search
- * @param text The text in which the variable be searched
- * @return String view of the JSON
+ *   <name> = [ ... ];
+ *   "<name>": [ ... ]
+ * and returns the balanced literal with its braces/brackets included, ready
+ * to be handed to a JSON parser such as boost::json::parse. While matching
+ * braces it skips string and template literals and comments, so punctuation
+ * inside them does not break the scan.
+ * @note The returned view points into @p text, so it stays valid only as
+ *       long as @p text is alive. Regex literals inside the value are not
+ *       recognised (rare in data blobs).
+ * @param variable_name The name of the variable to search for
+ * @param text The text to search in
+ * @return View of the object/array literal, or an empty view if not found
  */
-extern std::string_view find_json_var_object(std::string_view variable_name, const std::string& text);
-extern std::string_view find_json_var_object(std::string_view variable_name, std::string&& text) = delete;
+extern std::string_view find_json_var(std::string_view variable_name, const std::string& text);
+extern std::string_view find_json_var(std::string_view variable_name, std::string&& text) = delete;
+
+/**
+ * @brief Find a JavaScript object/array literal by name and parse it as JSON.
+ * Convenience wrapper over @ref find_json_var: locates the literal, then parses
+ * it with boost::json (comments and trailing commas are tolerated). Unlike
+ * find_json_var it returns an owning value, so @p text may be a temporary and
+ * no dangling can occur.
+ * @note Only (lenient) JSON is accepted. JavaScript that is not valid JSON —
+ *       e.g. single quoted strings — yields std::nullopt; use @ref find_json_var
+ *       and handle such data yourself.
+ * @param variable_name The name of the variable to search for
+ * @param text The text to search in
+ * @return The parsed value, or std::nullopt if not found or not valid JSON
+ */
+extern std::optional<boost::json::value> parse_json_var(std::string_view variable_name, std::string_view text);
+
 } // namespace aniparse::html
