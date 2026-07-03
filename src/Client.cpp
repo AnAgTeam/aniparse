@@ -9,6 +9,8 @@
 #include <asyncnet/Exceptions.hpp>
 #include <curlpp/Options.hpp>
 
+#include <array>
+
 using asyncnet::NetworkTask;
 using asyncnet::Response;
 
@@ -58,8 +60,37 @@ CurlCookieJar::CurlCookieJar(std::shared_ptr<asyncnet::CurlShared> shared)
     : shared_(std::move(shared)) {
 }
 
-// @todo
 std::optional<std::string> CurlCookieJar::find_cookie(std::string_view name) const {
+	// serialize() yields Netscape-format lines from CURLINFO_COOKIELIST:
+	//   domain \t include_subdomains \t path \t secure \t expires \t name \t value
+	// (httponly cookies carry a "#HttpOnly_" prefix on the domain field, which we
+	// ignore). The value is the trailing field and is taken verbatim.
+	constexpr size_t field_count = 7;
+	constexpr size_t name_field  = 5;
+	constexpr size_t value_field = 6;
+
+	for (const auto& line : serialize()) {
+		std::array<std::string_view, field_count> fields;
+		std::string_view view = line;
+		size_t count = 0;
+		size_t start = 0;
+
+		while (count < field_count) {
+			// Last field (the value) is the remainder of the line, tabs and all.
+			size_t tab = (count == field_count - 1) ? std::string_view::npos : view.find('\t', start);
+			if (tab == std::string_view::npos) {
+				fields[count++] = view.substr(start);
+				break;
+			}
+			fields[count++] = view.substr(start, tab - start);
+			start = tab + 1;
+		}
+
+		if (count == field_count && fields[name_field] == name) {
+			return std::string(fields[value_field]);
+		}
+	}
+
 	return std::nullopt;
 }
 

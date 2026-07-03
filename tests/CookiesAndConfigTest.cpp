@@ -33,6 +33,33 @@ TEST_CASE("Cookies serialize/deserialize") {
 	REQUIRE(test_curl_cookies == serialized_cookies);
 }
 
+TEST_CASE("Cookies find_cookie returns value by name") {
+	AsyncClient client;
+	auto cookie_jar = client.make_cookie_jar();
+
+	cookie_jar->deserialize(test_curl_cookies);
+
+	REQUIRE(cookie_jar->find_cookie("session") == "abc123");
+	REQUIRE(cookie_jar->find_cookie("user") == "alice");
+	REQUIRE(cookie_jar->find_cookie("persistent") == "value");
+}
+
+TEST_CASE("Cookies find_cookie missing returns nullopt") {
+	AsyncClient client;
+	auto cookie_jar = client.make_cookie_jar();
+
+	cookie_jar->deserialize(test_curl_cookies);
+
+	REQUIRE(cookie_jar->find_cookie("nonexistent") == std::nullopt);
+}
+
+TEST_CASE("Cookies find_cookie on empty jar returns nullopt") {
+	AsyncClient client;
+	auto cookie_jar = client.make_cookie_jar();
+
+	REQUIRE(cookie_jar->find_cookie("session") == std::nullopt);
+}
+
 TEST_CASE("Cookies serialize and check empty") {
 	AsyncClient client;
 	auto cookie_jar = client.make_cookie_jar();
