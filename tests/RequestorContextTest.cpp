@@ -51,11 +51,15 @@ struct ClientContextMock : ClientContext {
 
 struct DummyCookieJar : public CookieJar {
 
-	std::optional<std::string> find_cookie(std::string_view name) const override {
+	std::optional<Cookie> find_cookie(std::string_view name) const override {
 		return std::nullopt;
 	}
 
-	void set_cookie(std::string cookie) override {
+	std::vector<Cookie> cookies() const override {
+		return {};
+	}
+
+	void set_cookie(const Cookie& cookie) override {
 
 	}
 

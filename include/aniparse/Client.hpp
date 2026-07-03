@@ -17,19 +17,18 @@ public:
 	CurlCookieJar();
 	CurlCookieJar(std::shared_ptr<asyncnet::CurlShared> shared);
 
-	// @todo
-	std::optional<std::string> find_cookie(std::string_view name) const override;
+	[[nodiscard]] std::optional<Cookie> find_cookie(std::string_view name) const override;
 
-	// @todo
-	void set_cookie(std::string cookie) override;
+	[[nodiscard]] std::vector<Cookie> cookies() const override;
 
-	// @todo
+	void set_cookie(const Cookie& cookie) override;
+
 	void clear() override;
 
-	std::vector<std::string> serialize() const override;
+	[[nodiscard]] std::vector<std::string> serialize() const override;
 	void deserialize(std::span<std::string> cookies) override;
 
-	const std::shared_ptr<asyncnet::CurlShared>& shared() const;
+	[[nodiscard]] const std::shared_ptr<asyncnet::CurlShared>& shared() const;
 
 private:
 	std::shared_ptr<asyncnet::CurlShared> shared_;
