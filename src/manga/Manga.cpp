@@ -47,10 +47,6 @@ MangaGetterRootCompatibilities MangaRootGetter::latest_support() const noexcept 
 	return {};
 }
 
-NetworkRequestTask<std::shared_ptr<const ParserConfig>> MangaRootGetter::authenticate_context(RequestorContext, AuthenticationData) noexcept {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot auth");
-}
-
 std::shared_ptr<ParserConfig> MangaRootGetter::default_config_from(std::shared_ptr<const ParserConfig> base_config) const {
 	if (!base_config)
 		return nullptr;

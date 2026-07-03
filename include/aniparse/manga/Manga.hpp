@@ -157,14 +157,6 @@ struct MangaRootGetter {
 
 	/**
 	 * @todo !
-	 * @brief Request authentification with given data for parser service.
-	 */
-	virtual NetworkRequestTask<std::shared_ptr<const ParserConfig>> authenticate_context(
-	    RequestorContext context,
-	    AuthenticationData data) noexcept;
-
-	/**
-	 * @todo !
 
 	 * @note By default passed client is forwarded.
 	 */

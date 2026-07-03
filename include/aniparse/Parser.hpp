@@ -106,6 +106,43 @@ struct Parser {
 
 	//virtual GetterSuggestionResult suggest_getter(std::string_view url) = 0;
 
+	/**
+	 * @brief Authenticate the parser's service with the given credentials.
+	 *
+	 * Login is per-site (per-parser), not per-category: the returned config
+	 * authorizes every getter of this parser. By default reports NotImplemented.
+	 * @param context Client to perform HTTP requests
+	 * @param data Credentials to authenticate with
+	 * @return Task with the authenticated config
+	 */
+	virtual NetworkRequestTask<std::shared_ptr<const ParserConfig>> authenticate_context(
+	    RequestorContext context,
+	    AuthenticationData data) noexcept;
+
+	/**
+	 * @see AuthKeys
+	 * @brief Names of the credential-bearing config entries to persist.
+	 *
+	 * These identify which cookies / headers / url params of the authenticated
+	 * config are the durable credential and should be copied into an AuthState;
+	 * everything else (volatile session/anti-bot data) is left behind. Default:
+	 * empty (nothing distinguished). Only cookie-/header-/param-based logins need
+	 * to override this.
+	 */
+	virtual AuthKeys auth_keys() const noexcept;
+
+	/**
+	 * @see AuthState
+	 * @brief Distill a persistable session from an authenticated config.
+	 *
+	 * Default: copy the entries named by auth_keys() out of the config. Override
+	 * only for exotic credentials that a name list cannot express (e.g. a token
+	 * parsed out of a response body).
+	 * @param config Authenticated config to export from
+	 * @return The persistable session
+	 */
+	virtual AuthState export_auth(const ParserConfig& config) const;
+
 	virtual std::unique_ptr<ImagesGetter> images_getter() const;
 
 	virtual std::unique_ptr<MangaRootGetter> mangas_getter() const;

@@ -47,7 +47,7 @@ add_library(aniparse STATIC
 	"include/aniparse/types/Response.hpp"
 	"include/aniparse/types/Search.hpp"
 	"include/aniparse/types/Serialization.hpp"
-	"include/aniparse/types/Authentication.hpp"
+	"src/types/Authentication.cpp" "include/aniparse/types/Authentication.hpp"
 
 	"src/html/HTMLDocument.cpp" "include/aniparse/html/HTMLDocument.hpp"
 	"src/html/DOMAttributes.cpp" "include/aniparse/html/DOMAttributes.hpp"

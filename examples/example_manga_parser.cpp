@@ -207,13 +207,6 @@ public:
 		};
 	}
 
-	// Авторизация клиента, если для получения какой-то информации необходимо входить в сервис
-	NetworkRequestTask<std::shared_ptr<const ParserConfig>> authenticate_context(
-		RequestorContext context,
-		AuthenticationData data) noexcept override {
-		co_return context.config();
-	}
-
 	// Создать готовый конфиг для парсера
 	std::shared_ptr<ParserConfig> default_config_from(std::shared_ptr<const ParserConfig> base_config) const override {
 		auto new_config = std::make_shared<ParserConfig>(*base_config);
@@ -310,6 +303,14 @@ class ExampleParser : public Parser {
 	void emplace_domains(EmplaceDomainsContext& context) const override {
 		context.add_domain("example.com");
 		context.add_domain("example-test.com");
+	}
+
+	// Авторизация сервиса. Логин общий на весь парсер (сайт), а не на категорию:
+	// возвращённый конфиг авторизует все геттеры этого парсера.
+	NetworkRequestTask<std::shared_ptr<const ParserConfig>> authenticate_context(
+		RequestorContext context,
+		AuthenticationData data) noexcept override {
+		co_return context.config();
 	}
 
 	// Получение геттера манги для данного парсера
