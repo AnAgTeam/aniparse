@@ -87,6 +87,9 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           files: coverage.xml
+          # Upload only the explicit report; without this the CLI also auto-finds
+          # and uploads junk (its own .sig, the repo's coverage.cmd).
+          disable_search: true
           fail_ci_if_error: false
           # Public repo works tokenless, but a token avoids rate-limited uploads.
           token: ${{ secrets.CODECOV_TOKEN }}
