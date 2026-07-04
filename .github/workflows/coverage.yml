@@ -33,6 +33,14 @@ jobs:
         with:
           arch: x64
 
+      # The runner ships CMake 4.x, which removed compatibility with
+      # cmake_minimum_required(< 3.5); vendored curlpp/c-ares still declare such
+      # minimums. Pin a 3.x line (matching the local toolchain) so they configure.
+      - name: Pin CMake (< 4)
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.31.6'
+
       - name: Export VCPKG_ROOT and prepare binary cache dir
         shell: pwsh
         run: |
@@ -55,10 +63,7 @@ jobs:
 
       - name: Configure (x64-debug preset)
         shell: pwsh
-        # The runner ships CMake 4.x, which dropped compatibility with
-        # cmake_minimum_required(< 3.5). Vendored deps (curlpp, c-ares) still
-        # declare such minimums; this global policy floor lets them configure.
-        run: cmake --preset x64-debug -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+        run: cmake --preset x64-debug
 
       - name: Build
         shell: pwsh
