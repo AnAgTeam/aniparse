@@ -55,7 +55,10 @@ jobs:
 
       - name: Configure (x64-debug preset)
         shell: pwsh
-        run: cmake --preset x64-debug
+        # The runner ships CMake 4.x, which dropped compatibility with
+        # cmake_minimum_required(< 3.5). Vendored deps (curlpp, c-ares) still
+        # declare such minimums; this global policy floor lets them configure.
+        run: cmake --preset x64-debug -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
       - name: Build
         shell: pwsh
