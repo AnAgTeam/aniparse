@@ -11,6 +11,12 @@
 
 #include <asyncnet/CancellingTask.hpp>
 
+#include <boost/json/fwd.hpp>
+
+namespace aniparse::html {
+class HTMLDocument;
+} // namespace aniparse::html
+
 namespace aniparse {
 
 class ResourceCache;
@@ -64,23 +70,30 @@ struct ClientContext {
 	/**
 	 * @brief Perform HTTP GET request
 	 * @param request HTTP request
-	 * @return Task with response
+	 * @return Task with the response, or a RequestError on a transport-level failure
+	 *         (timeout, connection, TLS, cancellation). No status check here — the
+	 *         raw HTTP status stays in ResponseData for the caller to inspect.
 	 */
-	virtual asyncnet::NetworkTask<ResponseData> do_request(ConfiguredGetRequest request) = 0;
+	virtual NetworkRequestTask<ResponseData> do_request(ConfiguredGetRequest request) = 0;
 
 	/**
 	 * @brief Perform HTTP POST request
 	 * @param request HTTP request
-	 * @return Task with response
+	 * @return Task with the response, or a RequestError on a transport-level failure
+	 *         (timeout, connection, TLS, cancellation). No status check here.
 	 */
-	virtual asyncnet::NetworkTask<ResponseData> do_request(ConfiguredPostRequest request) = 0;
+	virtual NetworkRequestTask<ResponseData> do_request(ConfiguredPostRequest request) = 0;
 
 	/**
 	 * @brief Perform HTTP POST multipart/form-data request
 	 * @param request HTTP request
-	 * @return Task with response
+	 * @return Task with the response, or a RequestError on a transport-level failure.
+	 *         No status check here.
+	 * @throws std::invalid_argument If a File form part sets an explicit filename
+	 *         (the curl backend cannot override the presented name) — a caller bug,
+	 *         raised when the returned task is awaited
 	 */
-	virtual asyncnet::NetworkTask<ResponseData> do_request(ConfiguredPostMultipartRequest request) = 0;
+	virtual NetworkRequestTask<ResponseData> do_request(ConfiguredPostMultipartRequest request) = 0;
 
 	/**
 	 * @todo docs
@@ -140,21 +153,62 @@ public:
 	 * @param request HTTP request
 	 * @return Task with response
 	 */
-	asyncnet::NetworkTask<ResponseData> request(GetRequest request);
+	NetworkRequestTask<ResponseData> request(GetRequest request);
 
 	/**
 	 * @brief Perform HTTP POST request with respect to client config
 	 * @param request HTTP request
 	 * @return Task with response
 	 */
-	asyncnet::NetworkTask<ResponseData> request(PostRequest request);
+	NetworkRequestTask<ResponseData> request(PostRequest request);
 
 	/**
 	 * @brief Perform HTTP POST multipart/form-data request with respect to client config
 	 * @param request HTTP request
 	 * @return Task with response
 	 */
-	asyncnet::NetworkTask<ResponseData> request(PostMultipartRequest request);
+	NetworkRequestTask<ResponseData> request(PostMultipartRequest request);
+
+	/**
+	 * @brief Perform a GET and parse the 2xx response body as an HTML document.
+	 * Non-retrying convenience over request(): checks the status, maps a non-2xx
+	 * status (or a parse failure) to a RequestError, otherwise returns the parsed
+	 * document. Centralizes the fetch -> status-check -> parse -> error-map path so
+	 * getters don't duplicate it.
+	 * @note Never throws for I/O errors: transport failures, non-2xx statuses, and
+	 *       parse failures all travel through the RequestError channel.
+	 * @param request HTTP GET request
+	 * @return Task with the parsed document or a RequestError
+	 */
+	NetworkRequestTask<html::HTMLDocument> request_html(GetRequest request);
+
+	/**
+	 * @brief Perform a POST and parse the 2xx response body as an HTML document.
+	 * Same contract as the GET overload: status-checks, parses, and folds any
+	 * failure into the RequestError channel; never throws for I/O errors.
+	 * @param request HTTP POST request
+	 * @return Task with the parsed document or a RequestError
+	 */
+	NetworkRequestTask<html::HTMLDocument> request_html(PostRequest request);
+
+	/**
+	 * @brief Perform a GET and parse the 2xx response body as JSON.
+	 * Non-retrying convenience over request(): checks the status, maps a non-2xx
+	 * status (or a parse failure) to a RequestError, otherwise returns the parsed
+	 * JSON value. Never throws for I/O errors.
+	 * @param request HTTP GET request
+	 * @return Task with the parsed JSON value or a RequestError
+	 */
+	NetworkRequestTask<boost::json::value> request_json(GetRequest request);
+
+	/**
+	 * @brief Perform a POST and parse the 2xx response body as JSON.
+	 * Same contract as the GET overload: status-checks, parses, and folds any
+	 * failure into the RequestError channel; never throws for I/O errors.
+	 * @param request HTTP POST request
+	 * @return Task with the parsed JSON value or a RequestError
+	 */
+	NetworkRequestTask<boost::json::value> request_json(PostRequest request);
 
 	/**
 	 * @brief Output INFO to logger

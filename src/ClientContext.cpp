@@ -5,7 +5,11 @@
  */
 #include "aniparse/ClientContext.hpp"
 #include "aniparse/ResourceCache.hpp"
+#include "aniparse/html/HTMLParser.hpp"
 #include "aniparse/utility/Format.hpp"
+
+#include <boost/json.hpp>
+
 #include <ranges>
 
 namespace aniparse {
@@ -44,7 +48,7 @@ RequestorContext::RequestorContext(std::shared_ptr<ClientContext> client,
 	}
 }
 
-asyncnet::NetworkTask<ResponseData> RequestorContext::request(GetRequest request) {
+NetworkRequestTask<ResponseData> RequestorContext::request(GetRequest request) {
 	ClientRequest any_request = std::move(request);
 	apply_config_to(any_request, *config_);
 	assert(std::holds_alternative<GetRequest>(any_request));
@@ -54,7 +58,7 @@ asyncnet::NetworkTask<ResponseData> RequestorContext::request(GetRequest request
 	    .cookies = config_->cookie_jar});
 }
 
-asyncnet::NetworkTask<ResponseData> RequestorContext::request(PostRequest request) {
+NetworkRequestTask<ResponseData> RequestorContext::request(PostRequest request) {
 	ClientRequest any_request = std::move(request);
 	apply_config_to(any_request, *config_);
 	assert(std::holds_alternative<PostRequest>(any_request));
@@ -64,7 +68,7 @@ asyncnet::NetworkTask<ResponseData> RequestorContext::request(PostRequest reques
 	    .cookies = config_->cookie_jar});
 }
 
-asyncnet::NetworkTask<ResponseData> RequestorContext::request(PostMultipartRequest request) {
+NetworkRequestTask<ResponseData> RequestorContext::request(PostMultipartRequest request) {
 	ClientRequest any_request = std::move(request);
 	apply_config_to(any_request, *config_);
 	assert(std::holds_alternative<PostMultipartRequest>(any_request));
@@ -72,6 +76,103 @@ asyncnet::NetworkTask<ResponseData> RequestorContext::request(PostMultipartReque
 	return client_->do_request(ConfiguredPostMultipartRequest{
 	    .request = std::get<PostMultipartRequest>(std::move(any_request)),
 	    .cookies = config_->cookie_jar});
+}
+
+namespace {
+
+bool is_success_status(long status) {
+	return status >= 200 && status < 300;
+}
+
+// Map a non-2xx status onto a coarse RequestErrorCode. The retry policy (429/5xx)
+// lives below the helpers in the client, so by the time a helper sees these the
+// policy is exhausted — RateLimited/ServerError mean "already retried".
+RequestErrorCode status_to_error_code(long status) {
+	switch (status) {
+	case 401:
+	case 403:
+		return RequestErrorCode::InvalidCredentials;
+	case 404:
+		return RequestErrorCode::NotFound;
+	case 429:
+		return RequestErrorCode::RateLimited;
+	default:
+		return status >= 500 ? RequestErrorCode::ServerError : RequestErrorCode::Unknown;
+	}
+}
+
+// Perform the request and require a 2xx: forwards a transport error from request()
+// unchanged, maps a non-2xx status via status_to_error_code, and on success yields
+// the raw 2xx response for the caller to parse. Templated on the request type so
+// the GET and POST helpers share it (the matching request() overload is picked).
+template <typename Request>
+NetworkRequestTask<ResponseData> fetch_ok(RequestorContext& context, Request request) {
+	auto fetched = co_await context.request(std::move(request));
+	if (!fetched) {
+		co_return unexpected(std::move(fetched.error()));
+	}
+	ResponseData& response = *fetched;
+
+	if (!is_success_status(response.status_code)) {
+		co_return make_response_error(status_to_error_code(response.status_code),
+		                              "HTTP " + std::to_string(response.status_code),
+		                              response.status_code, std::move(response.body));
+	}
+	co_return std::move(response);
+}
+
+template <typename Request>
+NetworkRequestTask<html::HTMLDocument> request_html_impl(RequestorContext& context, Request request) {
+	auto fetched = co_await fetch_ok(context, std::move(request));
+	if (!fetched) {
+		co_return unexpected(std::move(fetched.error()));
+	}
+	ResponseData& response = *fetched;
+
+	html::HTMLParser parser;
+	auto document = parser.try_parse(response.body);
+	if (!document) {
+		co_return make_response_error(RequestErrorCode::UnexpectedResponse,
+		                              std::string("HTML parse failed: ") + document.error().what(),
+		                              response.status_code, std::move(response.body));
+	}
+	co_return std::move(*document);
+}
+
+template <typename Request>
+NetworkRequestTask<boost::json::value> request_json_impl(RequestorContext& context, Request request) {
+	auto fetched = co_await fetch_ok(context, std::move(request));
+	if (!fetched) {
+		co_return unexpected(std::move(fetched.error()));
+	}
+	ResponseData& response = *fetched;
+
+	boost::system::error_code ec;
+	boost::json::value value = boost::json::parse(response.body, ec);
+	if (ec) {
+		co_return make_response_error(RequestErrorCode::UnexpectedResponse,
+		                              "JSON parse failed: " + ec.message(),
+		                              response.status_code, std::move(response.body));
+	}
+	co_return std::move(value);
+}
+
+} // namespace
+
+NetworkRequestTask<html::HTMLDocument> RequestorContext::request_html(GetRequest request) {
+	return request_html_impl(*this, std::move(request));
+}
+
+NetworkRequestTask<html::HTMLDocument> RequestorContext::request_html(PostRequest request) {
+	return request_html_impl(*this, std::move(request));
+}
+
+NetworkRequestTask<boost::json::value> RequestorContext::request_json(GetRequest request) {
+	return request_json_impl(*this, std::move(request));
+}
+
+NetworkRequestTask<boost::json::value> RequestorContext::request_json(PostRequest request) {
+	return request_json_impl(*this, std::move(request));
 }
 
 std::shared_ptr<const ParserConfig> RequestorContext::config() const {

@@ -53,21 +53,21 @@ public:
 	 * @param request HTTP request
 	 * @return Task with response
 	 */
-	asyncnet::NetworkTask<ResponseData> do_request(ConfiguredGetRequest request) override;
+	NetworkRequestTask<ResponseData> do_request(ConfiguredGetRequest request) override;
 
 	/**
 	 * @brief Perform HTTP POST request
 	 * @param request HTTP request
 	 * @return Task with response
 	 */
-	asyncnet::NetworkTask<ResponseData> do_request(ConfiguredPostRequest request) override;
+	NetworkRequestTask<ResponseData> do_request(ConfiguredPostRequest request) override;
 
 	/**
 	 * @brief Perform HTTP POST multipart/form-data request
 	 * @param request HTTP request
 	 * @return Task with response
 	 */
-	asyncnet::NetworkTask<ResponseData> do_request(ConfiguredPostMultipartRequest request) override;
+	NetworkRequestTask<ResponseData> do_request(ConfiguredPostMultipartRequest request) override;
 
 	ClientConfig config() const;
 

@@ -5,7 +5,6 @@
  */
 #include "aniparse/Client.hpp"
 #include "aniparse/Headers.hpp"
-#include "aniparse/types/NetError.hpp"
 
 #include <asyncnet/Exceptions.hpp>
 #include <asyncnet/MultipartForms.hpp>
@@ -21,47 +20,26 @@ using asyncnet::NetworkTask;
 
 namespace aniparse {
 
-// Map a libcurl result code onto the backend-neutral classification. Lives here,
-// in the curl backend, so the neutral NetError type stays free of curl headers.
-static NetErrc classify_curl_error(CURLcode code) {
-	switch (code) {
-	case CURLE_OPERATION_TIMEDOUT:
-		return NetErrc::timed_out;
-	case CURLE_ABORTED_BY_CALLBACK:
-		return NetErrc::cancelled;
-	case CURLE_COULDNT_CONNECT:
-	case CURLE_COULDNT_RESOLVE_HOST:
-	case CURLE_COULDNT_RESOLVE_PROXY:
-		return NetErrc::connect_failed;
-	case CURLE_SSL_CONNECT_ERROR:
-	case CURLE_PEER_FAILED_VERIFICATION:
-	case CURLE_SSL_CERTPROBLEM:
-	case CURLE_SSL_CIPHER:
-	case CURLE_SSL_CACERT_BADFILE:
-		return NetErrc::tls_failed;
-	default:
-		return NetErrc::other;
-	}
+// Map a libcurl transport error onto a coarse RequestErrorCode. Cancellation is
+// deliberate (stop requested); everything else collapses to one NetworkError —
+// the exact curl code carries nothing the consumer branches on.
+static RequestErrorCode curl_error_to_code(CURLcode code) {
+	return code == asyncnet::CancelledErrorCode ? RequestErrorCode::Cancelled
+	                                            : RequestErrorCode::NetworkError;
 }
 
-// Translate the curl-bound transport exception into the neutral NetError that
-// escapes the client. Transport failures carry no HTTP status (there is no
-// response), so http_status stays 0.
-static NetError to_net_error(const asyncnet::NetworkRuntimeError& error) {
-	return NetError(classify_curl_error(error.whatCode()), 0, error.what());
-}
-
+// Retries the operation on a transport error until the policy is exhausted, then
+// rethrows the raw curl exception for do_request to fold into a RequestError. A
+// cancelled request was stopped on purpose, so it is never retried.
 template <typename Functor>
 NetworkTask<asyncnet::Response> with_retry(uint32_t max_retries,
                                            Functor operation) {
 	for (uint32_t i = 0; i <= max_retries; ++i) {
 		try {
 			co_return co_await operation();
-		} catch (const asyncnet::NetworkRuntimeError& raw_error) {
-			NetError error = to_net_error(raw_error);
-			// A cancelled request was stopped on purpose — never retry it.
-			if (error.code == NetErrc::cancelled || i == max_retries) {
-				throw error;
+		} catch (const asyncnet::NetworkRuntimeError& error) {
+			if (error.whatCode() == asyncnet::CancelledErrorCode || i == max_retries) {
+				throw;
 			}
 			// TODO:
 			//if (delay.count() > 0) {
@@ -318,7 +296,7 @@ const std::shared_ptr<asyncnet::CurlShared>& CurlCookieJar::shared() const {
 	return shared_;
 }
 
-NetworkTask<ResponseData> AsyncClient::do_request(ConfiguredGetRequest configured_request) {
+NetworkRequestTask<ResponseData> AsyncClient::do_request(ConfiguredGetRequest configured_request) {
 	auto session  = session_.load();
 	auto& request = configured_request.request;
 
@@ -328,12 +306,17 @@ NetworkTask<ResponseData> AsyncClient::do_request(ConfiguredGetRequest configure
 	apply_cookie_share(get_request, configured_request.cookies);
 
 	// Okay to hold references (ref to frame variable), because we will wait for next coroutine end
-	co_return to_response_data(co_await with_retry(max_retries_, [&get_request, &session]() {
-		return session->perform_request(get_request);
-	}));
+	try {
+		asyncnet::Response response = co_await with_retry(max_retries_, [&get_request, &session]() {
+			return session->perform_request(get_request);
+		});
+		co_return to_response_data(std::move(response));
+	} catch (const asyncnet::NetworkRuntimeError& error) {
+		co_return make_response_error(curl_error_to_code(error.whatCode()), error.what());
+	}
 }
 
-NetworkTask<ResponseData> AsyncClient::do_request(ConfiguredPostRequest configured_request) {
+NetworkRequestTask<ResponseData> AsyncClient::do_request(ConfiguredPostRequest configured_request) {
 	auto session  = session_.load();
 	auto& request = configured_request.request;
 
@@ -343,15 +326,23 @@ NetworkTask<ResponseData> AsyncClient::do_request(ConfiguredPostRequest configur
 	apply_cookie_share(post_request, configured_request.cookies);
 
 	// Okay to hold references (ref to frame variable), because we will wait for next coroutine end
-	co_return to_response_data(co_await with_retry(max_retries_, [&post_request, &session]() {
-		return session->perform_request(post_request);
-	}));
+	try {
+		asyncnet::Response response = co_await with_retry(max_retries_, [&post_request, &session]() {
+			return session->perform_request(post_request);
+		});
+		co_return to_response_data(std::move(response));
+	} catch (const asyncnet::NetworkRuntimeError& error) {
+		co_return make_response_error(curl_error_to_code(error.whatCode()), error.what());
+	}
 }
 
-NetworkTask<ResponseData> AsyncClient::do_request(ConfiguredPostMultipartRequest configured_request) {
+NetworkRequestTask<ResponseData> AsyncClient::do_request(ConfiguredPostMultipartRequest configured_request) {
 	auto session  = session_.load();
 	auto& request = configured_request.request;
 
+	// to_curlpp_forms may throw std::invalid_argument on a malformed form part
+	// (a File with an explicit filename); that is a caller bug, so let it propagate
+	// rather than folding it into the RequestError channel.
 	auto multipart_request = session->make_request<asyncnet::PostMultipartRequest>(
 	    std::move(request.url), to_curlpp_forms(std::move(request.forms)));
 	multipart_request.add_headers(to_header_lines(request.headers));
@@ -359,9 +350,14 @@ NetworkTask<ResponseData> AsyncClient::do_request(ConfiguredPostMultipartRequest
 	apply_cookie_share(multipart_request, configured_request.cookies);
 
 	// Okay to hold references (ref to frame variable), because we will wait for next coroutine end
-	co_return to_response_data(co_await with_retry(max_retries_, [&multipart_request, &session]() {
-		return session->perform_request(multipart_request);
-	}));
+	try {
+		asyncnet::Response response = co_await with_retry(max_retries_, [&multipart_request, &session]() {
+			return session->perform_request(multipart_request);
+		});
+		co_return to_response_data(std::move(response));
+	} catch (const asyncnet::NetworkRuntimeError& error) {
+		co_return make_response_error(curl_error_to_code(error.whatCode()), error.what());
+	}
 }
 
 // TODO: maybe make max_retries atomic (or who even cares?)
