@@ -51,7 +51,7 @@ NetworkRequestTask<TestStruct> test_coro() {
 CORO_TEST_CASE("expected as value") {
 	auto result = co_await test_coro();
 
-	REQUIRE(!result.has_value());
-	REQUIRE(result.error().code == RequestErrorCode::NotImplemented);
-	REQUIRE(result.error().message == "blabla");
+	REQUIRE_FALSE(result.has_value());
+	CHECK(result.error().code == RequestErrorCode::NotImplemented);
+	CHECK(result.error().message == "blabla");
 }

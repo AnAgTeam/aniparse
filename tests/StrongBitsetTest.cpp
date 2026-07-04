@@ -47,10 +47,10 @@ constexpr bool can_get_with_arbitrary = requires (T a) {
 };
 
 TEST_CASE("Unable to use StrongBitset with arbitrary") {
-	REQUIRE(!can_implicit_init_with_arbitrary<TestBitset>);
-	REQUIRE(!can_binary_or_with_arbitrary<TestBitset>);
-	REQUIRE(!can_binary_and_with_arbitrary<TestBitset>);
-	REQUIRE(!can_binary_xor_with_arbitrary<TestBitset>);
-	REQUIRE(!can_set_with_arbitrary<TestBitset>);
-	REQUIRE(!can_get_with_arbitrary<TestBitset>);
+	REQUIRE_FALSE(can_implicit_init_with_arbitrary<TestBitset>);
+	REQUIRE_FALSE(can_binary_or_with_arbitrary<TestBitset>);
+	REQUIRE_FALSE(can_binary_and_with_arbitrary<TestBitset>);
+	REQUIRE_FALSE(can_binary_xor_with_arbitrary<TestBitset>);
+	REQUIRE_FALSE(can_set_with_arbitrary<TestBitset>);
+	REQUIRE_FALSE(can_get_with_arbitrary<TestBitset>);
 }

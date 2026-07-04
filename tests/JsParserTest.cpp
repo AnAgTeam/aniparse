@@ -131,3 +131,68 @@ TEST_CASE("find_json_var and parse_json_var handle the henchan /online page shap
     CHECK(std::string_view(v->as_array()[0].as_string()) == "https://cdn/1.jpg");
     CHECK(std::string_view(v->as_array()[2].as_string()) == "https://cdn/3.jpg");
 }
+
+TEST_CASE("find_json_var skips a line comment inside the literal") {
+    std::string js = "var v = { \"a\": 1, // note with a } and a ]\n \"b\": 2 };";
+    CHECK(find_json_var("v", js) == "{ \"a\": 1, // note with a } and a ]\n \"b\": 2 }");
+}
+
+TEST_CASE("find_json_var returns empty on an unterminated string in the literal") {
+    std::string js = "var v = { \"a\": \"no closing quote";
+    CHECK(find_json_var("v", js).empty());
+}
+
+TEST_CASE("find_json_var returns empty on an unterminated block comment") {
+    std::string js = "var v = { /* never closed";
+    CHECK(find_json_var("v", js).empty());
+}
+
+TEST_CASE("find_json_var returns empty on a mismatched bracket") {
+    std::string js = "var v = {]};";
+    CHECK(find_json_var("v", js).empty());
+}
+
+TEST_CASE("find_json_var returns empty for an empty variable name") {
+    std::string js = "var v = [1, 2];";
+    CHECK(find_json_var("", js).empty());
+}
+
+TEST_CASE("find_json_var ignores a name that is not an assignment") {
+    std::string js = "foo(); bar = foo + 1;";
+    CHECK(find_json_var("foo", js).empty());
+}
+
+TEST_CASE("find_json_var ignores == and => that are not assignments") {
+    std::string equality = "if (foo == bar) { baz(); }";
+    std::string arrow    = "const g = foo => bar;";
+    CHECK(find_json_var("foo", equality).empty());
+    CHECK(find_json_var("foo", arrow).empty());
+}
+
+TEST_CASE("parse_json_var normalizes an escaped quote inside a double-quoted string") {
+    std::string js = R"(var v = { "s": "say \"hi\"" };)";
+    std::optional<boost::json::value> v = parse_json_var("v", js);
+    REQUIRE(v.has_value());
+    CHECK(std::string_view(v->as_object().at("s").as_string()) == "say \"hi\"");
+}
+
+TEST_CASE("parse_json_var keeps a non-quote escape inside a single-quoted string") {
+    std::string js = R"(var v = ['a\nb'];)";
+    std::optional<boost::json::value> v = parse_json_var("v", js);
+    REQUIRE(v.has_value());
+    CHECK(std::string_view(v->as_array()[0].as_string()) == "a\nb");
+}
+
+TEST_CASE("parse_json_var passes a line comment through normalization") {
+    std::string js = "var v = { \"a\": 1 // trailing note\n };";
+    std::optional<boost::json::value> v = parse_json_var("v", js);
+    REQUIRE(v.has_value());
+    CHECK(v->as_object().at("a").as_int64() == 1);
+}
+
+TEST_CASE("parse_json_var returns nullopt when the literal is not valid JSON") {
+    // Balanced braces, so the scan yields a slice, but an unquoted key keeps
+    // Boost.JSON from parsing it even with comments/trailing commas allowed.
+    std::string js = "var v = { a: 1 };";
+    CHECK_FALSE(parse_json_var("v", js).has_value());
+}

@@ -17,17 +17,17 @@ TEST_CASE("Bitset initialization from value") {
 	BitsetLite<200> bitset3 = 0x9876553221ULL;
 	BitsetLite<200> bitset4 = 0x1236137890ULL;
 
-	REQUIRE(bitset1 == empty_bitset);
-	REQUIRE(bitset2 != empty_bitset);
+	CHECK(bitset1 == empty_bitset);
+	CHECK(bitset2 != empty_bitset);
 
-	REQUIRE(bitset1.to_ulong() == 0UL);
-	REQUIRE(bitset2.to_ulong() == 0b100UL);
+	CHECK(bitset1.to_ulong() == 0UL);
+	CHECK(bitset2.to_ulong() == 0b100UL);
 
-	REQUIRE(bitset3.to_ullong() == 0x9876553221ULL);
-	REQUIRE(bitset4.to_ullong() == 0x1236137890ULL);
+	CHECK(bitset3.to_ullong() == 0x9876553221ULL);
+	CHECK(bitset4.to_ullong() == 0x1236137890ULL);
 
-	REQUIRE(bitset3.to_ulong() == 0x76553221UL);
-	REQUIRE(bitset4.to_ulong() == 0x36137890UL);
+	CHECK(bitset3.to_ulong() == 0x76553221UL);
+	CHECK(bitset4.to_ulong() == 0x36137890UL);
 
 }
 
@@ -37,18 +37,18 @@ TEST_CASE("Bitset initialization from copy/move") {
 	BitsetLite<20> bitset_copy = bitset1;
 	BitsetLite<20> bitset_move = std::move(bitset1);
 
-	REQUIRE(bitset_copy == bitset1);
-	REQUIRE(bitset_move == bitset1);
+	CHECK(bitset_copy == bitset1);
+	CHECK(bitset_move == bitset1);
 }
 
 TEST_CASE("Bitset value cutting") {
 	BitsetLite<200> bitset1 = 0x1236137890ULL;
 	BitsetLite<20> bitset2 = 0x12361890UL;
 
-	REQUIRE(bitset1.to_ullong() == 0x1236137890ULL);
+	CHECK(bitset1.to_ullong() == 0x1236137890ULL);
 
-	REQUIRE(bitset2.to_ulong() == 0b1100001100010010000);
-	REQUIRE(bitset2.to_ullong() == 0b1100001100010010000);
+	CHECK(bitset2.to_ulong() == 0b1100001100010010000);
+	CHECK(bitset2.to_ullong() == 0b1100001100010010000);
 }
 
 TEST_CASE("Bitset binary operations") {

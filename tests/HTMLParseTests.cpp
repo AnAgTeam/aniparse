@@ -448,3 +448,29 @@ TEST_CASE("DOMNode copy/move") {
     DOMNodeView body_move = std::move(body);
     REQUIRE(body_move == document.body());
 }
+
+TEST_CASE("HTMLParser is movable and the moved-to parser still works") {
+    HTMLParser source;
+    HTMLParser moved_ctor(std::move(source));
+
+    HTMLParser move_assigned;
+    move_assigned = std::move(moved_ctor);
+
+    // Self-move-assignment is a no-op guarded by the address check.
+    move_assigned = std::move(move_assigned);
+
+    HTMLDocument document = move_assigned.parse(iterator_test_html);
+    REQUIRE(document.as_element().tag_name() == "HTML");
+}
+
+TEST_CASE("HTMLParser strips a leading UTF-8 BOM before parsing") {
+    std::string with_bom = "\xEF\xBB\xBF";
+    with_bom += iterator_test_html;
+
+    HTMLParser parser;
+
+    // remove_bom defaults to true: the BOM is dropped and parsing succeeds.
+    HTMLDocument document = parser.parse(with_bom);
+    REQUIRE(document.as_element().tag_name() == "HTML");
+    REQUIRE(document.body().contains_class("class1"));
+}

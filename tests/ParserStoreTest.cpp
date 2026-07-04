@@ -45,20 +45,20 @@ TEST_CASE("ParserStore find") {
 	parser_store.add_parser(std::make_unique<TestParser>());
 
 	// Cannot find added 1st domain: no "www." subdomain
-	REQUIRE(!parser_store.find_for_url("https://youtube.com"));
+	CHECK_FALSE(parser_store.find_for_url("https://youtube.com"));
 	// Find added 1st domain
-	REQUIRE(parser_store.find_for_url("https://www.youtube.com"));
+	CHECK(parser_store.find_for_url("https://www.youtube.com"));
 	// Find added 1st domain with subdomain
-	REQUIRE(parser_store.find_for_url("https://aaa2.www.youtube.com"));
+	CHECK(parser_store.find_for_url("https://aaa2.www.youtube.com"));
 	// Find added 2nd domain
-	REQUIRE(parser_store.find_for_url("https://youtu.be"));
+	CHECK(parser_store.find_for_url("https://youtu.be"));
 	// Find added 2nd domain with another protocol
-	REQUIRE(parser_store.find_for_url("http://youtu.be"));
+	CHECK(parser_store.find_for_url("http://youtu.be"));
 	// Find added 2nd domain with subdomain and path
-	REQUIRE(parser_store.find_for_url("http://www.youtu.be/watch?v=123456"));
+	CHECK(parser_store.find_for_url("http://www.youtu.be/watch?v=123456"));
 	// Cannot find: valid_for_url() returns false for aaa. subdomains
-	REQUIRE(!parser_store.find_for_url("http://aaa.youtube.com"));
+	CHECK_FALSE(parser_store.find_for_url("http://aaa.youtube.com"));
 
-	REQUIRE(parser_store.find_by_key("TestParser"));
-	REQUIRE(!parser_store.find_by_key("SomeParser"));
+	CHECK(parser_store.find_by_key("TestParser"));
+	CHECK_FALSE(parser_store.find_by_key("SomeParser"));
 }
