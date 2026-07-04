@@ -117,7 +117,7 @@ struct Parser {
 	 */
 	virtual NetworkRequestTask<std::shared_ptr<const ParserConfig>> authenticate_context(
 	    RequestorContext context,
-	    AuthenticationData data) noexcept;
+	    AuthenticationData data);
 
 	/**
 	 * @see AuthKeys

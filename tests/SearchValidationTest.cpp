@@ -170,7 +170,7 @@ struct FilteringRootGetter : MangaRootGetter {
 		return { .supported_sorts = { { std::string(sort_keys::update_time), { .ascending = true } } } };
 	}
 
-	NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData) noexcept override {
+	NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
 };

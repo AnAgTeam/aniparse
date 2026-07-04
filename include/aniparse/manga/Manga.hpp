@@ -141,26 +141,26 @@ struct MangaGetter {
 
 	virtual MangaGetterCompatibilities compatibilies() const noexcept = 0;
 
-	virtual NetworkRequestTask<MangaInfo> preview_info(RequestorContext context) noexcept;
+	virtual NetworkRequestTask<MangaInfo> preview_info(RequestorContext context);
 
-	virtual NetworkRequestTask<MangaInfo> info(RequestorContext context) noexcept = 0;
+	virtual NetworkRequestTask<MangaInfo> info(RequestorContext context) = 0;
 
 	virtual NetworkRequestTask<PageResults<MangaTranslationInfo>> translation_info(
 	    RequestorContext context,
-	    GetFilters filters) noexcept;
+	    GetFilters filters);
 
 	virtual NetworkRequestTask<PageResults<MangaChapterInfo>> chapters_info(
 	    RequestorContext context,
 	    GetFilters filters,
-	    std::optional<MangaTranslationID> translation = std::nullopt) noexcept;
+	    std::optional<MangaTranslationID> translation = std::nullopt);
 
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> related(
 	    RequestorContext context,
-	    GetFilters filters) noexcept;
+	    GetFilters filters);
 
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> similar(
 	    RequestorContext context,
-	    GetFilters filters) noexcept;
+	    GetFilters filters);
 
 	/**
 	 * Get the pages of one chapter.
@@ -172,11 +172,11 @@ struct MangaGetter {
 	    RequestorContext context,
 	    MangaChapterRef chapter,
 	    GetFilters filters,
-	    std::optional<MangaTranslationID> translation = std::nullopt) noexcept = 0;
+	    std::optional<MangaTranslationID> translation = std::nullopt) = 0;
 
 	virtual void reset() noexcept;
 
-	virtual NetworkRequestTask<SerializedGetterData> serialize() noexcept = 0;
+	virtual NetworkRequestTask<SerializedGetterData> serialize() = 0;
 };
 
 /**
@@ -227,7 +227,7 @@ struct MangaRootGetter {
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> search(
 	    RequestorContext context,
 	    SearchRequestQuery query,
-	    GetFilters filters) noexcept;
+	    GetFilters filters);
 
 	/**
 	 * @todo
@@ -240,7 +240,7 @@ struct MangaRootGetter {
 	 */
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> latest(
 	    RequestorContext context,
-	    GetFilters filters) noexcept;
+	    GetFilters filters);
 
 	/**
 	 * @see MangaGetter
@@ -253,11 +253,11 @@ struct MangaRootGetter {
 	 */
 	virtual NetworkRequestTask<std::unique_ptr<MangaGetter>> parse_url(
 	    RequestorContext context,
-	    std::string url) noexcept;
+	    std::string url);
 
 	/**
 	 * @brief Getter for serialized data from one of serialize() methods
 	 */
-	virtual NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData data) noexcept = 0;
+	virtual NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData data) = 0;
 };
 } // namespace aniparse

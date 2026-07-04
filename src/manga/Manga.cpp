@@ -7,32 +7,32 @@
 #include "aniparse/Exceptions.hpp"
 
 namespace aniparse {
-NetworkRequestTask<MangaInfo> MangaGetter::preview_info(RequestorContext context) noexcept {
+NetworkRequestTask<MangaInfo> MangaGetter::preview_info(RequestorContext context) {
 	return info(std::move(context));
 }
 
 NetworkRequestTask<PageResults<MangaTranslationInfo>> MangaGetter::translation_info(
     RequestorContext,
-    GetFilters) noexcept {
+    GetFilters) {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get translation info");
 }
 
 NetworkRequestTask<PageResults<MangaChapterInfo>> MangaGetter::chapters_info(
     RequestorContext,
     GetFilters,
-    std::optional<MangaTranslationID>) noexcept {
+    std::optional<MangaTranslationID>) {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get chapters info");
 }
 
 NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaGetter::related(
     RequestorContext,
-    GetFilters) noexcept {
+    GetFilters) {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get related info");
 }
 
 NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaGetter::similar(
     RequestorContext,
-    GetFilters) noexcept {
+    GetFilters) {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get similar info");
 }
 
@@ -76,19 +76,19 @@ std::shared_ptr<ParserConfig> MangaRootGetter::default_config_from(std::shared_p
 	return new_config;
 }
 
-NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaRootGetter::search(RequestorContext, SearchRequestQuery, GetFilters) noexcept {
+NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaRootGetter::search(RequestorContext, SearchRequestQuery, GetFilters) {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot search");
 }
 
-NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaRootGetter::latest(RequestorContext, GetFilters) noexcept {
+NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaRootGetter::latest(RequestorContext, GetFilters) {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot get latest");
 }
 
-NetworkRequestTask<std::unique_ptr<MangaGetter>> MangaRootGetter::parse_url(RequestorContext, std::string) noexcept {
+NetworkRequestTask<std::unique_ptr<MangaGetter>> MangaRootGetter::parse_url(RequestorContext, std::string) {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot parse url");
 }
 
-NetworkRequestTask<std::unique_ptr<MangaGetter>> MangaRootGetter::from_serialized(SerializedGetterData) noexcept {
+NetworkRequestTask<std::unique_ptr<MangaGetter>> MangaRootGetter::from_serialized(SerializedGetterData) {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot deserialize data");
 }
 } // namespace aniparse

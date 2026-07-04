@@ -39,7 +39,7 @@ std::vector<Cookie> pick_named_cookies(const std::vector<Cookie>& cookies,
 } // namespace
 
 NetworkRequestTask<std::shared_ptr<const ParserConfig>> Parser::authenticate_context(
-    RequestorContext, AuthenticationData) noexcept {
+    RequestorContext, AuthenticationData) {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot auth");
 }
 

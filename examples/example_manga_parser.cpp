@@ -37,7 +37,7 @@ public:
 	// Опционально. Если не перегружено, то используется info(...).
 	// Этот метод должен вызываться, когда нужна минимальная информация (название, превью, ...)
 	// и эта информация уже есть в геттере.
-	NetworkRequestTask<MangaInfo> preview_info(RequestorContext context) noexcept override {
+	NetworkRequestTask<MangaInfo> preview_info(RequestorContext context) override {
 		co_return MangaInfo{
 			.title = "Тест",
 			.description = "Какое-то описание",
@@ -48,7 +48,7 @@ public:
 	}
 
 	// Получение всей информации о манге
-	NetworkRequestTask<MangaInfo> info(RequestorContext context) noexcept override {
+	NetworkRequestTask<MangaInfo> info(RequestorContext context) override {
 		co_return MangaInfo{
 			.title = "Тест",
 			.description = "Какое-то описание",
@@ -61,7 +61,7 @@ public:
 	// Получение информации о переводах манги, может быть несколько
 	NetworkRequestTask<PageResults<MangaTranslationInfo>> translation_info(
 		RequestorContext context,
-		GetFilters filters) noexcept override {
+		GetFilters filters) override {
 		PageResults<MangaTranslationInfo> pages;
 
 		// Вернуть 0 страниц, если столько запрашивается.
@@ -91,7 +91,7 @@ public:
 	NetworkRequestTask<PageResults<MangaChapterInfo>> chapters_info(
 		RequestorContext context,
 		GetFilters filters,
-		std::optional<MangaTranslationID> translation) noexcept override {
+		std::optional<MangaTranslationID> translation) override {
 		PageResults<MangaChapterInfo> pages;
 
 		// Вернуть 0 страниц, если столько запрашивается.
@@ -121,7 +121,7 @@ public:
 	// Если неподдерживается, то необходимо вернуть NotImplemented
 	NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> related(
 		RequestorContext context,
-		GetFilters filters) noexcept override {
+		GetFilters filters) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "Parser doesn't support related");
 	}
 
@@ -132,7 +132,7 @@ public:
 		RequestorContext context,
 		MangaChapterRef chapter,
 		GetFilters filters,
-	    std::optional<MangaTranslationID> translation) noexcept override {
+	    std::optional<MangaTranslationID> translation) override {
 		PageResults<MangaPage> pages;
 
 		// Вернуть 0 страниц, если столько запрашивается.
@@ -174,7 +174,7 @@ public:
 	// Преобразование всех данных геттера в сериализованную структуру.
 	// Например, необходима для сохранения результатов в файл с последующим получением этого геттера.
 	// Используется в купе с ExampleParser::from_serialized(...)
-	NetworkRequestTask<SerializedGetterData> serialize() noexcept override {
+	NetworkRequestTask<SerializedGetterData> serialize() override {
 		co_return SerializedGetterData{
 			.url = private_url_
 		};
@@ -224,7 +224,7 @@ public:
 	NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> search(
 		RequestorContext context,
 		SearchRequestQuery query,
-		GetFilters filters) noexcept override {
+		GetFilters filters) override {
 		// Проверка, что в поиске нету лишних/неправильных записей.
 		// За эталон берёт search_support()
 		if (auto errors = validate_query(query, filters); !errors.empty()) {
@@ -238,7 +238,7 @@ public:
 	// Получение последних предметов по выбранным фильтрам
 	NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> latest(
 		RequestorContext context,
-		GetFilters filters) noexcept override {
+		GetFilters filters) override {
 		PageResults<std::unique_ptr<MangaGetter>> pages;
 		// Логирование
 		context.info("Вызван latest(), от {}, лимит {}", filters.from, filters.limit);
@@ -264,12 +264,12 @@ public:
 	// Получение манги из ссылки
 	NetworkRequestTask<std::unique_ptr<MangaGetter>> parse_url(
 		RequestorContext context,
-		std::string url) noexcept override {
+		std::string url) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "Парсер не умеет парсить ссылки");
 	}
 
 	// Получение манги из сериализованных данных
-	NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData data) noexcept override {
+	NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData data) override {
 		if (data.url.empty()) {
 			co_return make_response_error(RequestErrorCode::NotImplemented, "Invalid serialized url");
 		}
@@ -325,7 +325,7 @@ class ExampleParser : public Parser {
 	// возвращённый конфиг авторизует все геттеры этого парсера.
 	NetworkRequestTask<std::shared_ptr<const ParserConfig>> authenticate_context(
 		RequestorContext context,
-		AuthenticationData data) noexcept override {
+		AuthenticationData data) override {
 		co_return context.config();
 	}
 
