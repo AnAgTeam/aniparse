@@ -18,6 +18,9 @@ enum class RequestErrorCode {
 	InvalidArguments,
 	ServerError,
 	InvalidCredentials,
+	// The response was fetched fine but its structure was not what the parser
+	// expected (missing load-bearing element, changed markup, unparsable body).
+	UnexpectedResponse,
 };
 
 struct RequestError {

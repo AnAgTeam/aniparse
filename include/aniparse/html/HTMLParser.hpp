@@ -5,6 +5,7 @@
  */
 #pragma once
 #include "aniparse/html/HTMLDocument.hpp"
+#include "aniparse/utility/Expected.hpp"
 
 #include <stdexcept>
 #include <lexbor/html/parser.h>
@@ -60,6 +61,16 @@ public:
 	 * @return Parsed HTML document
 	 */
 	HTMLDocument parse(std::string_view text, bool remove_bom = true);
+
+	/**
+	 * @brief Parse HTML document from string without throwing.
+	 * Same result as @ref parse, but a malformed document is reported as an
+	 * error value instead of an exception, so callers can stay in the expected
+	 * channel (e.g. map it to RequestErrorCode::UnexpectedResponse).
+	 * @param text Full HTML text to parse
+	 * @return Parsed document, or HTMLParseError if parsing failed
+	 */
+	[[nodiscard]] expected<HTMLDocument, HTMLParseError> try_parse(std::string_view text, bool remove_bom = true);
 
 private:
 	lxb_html_parser_t* parser_ = nullptr;

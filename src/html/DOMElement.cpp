@@ -9,66 +9,82 @@
 #include "aniparse/html/CompiledSelector.hpp"
 
 #include <cassert>
-#include <array>
-#include <functional>
 #include <algorithm>
-#include <numeric>
 #include <cctype>
 #include <lexbor/dom/interfaces/element.h>
+#include <lexbor/dom/interfaces/document.h>
 #include <lexbor/selectors/selectors.h>
-
-/// Reserved space in the stack for find methods
-constexpr size_t reserved_stack_size = 48;
+#include <lexbor/tag/tag.h>
 
 namespace aniparse::html {
-using FindAllPredicate = std::function<bool(const DOMElementView&, std::string_view)>;
 
-static FindAllPredicate get_attr_value_predicate(std::string_view name, bool ignore_class_whitespaces) {
-	if (name == "class" && ignore_class_whitespaces) {
-		return [](const DOMElementView& element, std::string_view value) {
-			return element.contains_class(value);
-		};
-	} else if (name == "class") {
-		return [](const DOMElementView& element, std::string_view value) {
-			return element.class_name() == value;
-		};
-	} else if (name == "id") {
-		return [](const DOMElementView& element, std::string_view value) {
-			return element.id() == value;
-		};
+/// Resolve a tag name to lexbor's numeric tag id via the owner document's tag
+/// table, so tag matching is an integer compare instead of materializing each
+/// element's (uppercased, cached-allocated) name and comparing strings. lexbor
+/// interns tags at the document level, so the element reaches the table through
+/// its owner document. The lookup lowercases its input, so the UPPERCASE names
+/// parsers pass resolve fine and the id itself is case-independent. Unknown tags
+/// and detached elements yield LXB_TAG__UNDEF, which no real element carries, so
+/// nothing matches.
+static lxb_tag_id_t resolve_tag_id(lxb_dom_element_t* element, std::string_view tag) {
+	if (element == nullptr) {
+		return LXB_TAG__UNDEF;
 	}
-	return [name](const DOMElementView& element, std::string_view value) {
-		std::optional<DOMAttrView> attr = element.find_attr(name);
-		return attr ? attr->value() == value : false;
-	};
+	lxb_dom_document_t* document = lxb_dom_interface_node(element)->owner_document;
+	if (document == nullptr) {
+		return LXB_TAG__UNDEF;
+	}
+	return lxb_tag_id_by_name(document->tags,
+	    reinterpret_cast<const lxb_char_t*>(tag.data()), tag.size());
 }
 
-static std::vector<DOMElementView> find_all_elements_predicate(lxb_dom_element_t* element, const std::string_view value, const FindAllPredicate& predicate) {
-	std::array<DOMElementView, reserved_stack_size> buffer_space = {};
+/// Lightweight attribute/class/id matcher used by find/find_all, replacing a
+/// std::function. That target actually fit the small-buffer optimization on our
+/// toolchains (a trivially-copyable string_view capture), so the win is not
+/// avoided heap allocation but the removed type-erased indirect call: this switch
+/// inlines into the DOM walk loop, and we stop relying on an SBO the standard does
+/// not guarantee. The match kind is resolved once from the attribute name, then
+/// evaluated on each walked node. (Tag matching goes through resolve_tag_id.)
+struct AttrValuePredicate {
+	enum class Kind { class_contains, class_exact, id, attribute };
 
-	size_t i  = 0;
-	auto iter = DOMElementWalkIterator(element);
-	auto end  = DOMElementWalkIterator{};
-	while (iter != end && i < buffer_space.size()) {
-		const DOMElementView& inner_element = *iter++;
-		if (predicate(inner_element, value)) {
-			buffer_space[i++] = inner_element;
+	Kind kind;
+	std::string_view attr_name; // used only by Kind::attribute
+
+	bool operator()(const DOMElementView& element, std::string_view value) const {
+		switch (kind) {
+		case Kind::class_contains: return element.contains_class(value);
+		case Kind::class_exact:    return element.class_name() == value;
+		case Kind::id:             return element.id() == value;
+		case Kind::attribute: {
+			std::optional<DOMAttrView> attr = element.find_attr(attr_name);
+			return attr && attr->value() == value;
 		}
+		}
+		return false;
 	}
+};
 
-	if (iter == end) {
-		return std::vector<DOMElementView>(
-		    std::begin(buffer_space),
-		    std::begin(buffer_space) + i);
+static AttrValuePredicate get_attr_value_predicate(std::string_view name, bool ignore_class_whitespaces) {
+	if (name == "class") {
+		return { ignore_class_whitespaces ? AttrValuePredicate::Kind::class_contains
+		                                  : AttrValuePredicate::Kind::class_exact, {} };
 	}
+	if (name == "id") {
+		return { AttrValuePredicate::Kind::id, {} };
+	}
+	return { AttrValuePredicate::Kind::attribute, name };
+}
 
-	std::vector<DOMElementView> out(
-	    std::begin(buffer_space),
-	    std::begin(buffer_space) + i);
-	while (iter != end) {
-		const DOMElementView& iter_element = *iter++;
-		if (predicate(iter_element, value)) {
-			out.push_back(iter_element);
+/// Collect every descendant element the unary predicate accepts, in document order.
+template <typename Match>
+static std::vector<DOMElementView> collect_matching(lxb_dom_element_t* element, Match match) {
+	std::vector<DOMElementView> out;
+
+	const auto end = DOMElementWalkIterator{};
+	for (auto iter = DOMElementWalkIterator(element); iter != end; ++iter) {
+		if (match(*iter)) {
+			out.push_back(*iter);
 		}
 	}
 
@@ -122,7 +138,8 @@ lxb_status_t query_all_cb(lxb_dom_node_t* node, lxb_css_selector_specificity_t, 
 
 DOMElementView::DOMElementView(lxb_dom_element_t* element)
     : element_(element) {
-	assert(element->node.type == LXB_DOM_NODE_TYPE_ELEMENT);
+	// A null element is a valid (invalid/empty) view, so guard the deref.
+	assert(element == nullptr || element->node.type == LXB_DOM_NODE_TYPE_ELEMENT);
 }
 
 DOMElementView::operator bool() const {
@@ -166,10 +183,10 @@ std::string_view DOMElementView::id() const {
 	return std::string_view(reinterpret_cast<const char*>(name), size);
 }
 
-/// actually might have side effect as some cached allocations
 std::optional<DOMElementView> DOMElementView::find(std::string_view tag) const {
-	auto iter = std::find_if(DOMElementWalkIterator(element_), DOMElementWalkIterator{}, [&tag](const DOMElementView& element) {
-		return element.tag_name() == tag;
+	lxb_tag_id_t tag_id = resolve_tag_id(element_, tag);
+	auto iter = std::find_if(DOMElementWalkIterator(element_), DOMElementWalkIterator{}, [tag_id](const DOMElementView& element) {
+		return lxb_dom_element_tag_id(element.get()) == tag_id;
 	});
 	if (iter == DOMElementWalkIterator{}) {
 		return std::nullopt;
@@ -190,20 +207,20 @@ std::optional<DOMElementView> DOMElementView::find(std::string_view attr, std::s
 	return *iter;
 }
 
-/// actually might have side effect as some cached allocations
 std::vector<DOMElementView> DOMElementView::find_all(std::string_view tag) const {
-	FindAllPredicate predicate = [](const DOMElementView& element, std::string_view value) {
-		return element.tag_name() == value;
-	};
-
-	return find_all_elements_predicate(element_, tag, predicate);
+	lxb_tag_id_t tag_id = resolve_tag_id(element_, tag);
+	return collect_matching(element_, [tag_id](const DOMElementView& element) {
+		return lxb_dom_element_tag_id(element.get()) == tag_id;
+	});
 }
 
 /// actually might have side effect as some cached allocations
 std::vector<DOMElementView> DOMElementView::find_all(std::string_view attr, std::string_view value, bool ignore_class_whitespaces) const {
-	auto predicate = get_attr_value_predicate(attr, ignore_class_whitespaces);
+	AttrValuePredicate predicate = get_attr_value_predicate(attr, ignore_class_whitespaces);
 
-	return find_all_elements_predicate(element_, value, predicate);
+	return collect_matching(element_, [&predicate, value](const DOMElementView& element) {
+		return predicate(element, value);
+	});
 }
 
 std::optional<DOMElementView> DOMElementView::query(const CompiledSelector& selector) const {
@@ -283,6 +300,11 @@ std::string_view DOMElementView::content_text() const {
 	return std::string_view(reinterpret_cast<const char*>(text), length);
 }
 
+/// Keeps a character if it belongs in the collapsed text: drops every whitespace
+/// except ' ', and collapses runs of ' ' to a single space. is_last_blank carries
+/// the "previous kept char was a space" state, so a single instance must be driven
+/// across the whole node walk (like a browser collapsing whitespace across inline
+/// element boundaries) rather than restarted per text node.
 struct ElementTextGetterPredicate {
 	bool operator()(lxb_char_t c) {
 		if (std::isspace(c) && c != static_cast<lxb_char_t>(' '))
@@ -298,42 +320,53 @@ struct ElementTextGetterPredicate {
 };
 
 std::string DOMElementView::text() const {
-	auto char_predicate  = ElementTextGetterPredicate{};
-	size_t output_length = std::accumulate(DOMNodeWalkIterator(*this), DOMNodeWalkIterator{}, 0ULL, [char_predicate](size_t size, const DOMNodeView& node) {
-		if (node.is_element()) {
-			size += node.as_element().tag_name() == "BR" ? 1 : 0;
-			return size;
+	// Two passes (measure, then fill) share one predicate each so whitespace
+	// collapsing persists across text nodes. The passes MUST feed the predicate
+	// the exact same character sequence, or the measured and written lengths
+	// diverge; keep their node/char handling identical.
+	auto measure = [this](ElementTextGetterPredicate& predicate) {
+		size_t length = 0;
+		for (const DOMNodeView& node : DOMNodeWalkIterator(*this)) {
+			if (node.is_element()) {
+				length += node.as_element().tag_name() == "BR" ? 1 : 0;
+				continue;
+			}
+			if (!node.is_text()) {
+				continue;
+			}
+			for (lxb_char_t c : node.as_text()) {
+				length += predicate(c) ? 1 : 0;
+			}
 		}
-		if (!node.is_text()) {
-			return size;
-		}
-		std::string_view node_text = node.as_text();
-		size += std::count_if(std::begin(node_text), std::end(node_text), char_predicate);
-		return size;
-	});
+		return length;
+	};
 
-	std::string output_string(output_length, 0);
+	ElementTextGetterPredicate char_predicate;
+	std::string output_string(measure(char_predicate), 0);
+
 	auto output_iterator = std::begin(output_string);
 	char_predicate       = ElementTextGetterPredicate{};
 	for (const DOMNodeView& node : DOMNodeWalkIterator(*this)) {
-		if (node.is_element() && node.as_element().tag_name() == "BR") {
-			*output_iterator++ = '\n';
+		if (node.is_element()) {
+			if (node.as_element().tag_name() == "BR") {
+				*output_iterator++ = '\n';
+			}
 			continue;
 		}
 		if (!node.is_text()) {
 			continue;
 		}
-		std::string_view node_text = node.as_text();
-		output_iterator            = std::copy_if(
-            std::begin(node_text),
-            std::end(node_text),
-            output_iterator,
-            char_predicate);
+		for (lxb_char_t c : node.as_text()) {
+			if (char_predicate(c)) {
+				*output_iterator++ = static_cast<char>(c);
+			}
+		}
 	}
+
 	// remove trailing spaces
-	size_t last_non_space = output_string.find_last_not_of(" ");
+	size_t last_non_space = output_string.find_last_not_of(' ');
 	if (last_non_space != std::string::npos && last_non_space + 1 != output_string.size()) {
-		output_string = output_string.substr(0, last_non_space + 1);
+		output_string.erase(last_non_space + 1);
 	}
 
 	return output_string;

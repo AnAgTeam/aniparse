@@ -127,7 +127,7 @@ public:
 
 	/**
 	 * @brief Find first element with tag
-	 * @note Tag finding is case sensitive! (must be uppercase), @ref tag_name
+	 * @note Tag matching is case insensitive, so "div", "DIV" and "Div" are equivalent.
 	 * @param tag DOM element tag name
 	 * @return DOM element view if found, nullopt otherwise
 	 */
@@ -167,7 +167,7 @@ public:
 
 	/**
 	 * @brief Find all elements with tag
-	 * @note Tag finding is case sensitive! (must be uppercase)
+	 * @note Tag matching is case insensitive, so "div", "DIV" and "Div" are equivalent.
 	 * @param tag DOM element tag name
 	 * @return All found DOM element views
 	 */

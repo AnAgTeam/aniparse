@@ -70,6 +70,23 @@ TEST_CASE("HTML parse") {
     REQUIRE_THROWS_AS(parser.parse(invalid_doctype_html), HTMLParseError);
 }
 
+TEST_CASE("HTML try_parse reports failure as a value, not an exception") {
+    constexpr std::string_view invalid_doctype_html = R"(
+    <html><!DOCTYPE html>
+        <head></head>
+        <body class="class1 class2"></body>
+    </html>)";
+
+    HTMLParser parser;
+
+    auto failed = parser.try_parse(invalid_doctype_html);
+    REQUIRE_FALSE(failed.has_value());
+
+    auto parsed = parser.try_parse(iterator_test_html);
+    REQUIRE(parsed.has_value());
+    REQUIRE(parsed->body().contains_class("class1"));
+}
+
 TEST_CASE("HTML document iterate") {
     auto check_tags = [](HTMLDocument& document) -> bool {
         bool success = true;
@@ -165,6 +182,30 @@ TEST_CASE("HTML find, find_all (tags)") {
     REQUIRE(!html_element.find("ELE"));
     REQUIRE(html_element.find_all("DIV").size() == 3);
     REQUIRE(html_element.find_all("ELEMENT").size() == 0);
+}
+
+TEST_CASE("HTML find, find_all tag matching is case insensitive") {
+    HTMLParser parser;
+    HTMLDocument document = parser.parse(iterator_test_html);
+
+    DOMElementView html_element = document.as_element();
+
+    // find: every spelling of the tag resolves to the same element.
+    auto upper = html_element.find("DIV");
+    auto lower = html_element.find("div");
+    auto mixed = html_element.find("Div");
+    REQUIRE((upper && lower && mixed));
+    REQUIRE(*upper == *lower);
+    REQUIRE(*upper == *mixed);
+
+    // find_all: the count does not depend on the spelling's case.
+    REQUIRE(html_element.find_all("div").size() == 3);
+    REQUIRE(html_element.find_all("DIV").size() == html_element.find_all("div").size());
+    REQUIRE(html_element.find_all("Nav").size() == 1);
+
+    // Unknown tags still match nothing, in any case.
+    REQUIRE(!html_element.find("nope"));
+    REQUIRE(html_element.find_all("NOPE").size() == 0);
 }
 
 constexpr std::string_view inner_test_html = R"raw(<!DOCTYPE html>
@@ -315,6 +356,39 @@ hello</a><br>new line
     auto found_div_element = document2.body().find("class", "tags");
     CHECK(found_div_element);
     REQUIRE(found_div_element->text() == "Desc: Simple man, will it help him...\nLink - #");
+}
+
+TEST_CASE("HTML text collapses whitespace across inline element boundaries") {
+    // A space that is the first character of the next text node must survive
+    // (browser-like collapsing across nodes), and a run split over a boundary
+    // must still collapse to a single space.
+    constexpr std::string_view test_html =
+        "<!DOCTYPE html><html><body>"
+        "<div class=\"t\">a<b>b</b> c</div>"           // space leads the trailing text node
+        "<div class=\"u\">x <b>y</b></div>"            // space trails the first text node
+        "<div class=\"v\">p <b> </b> q</div>"          // whitespace split across three nodes
+        "</body></html>";
+
+    HTMLParser parser;
+    HTMLDocument document = parser.parse(test_html);
+
+    REQUIRE(document.body().find("class", "t")->text() == "ab c");
+    REQUIRE(document.body().find("class", "u")->text() == "x y");
+    REQUIRE(document.body().find("class", "v")->text() == "p q");
+}
+
+TEST_CASE("HTML text collapses whitespace across nested inline elements") {
+    // a <b> <b>c</b> </b>: runs of whitespace split by nested element
+    // boundaries collapse to a single space, with leading/trailing trimmed.
+    constexpr std::string_view test_html =
+        "<!DOCTYPE html><html><body>"
+        "<div class=\"w\">a <b> <b>c</b> </b></div>"
+        "</body></html>";
+
+    HTMLParser parser;
+    HTMLDocument document = parser.parse(test_html);
+
+    REQUIRE(document.body().find("class", "w")->text() == "a c");
 }
 
 TEST_CASE("HTML find big count of elements") {
