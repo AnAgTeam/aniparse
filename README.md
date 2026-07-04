@@ -8,6 +8,7 @@
 ![CMake](https://img.shields.io/badge/build-CMake-orange?logo=cmake&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green)
 ![Branch: nightly](https://img.shields.io/badge/branch-nightly-purple)
+[![codecov](https://codecov.io/gh/AnAgTeam/aniparse/branch/nightly/graph/badge.svg)](https://codecov.io/gh/AnAgTeam/aniparse)
 
 </div>
 

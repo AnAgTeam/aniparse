@@ -1,0 +1,92 @@
+name: coverage
+
+on:
+  push:
+    branches: [nightly, master, main]
+  pull_request:
+    branches: [nightly, master, main]
+  workflow_dispatch:
+
+# Coverage is measured with OpenCppCoverage (Windows/MSVC) and uploaded to
+# Codecov as a Cobertura report. The build mirrors the x64-debug preset so the
+# PDBs OpenCppCoverage needs are present.
+jobs:
+  coverage:
+    runs-on: windows-latest
+
+    env:
+      # The x64-debug preset reads $env{VCPKG_ROOT}; the runner only exports
+      # VCPKG_INSTALLATION_ROOT, so it is re-exported below.
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg_cache
+      # Do not open a browser or fail on partial data inside CI.
+      OpenCppCoverage_ExtraArgs: ""
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up MSVC (x64)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Export VCPKG_ROOT and prepare binary cache dir
+        shell: pwsh
+        run: |
+          echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
+          New-Item -ItemType Directory -Force -Path "$env:VCPKG_DEFAULT_BINARY_CACHE" | Out-Null
+
+      - name: Cache vcpkg binaries
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'libasyncnet/vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
+
+      - name: Install OpenCppCoverage
+        shell: pwsh
+        run: |
+          choco install opencppcoverage -y --no-progress
+          echo "C:\Program Files\OpenCppCoverage" >> $env:GITHUB_PATH
+
+      - name: Configure (x64-debug preset)
+        shell: pwsh
+        run: cmake --preset x64-debug
+
+      - name: Build
+        shell: pwsh
+        run: cmake --build out/build/x64-debug
+
+      - name: Run tests under OpenCppCoverage
+        shell: pwsh
+        run: |
+          OpenCppCoverage `
+            --sources "${{ github.workspace }}\src" `
+            --sources "${{ github.workspace }}\include" `
+            --excluded_sources "lexbor" `
+            --excluded_sources "libasyncnet" `
+            --excluded_sources "catch_amalgamated*" `
+            --excluded_sources "vcpkg_installed" `
+            --export_type "cobertura:coverage.xml" `
+            --export_type "html:CoverageReport" `
+            -- "out\build\x64-debug\tests\aniparse-tests.exe"
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
+          # Public repo works tokenless, but a token avoids rate-limited uploads.
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload HTML report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: CoverageReport
+          if-no-files-found: ignore

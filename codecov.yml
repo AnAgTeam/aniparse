@@ -1,0 +1,33 @@
+# Codecov scope: only aniparse's own sources count toward the number the badge
+# shows. Vendored submodules, generated build output, tests and the amalgamated
+# Catch2 runner are excluded here as well as in the OpenCppCoverage filters, so
+# Codecov's own file matching does not re-introduce them.
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        target: auto
+        threshold: 1%
+
+# OpenCppCoverage emits drive-stripped absolute paths (e.g.
+# "a/aniparse/aniparse/src/Client.cpp" on the runner). Collapse them back to
+# repo-relative so Codecov matches files against the tree.
+fixes:
+  - "**/src/::src/"
+  - "**/include/::include/"
+
+ignore:
+  - "lexbor/**"
+  - "libasyncnet/**"
+  - "out/**"
+  - "tests/**"
+  - "examples/**"
+  - "tools/**"
+
+comment:
+  layout: "reach, diff, files"
+  require_changes: true
