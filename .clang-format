@@ -22,6 +22,9 @@ UseTab: ForIndentation   # таб для отступа, пробелы для �
 TabWidth: 4
 IndentWidth: 4
 ContinuationIndentWidth: 4
+# Тело лямбды считать от внешнего скоупа, а не от позиции сигнатуры —
+# иначе лямбда-аргумент (напр. в std::visit([&]{ ... }, x)) уезжает лесенкой.
+LambdaBodyIndentation: OuterScope
 
 # ── скобки: на той же строке (K&R), как сейчас в проекте ──────────
 BreakBeforeBraces: Attach

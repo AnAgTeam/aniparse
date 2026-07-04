@@ -8,25 +8,17 @@
 #include "aniparse/utility/Format.hpp"
 #include <ranges>
 
-template <class... Ts>
-struct Overloaded : Ts... {
-	using Ts::operator()...;
-};
-
 namespace aniparse {
 
 static void apply_config_to(ClientRequest& any_request, const ParserConfig& config) {
-	std::visit(Overloaded{
-	               [](std::shared_ptr<PolymorphicRequest>& request) {},
-	               [&](auto& request) {
-		               // Request headers take priority over config: insert() keeps existing keys.
-		               request.headers.insert(config.headers.begin(), config.headers.end());
+	std::visit([&](auto& request) {
+		// Request headers take priority over config: insert() keeps existing keys.
+		request.headers.insert(config.headers.begin(), config.headers.end());
 
-		               for (auto& param : config.url_params) {
-			               request.url_params += param;
-		               }
-	               }},
-	           any_request);
+		for (const auto& [key, value] : config.url_params) {
+			request.url_params.add(key, value);
+		}
+	}, any_request);
 
 	for (auto& modifier : config.modifiers) {
 		modifier(any_request);
@@ -80,10 +72,6 @@ asyncnet::NetworkTask<ResponseData> RequestorContext::request(PostMultipartReque
 	return client_->do_request(ConfiguredPostMultipartRequest{
 	    .request = std::get<PostMultipartRequest>(std::move(any_request)),
 	    .cookies = config_->cookie_jar});
-}
-
-asyncnet::NetworkTask<ResponseData> RequestorContext::request(std::shared_ptr<PolymorphicRequest> request) {
-	throw std::runtime_error("Unsupported");
 }
 
 std::shared_ptr<const ParserConfig> RequestorContext::config() const {

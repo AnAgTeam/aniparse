@@ -48,6 +48,17 @@ static ResponseData to_response_data(asyncnet::Response&& response) {
 	};
 }
 
+// Translate the neutral, editable UrlParameters into asyncnet's pre-serialized
+// form. asyncnet percent-encodes each pair as it is appended, keeping URL
+// encoding a single-sourced transport concern.
+static asyncnet::UrlParameters to_asyncnet_params(const UrlParameters& params) {
+	asyncnet::UrlParameters result;
+	for (const auto& [key, value] : params) {
+		result += std::pair<std::string_view, std::string_view>(key, value);
+	}
+	return result;
+}
+
 // Route the request onto the cookie jar's own share handle so that every
 // request type (GET/POST/multipart) reads and writes the same cookie store.
 // Without this a POST login would land in the session-default store while GET
@@ -241,7 +252,7 @@ NetworkTask<ResponseData> AsyncClient::do_request(ConfiguredGetRequest configure
 
 	auto get_request = session->make_request<asyncnet::GetRequest>(std::move(request.url));
 	get_request.add_headers(to_header_lines(request.headers));
-	get_request.set_url_parameters(std::move(request.url_params));
+	get_request.set_url_parameters(to_asyncnet_params(request.url_params));
 	apply_cookie_share(get_request, configured_request.cookies);
 
 	// Okay to hold references (ref to frame variable), because we will wait for next coroutine end
@@ -256,7 +267,7 @@ NetworkTask<ResponseData> AsyncClient::do_request(ConfiguredPostRequest configur
 
 	auto post_request = session->make_request<asyncnet::PostRequest>(std::move(request.url), std::move(request.body));
 	post_request.add_headers(to_header_lines(request.headers));
-	post_request.set_url_parameters(std::move(request.url_params));
+	post_request.set_url_parameters(to_asyncnet_params(request.url_params));
 	apply_cookie_share(post_request, configured_request.cookies);
 
 	// Okay to hold references (ref to frame variable), because we will wait for next coroutine end

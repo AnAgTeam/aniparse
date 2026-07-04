@@ -157,11 +157,6 @@ public:
 	asyncnet::NetworkTask<ResponseData> request(PostMultipartRequest request);
 
 	/**
-	 * @todo
-	 */
-	asyncnet::NetworkTask<ResponseData> request(std::shared_ptr<PolymorphicRequest> request);
-
-	/**
 	 * @brief Output INFO to logger
 	 * @tparam Args Format arguments types
 	 * @param fmt Format string
