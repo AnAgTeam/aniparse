@@ -4,6 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #include "aniparse/ClientContext.hpp"
+#include "aniparse/ResourceCache.hpp"
 #include "aniparse/utility/Format.hpp"
 #include <ranges>
 
@@ -34,10 +35,12 @@ static void apply_config_to(ClientRequest& any_request, const ParserConfig& conf
 
 RequestorContext::RequestorContext(std::shared_ptr<ClientContext> client,
                                    std::shared_ptr<LoggerContext> logger,
-                                   std::shared_ptr<ParserConfig> config)
+                                   std::shared_ptr<ParserConfig> config,
+                                   std::shared_ptr<ResourceCache> resources)
     : client_(std::move(client))
     , logger_(std::move(logger))
-    , config_(config ? std::move(config) : std::make_shared<ParserConfig>()) {
+    , config_(config ? std::move(config) : std::make_shared<ParserConfig>())
+    , resources_(resources ? std::move(resources) : std::make_shared<ResourceCache>()) {
 	if (!client_) {
 		throw std::invalid_argument("Client has to be valid");
 	}
@@ -87,6 +90,10 @@ std::shared_ptr<const ParserConfig> RequestorContext::config() const {
 	return config_;
 }
 
+ResourceCache& RequestorContext::resources() const {
+	return *resources_;
+}
+
 size_t RequestorContext::alt_link() const {
 	return config_->alt_link;
 }
@@ -96,7 +103,7 @@ void RequestorContext::set_alt_link(size_t alt_link) {
 }
 
 RequestorContext RequestorContext::new_with_logger(std::shared_ptr<LoggerContext> logger) const {
-	return RequestorContext(client_, logger, config_);
+	return RequestorContext(client_, logger, config_, resources_);
 }
 
 //RequestorContext RequestorContext::new_with_client(std::shared_ptr<ClientContext> client) const {
@@ -104,7 +111,7 @@ RequestorContext RequestorContext::new_with_logger(std::shared_ptr<LoggerContext
 //}
 
 RequestorContext RequestorContext::new_with_config(std::shared_ptr<ParserConfig> config) const {
-	return RequestorContext(client_, logger_, config);
+	return RequestorContext(client_, logger_, config, resources_);
 }
 
 }; // namespace aniparse

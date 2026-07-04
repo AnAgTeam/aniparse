@@ -12,6 +12,7 @@ add_executable(aniparse-tests
 	"SearchValidationTest.cpp"
 	"CssSelectorTest.cpp"
 	"JsParserTest.cpp"
+	"ResourceCacheTest.cpp"
 )
 
 set_property(TARGET aniparse-tests PROPERTY CXX_STANDARD 23)

@@ -13,6 +13,8 @@
 
 namespace aniparse {
 
+class ResourceCache;
+
 using ClientConfigFlags = FlagsBitfield<64, struct ClientConfigFlagsTag>;
 using ParserConfigFlags = FlagsBitfield<64, struct ParserConfigFlagsTag>;
 
@@ -130,7 +132,8 @@ public:
 	 */
 	RequestorContext(std::shared_ptr<ClientContext> client,
 	                 std::shared_ptr<LoggerContext> logger,
-	                 std::shared_ptr<ParserConfig> config);
+	                 std::shared_ptr<ParserConfig> config,
+	                 std::shared_ptr<ResourceCache> resources = nullptr);
 
 	/**
 	 * @bief Perform HTTP GET request with respect to client config
@@ -239,6 +242,15 @@ public:
 	 */
 	std::shared_ptr<const ParserConfig> config() const;
 
+	/**
+	 * @brief Shared cache of compiled parser resources (CSS selector sets,
+	 *        regexes, ...), keyed by resource-set type.
+	 * Shared with every context derived via new_with_config / new_with_logger,
+	 * so a set compiled once is reused across a parser's requests.
+	 * @return The resource cache
+	 */
+	ResourceCache& resources() const;
+
 	size_t alt_link() const;
 	void set_alt_link(size_t alt_link);
 
@@ -264,5 +276,6 @@ private:
 	std::shared_ptr<ClientContext> client_;
 	std::shared_ptr<LoggerContext> logger_;
 	std::shared_ptr<ParserConfig> config_;
+	std::shared_ptr<ResourceCache> resources_;
 };
 } // namespace aniparse
