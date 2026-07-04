@@ -23,6 +23,15 @@ class DOMElementIterator;
  * @brief Class for accessing DOM element attributes, name, etc.
  * Supports iterating child elements. For walking @see DOMElementWalkIterator
  * @note The class is non owning, so it must be alive with not "View" class
+ *
+ * Validity contract (a default-constructed view is invalid, @see operator bool):
+ * - Scalar accessors that read this element's own data (tag_name, class_name,
+ *   id, contains_class, content_text, text) have a narrow contract: the view
+ *   MUST be valid. Calling them on an invalid view is undefined behavior
+ *   (asserted in debug builds). Check operator bool() first.
+ * - Search and iteration methods (find, find_all, query, query_all, get_attr,
+ *   find_attr, attributes, begin/end) are total: on an invalid view they simply
+ *   return an empty result (nullopt / empty container / an empty range).
  */
 class DOMElementView {
 	friend class DOMNodeView;
@@ -40,7 +49,9 @@ public:
 
 	/**
 	 * @brief Make empty (invalid) DOM element view
-	 * @note You can't use getters with invalid view.
+	 * @note Scalar accessors (tag_name, class_name, id, contains_class,
+	 *       content_text, text) require a valid view; the search/iteration
+	 *       methods are total. @see the class-level validity contract.
 	 */
 	DOMElementView() = default;
 
@@ -97,6 +108,7 @@ public:
 	[[nodiscard]] DOMElementIterator end();
 
 	/**
+	 * @pre The view must be valid (@see operator bool); otherwise UB.
 	 * @note Tag name always in upper case ("HTML", "DIV", etc.)
 	 * @return DOM element tag/name, e.g. <html> => HTML
 	 */
@@ -106,6 +118,7 @@ public:
 	 * @brief Get the full class name of the element.
 	 * This is just efficient shortcut to "class" attr, get_attr("class")
 	 * The classes may be separated by whitespace characters
+	 * @pre The view must be valid (@see operator bool); otherwise UB.
 	 * @return DOM element class
 	 */
 	[[nodiscard]] std::string_view class_name() const;
@@ -113,6 +126,7 @@ public:
 	/**
 	 * @brief Get the id name of the element.
 	 * This is just efficient shortcut to "id" attr, get_attr("id")
+	 * @pre The view must be valid (@see operator bool); otherwise UB.
 	 * @return DOM element id
 	 */
 	[[nodiscard]] std::string_view id() const;
@@ -120,6 +134,7 @@ public:
 	/**
 	 * @brief Check if the element contains class.
 	 * Checks with respect to whitespaces.
+	 * @pre The view must be valid (@see operator bool); otherwise UB.
 	 * @param name Class name to check
 	 * @return true if the class is found, false otherwise
 	 */
@@ -209,6 +224,7 @@ public:
 	 * Walks though all chilren of the element.
 	 * Ignores all element tags and print all it's contents.
 	 * Also preserves all whitespace characters
+	 * @pre The view must be valid (@see operator bool); otherwise UB.
 	 * @return Text of the element or empty string
 	 */
 	[[nodiscard]] std::string_view content_text() const;
@@ -221,6 +237,7 @@ public:
 	 * and removes first leading and
 	 * last trailing spaces.
 	 * Interprets <BR> element as new line ('\n').
+	 * @pre The view must be valid (@see operator bool); otherwise UB.
 	 * @return Text of the element or empty string
 	 */
 	[[nodiscard]] std::string text() const;

@@ -164,6 +164,7 @@ lxb_dom_element_t* DOMElementView::get() const {
 
 /// actually might have side effect as some cached allocations
 std::string_view DOMElementView::tag_name() const {
+	assert(element_ && "DOMElementView accessor called on an invalid view");
 	size_t size;
 	const lxb_char_t* name = lxb_dom_element_tag_name(element_, &size);
 	return std::string_view(reinterpret_cast<const char*>(name), size);
@@ -171,6 +172,7 @@ std::string_view DOMElementView::tag_name() const {
 
 /// actually might have side effect as some cached allocations
 std::string_view DOMElementView::class_name() const {
+	assert(element_ && "DOMElementView accessor called on an invalid view");
 	size_t size;
 	const lxb_char_t* name = lxb_dom_element_class(element_, &size);
 	return std::string_view(reinterpret_cast<const char*>(name), size);
@@ -178,6 +180,7 @@ std::string_view DOMElementView::class_name() const {
 
 /// actually might have side effect as some cached allocations
 std::string_view DOMElementView::id() const {
+	assert(element_ && "DOMElementView accessor called on an invalid view");
 	size_t size;
 	const lxb_char_t* name = lxb_dom_element_id(element_, &size);
 	return std::string_view(reinterpret_cast<const char*>(name), size);
@@ -295,6 +298,7 @@ std::optional<std::string_view> DOMElementView::get_attr(std::string_view name) 
 
 /// ! actually have side effect as cached string allocation
 std::string_view DOMElementView::content_text() const {
+	assert(element_ && "DOMElementView accessor called on an invalid view");
 	size_t length;
 	const lxb_char_t* text = lxb_dom_node_text_content(lxb_dom_interface_node(element_), &length);
 	return std::string_view(reinterpret_cast<const char*>(text), length);
@@ -320,6 +324,7 @@ struct ElementTextGetterPredicate {
 };
 
 std::string DOMElementView::text() const {
+	assert(element_ && "DOMElementView accessor called on an invalid view");
 	// Two passes (measure, then fill) share one predicate each so whitespace
 	// collapsing persists across text nodes. The passes MUST feed the predicate
 	// the exact same character sequence, or the measured and written lengths
