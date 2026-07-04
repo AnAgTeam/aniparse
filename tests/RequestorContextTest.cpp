@@ -6,6 +6,9 @@
 #include "CoroTest.hpp"
 #include <aniparse/Client.hpp>
 #include <aniparse/manga/Manga.hpp>
+#include <aniparse/html/HTMLDocument.hpp>
+
+#include <boost/json.hpp>
 
 using namespace aniparse;
 using namespace std::string_view_literals;
@@ -84,6 +87,41 @@ struct DummyLogger : public LoggerContext {
 
 	}
 };
+
+// A "real" mock (no MockSuccess throw): now that do_request returns an expected,
+// it records the request it received and co_returns a preset response/error, so
+// the typed helpers can be driven without I/O and their status/parse/error mapping
+// asserted directly.
+struct CannedClientMock : ClientContext {
+	explicit CannedClientMock(Response<ResponseData> response)
+		: response(std::move(response)) {}
+
+	NetworkRequestTask<ResponseData> do_request(ConfiguredGetRequest request) override {
+		last_request = std::move(request.request);
+		co_return response;
+	}
+	NetworkRequestTask<ResponseData> do_request(ConfiguredPostRequest request) override {
+		last_request = std::move(request.request);
+		co_return response;
+	}
+	NetworkRequestTask<ResponseData> do_request(ConfiguredPostMultipartRequest request) override {
+		last_request = std::move(request.request);
+		co_return response;
+	}
+	void set_config(ClientConfig) override {}
+	std::shared_ptr<CookieJar> make_cookie_jar() override {
+		return std::make_shared<DummyCookieJar>();
+	}
+
+	Response<ResponseData> response;
+	std::optional<ClientRequest> last_request;
+};
+
+static RequestorContext canned_context(Response<ResponseData> response) {
+	return RequestorContext(std::make_shared<CannedClientMock>(std::move(response)),
+	                        std::make_shared<DummyLogger>(),
+	                        std::make_shared<ParserConfig>());
+}
 
 // Client whose make_cookie_jar() hands out a fresh jar on every call, matching
 // AsyncClient's contract (each call -> new CurlCookieJar). The base mock returns
@@ -359,4 +397,75 @@ CORO_TEST_CASE("RequestorContext request headers take priority over config") {
 	REQUIRE(headers.at("X-Extra") == "config-only");
 	// header names are matched case-insensitively
 	REQUIRE(headers.contains("authorization"));
+}
+
+CORO_TEST_CASE("request_html parses a 2xx HTML body") {
+	auto context = canned_context(ResponseData{
+		.status_code = 200,
+		.body        = "<!DOCTYPE html><html><head><title>Hi</title></head><body></body></html>" });
+
+	auto result = co_await context.request_html(GetRequest{ .url = "/x" });
+
+	// The helper's job: a 2xx + parseable body yields a document. HTML parsing
+	// correctness itself lives in HTMLParseTests.
+	REQUIRE(result.has_value());
+}
+
+CORO_TEST_CASE("request_json parses a 2xx JSON body") {
+	auto context = canned_context(ResponseData{
+		.status_code = 200,
+		.body        = R"({"answer": 42})" });
+
+	auto result = co_await context.request_json(GetRequest{ .url = "/x" });
+
+	REQUIRE(result.has_value());
+	REQUIRE(result->as_object().at("answer").as_int64() == 42);
+}
+
+CORO_TEST_CASE("request_json works over POST") {
+	auto context = canned_context(ResponseData{
+		.status_code = 200,
+		.body        = R"({"ok": true})" });
+
+	auto result = co_await context.request_json(PostRequest{ .url = "/x", .body = "payload" });
+
+	REQUIRE(result.has_value());
+	REQUIRE(result->as_object().at("ok").as_bool() == true);
+}
+
+CORO_TEST_CASE("typed helpers map HTTP status to a RequestError code") {
+	struct Case { long status; RequestErrorCode code; };
+	for (auto [status, code] : { Case{ 401, RequestErrorCode::InvalidCredentials },
+	                             Case{ 403, RequestErrorCode::InvalidCredentials },
+	                             Case{ 404, RequestErrorCode::NotFound },
+	                             Case{ 429, RequestErrorCode::RateLimited },
+	                             Case{ 500, RequestErrorCode::ServerError },
+	                             Case{ 503, RequestErrorCode::ServerError } }) {
+		auto context = canned_context(ResponseData{ .status_code = status, .body = "<html></html>" });
+
+		auto result = co_await context.request_html(GetRequest{ .url = "/x" });
+
+		REQUIRE_FALSE(result.has_value());
+		REQUIRE(result.error().code == code);
+		REQUIRE(result.error().http_status == status);
+	}
+}
+
+CORO_TEST_CASE("typed helpers map a malformed 2xx body to UnexpectedResponse") {
+	auto context = canned_context(ResponseData{ .status_code = 200, .body = "{not valid json" });
+
+	auto result = co_await context.request_json(GetRequest{ .url = "/x" });
+
+	REQUIRE_FALSE(result.has_value());
+	REQUIRE(result.error().code == RequestErrorCode::UnexpectedResponse);
+	REQUIRE(result.error().http_status == 200); // the fetch succeeded; only the parse failed
+}
+
+CORO_TEST_CASE("typed helpers forward a transport RequestError unchanged") {
+	auto context = canned_context(make_response_error(RequestErrorCode::NetworkError, "boom"));
+
+	auto result = co_await context.request_html(GetRequest{ .url = "/x" });
+
+	REQUIRE_FALSE(result.has_value());
+	REQUIRE(result.error().code == RequestErrorCode::NetworkError);
 }
