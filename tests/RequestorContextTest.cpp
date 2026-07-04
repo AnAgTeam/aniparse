@@ -13,45 +13,6 @@
 using namespace aniparse;
 using namespace std::string_view_literals;
 
-struct MockSuccess : std::runtime_error {
-	using std::runtime_error::runtime_error;
-};
-
-struct ClientContextMock : ClientContext {
-
-	ClientContextMock(std::shared_ptr<CookieJar> cookie_jar) : cookie_jar(cookie_jar) {}
-
-	NetworkRequestTask<ResponseData> do_request(ConfiguredGetRequest request) override {
-		this->request = request;
-		throw MockSuccess("Success");
-	}
-
-	NetworkRequestTask<ResponseData> do_request(ConfiguredPostRequest request) override {
-		this->request = request;
-		throw MockSuccess("Success");
-	}
-
-	NetworkRequestTask<ResponseData> do_request(ConfiguredPostMultipartRequest request) override {
-		this->request = request;
-		throw MockSuccess("Success");
-	}
-
-	void set_config(ClientConfig config) override {
-		this->config = std::make_unique<ClientConfig>(config);
-	}
-
-	std::shared_ptr<CookieJar> make_cookie_jar() override {
-		return cookie_jar;
-	}
-
-	std::variant<std::monostate,
-		ConfiguredGetRequest,
-		ConfiguredPostRequest,
-		ConfiguredPostMultipartRequest> request;
-	std::shared_ptr<CookieJar> cookie_jar;
-	std::unique_ptr<ClientConfig> config;
-};
-
 struct DummyCookieJar : public CookieJar {
 
 	std::optional<Cookie> find_cookie(std::string_view name) const override {
@@ -88,46 +49,57 @@ struct DummyLogger : public LoggerContext {
 	}
 };
 
-// A "real" mock (no MockSuccess throw): now that do_request returns an expected,
-// it records the request it received and co_returns a preset response/error, so
-// the typed helpers can be driven without I/O and their status/parse/error mapping
-// asserted directly.
+// The single mock for every RequestorContext test. Now that do_request returns an
+// expected there is no need to throw to abort: it records the configured request
+// it received (for the routing/config tests) and co_returns a preset response (for
+// the typed-helper tests). The captured request keeps its cookies, so tests can
+// assert both the request value and the jar it was routed onto.
 struct CannedClientMock : ClientContext {
-	explicit CannedClientMock(Response<ResponseData> response)
-		: response(std::move(response)) {}
+	explicit CannedClientMock(std::shared_ptr<CookieJar> cookie_jar = nullptr,
+	                          Response<ResponseData> response = ResponseData{ .status_code = 200 })
+		: cookie_jar(std::move(cookie_jar))
+		, response(std::move(response)) {}
 
 	NetworkRequestTask<ResponseData> do_request(ConfiguredGetRequest request) override {
-		last_request = std::move(request.request);
+		this->request = std::move(request);
 		co_return response;
 	}
 	NetworkRequestTask<ResponseData> do_request(ConfiguredPostRequest request) override {
-		last_request = std::move(request.request);
+		this->request = std::move(request);
 		co_return response;
 	}
 	NetworkRequestTask<ResponseData> do_request(ConfiguredPostMultipartRequest request) override {
-		last_request = std::move(request.request);
+		this->request = std::move(request);
 		co_return response;
 	}
-	void set_config(ClientConfig) override {}
+	void set_config(ClientConfig config) override {
+		this->config = std::make_unique<ClientConfig>(config);
+	}
 	std::shared_ptr<CookieJar> make_cookie_jar() override {
-		return std::make_shared<DummyCookieJar>();
+		return cookie_jar;
 	}
 
+	std::variant<std::monostate,
+		ConfiguredGetRequest,
+		ConfiguredPostRequest,
+		ConfiguredPostMultipartRequest> request;
+	std::shared_ptr<CookieJar> cookie_jar;
+	std::unique_ptr<ClientConfig> config;
 	Response<ResponseData> response;
-	std::optional<ClientRequest> last_request;
 };
 
 static RequestorContext canned_context(Response<ResponseData> response) {
-	return RequestorContext(std::make_shared<CannedClientMock>(std::move(response)),
-	                        std::make_shared<DummyLogger>(),
-	                        std::make_shared<ParserConfig>());
+	return RequestorContext(
+		std::make_shared<CannedClientMock>(std::make_shared<DummyCookieJar>(), std::move(response)),
+		std::make_shared<DummyLogger>(),
+		std::make_shared<ParserConfig>());
 }
 
 // Client whose make_cookie_jar() hands out a fresh jar on every call, matching
 // AsyncClient's contract (each call -> new CurlCookieJar). The base mock returns
 // a fixed jar so other tests can assert against it; here we need distinct jars.
-struct FreshJarClientMock : ClientContextMock {
-	using ClientContextMock::ClientContextMock;
+struct FreshJarClientMock : CannedClientMock {
+	using CannedClientMock::CannedClientMock;
 
 	std::shared_ptr<CookieJar> make_cookie_jar() override {
 		return std::make_shared<DummyCookieJar>();
@@ -142,41 +114,12 @@ struct DummyMangaRootGetter : MangaRootGetter {
 	}
 };
 
-template<class... Ts> struct Overloaded : Ts... { using Ts::operator()...; };
-
-//template<class Base, class... Ts> struct OverloadedFrom : Overloaded<Ts...> {
-//
-//	//OverloadedFrom(Ts... lambdas) : base(), Ts(std::move(lambdas)) ... {}
-//
-//	//OverloadedFrom(std::initializer_list<Ts ...> lambdas) : base(), Ts(std::move(lambdas)) ... {}
-//
-//
-//	//using Overloaded<Ts...>::operator();
-//
-//	template<typename ... Args>
-//	decltype(auto) operator()(Args&& ... args) {
-//		return base(std::forward<Args>(args) ...);
-//	}
-//
-//	Base base{};
-//};
-//
-//template<typename Base, typename ... Ts>
-//OverloadedFrom(Ts ...) -> OverloadedFrom<Base, Ts ...>;
-
-struct RequestCheckerWrong {
-	auto operator()(std::monostate) { return "wrong-monostate"; };
-	auto operator()(ConfiguredGetRequest request) { return "wrong-get"; };
-	auto operator()(ConfiguredPostRequest request) { return "wrong-post"; };
-	auto operator()(ConfiguredPostMultipartRequest request) { return "wrong-multipart"; };
-};
-
 CORO_TEST_CASE("RequestorContext construct") {
 	auto parser_config = std::make_shared<ParserConfig>();
 	auto client_cookie_jar = std::make_shared<DummyCookieJar>();
 	auto client_logger = std::make_shared<DummyLogger>();
 
-	auto mock_client = std::make_shared<ClientContextMock>(client_cookie_jar);
+	auto mock_client = std::make_shared<CannedClientMock>(client_cookie_jar);
 
 	REQUIRE_THROWS(RequestorContext(nullptr, nullptr, nullptr));
 	REQUIRE_THROWS(RequestorContext(nullptr, client_logger, parser_config));
@@ -193,7 +136,7 @@ CORO_TEST_CASE("RequestorContext construct") {
 CORO_TEST_CASE("RequestorContext provisions a cookie jar when config has none") {
 	auto parser_config     = std::make_shared<ParserConfig>();
 	auto client_cookie_jar = std::make_shared<DummyCookieJar>();
-	auto mock_client       = std::make_shared<ClientContextMock>(client_cookie_jar);
+	auto mock_client       = std::make_shared<CannedClientMock>(client_cookie_jar);
 
 	REQUIRE(parser_config->cookie_jar == nullptr);
 
@@ -211,7 +154,7 @@ CORO_TEST_CASE("RequestorContext keeps an existing cookie jar") {
 	parser_config->cookie_jar = preset_jar; // e.g. a session established earlier or a restored jar
 
 	auto client_cookie_jar = std::make_shared<DummyCookieJar>();
-	auto mock_client       = std::make_shared<ClientContextMock>(client_cookie_jar);
+	auto mock_client       = std::make_shared<CannedClientMock>(client_cookie_jar);
 
 	RequestorContext context(mock_client, nullptr, parser_config);
 
@@ -272,11 +215,11 @@ CORO_TEST_CASE("RequestorContext GET with empty config") {
 	auto parser_config = std::make_shared<ParserConfig>();
 	auto client_cookie_jar = std::make_shared<DummyCookieJar>();
 
-	auto mock_client = std::make_shared<ClientContextMock>(client_cookie_jar);
+	auto mock_client = std::make_shared<CannedClientMock>(client_cookie_jar);
 
 	RequestorContext context(mock_client, nullptr, parser_config);
 
-	REQUIRE_THROWS_AS(co_await context.request(test_request), MockSuccess);
+	REQUIRE((co_await context.request(test_request)).has_value());
 
 	auto check_request = [&]() {
 		if (auto* request = std::get_if<ConfiguredGetRequest>(&mock_client->request)) {
@@ -323,11 +266,11 @@ CORO_TEST_CASE("RequestorContext GET with normal config") {
 
 	auto client_cookie_jar = std::make_shared<DummyCookieJar>();
 
-	auto mock_client = std::make_shared<ClientContextMock>(client_cookie_jar);
+	auto mock_client = std::make_shared<CannedClientMock>(client_cookie_jar);
 
 	RequestorContext context(mock_client, nullptr, parser_config);
 
-	REQUIRE_THROWS_AS(co_await context.request(test_request), MockSuccess);
+	REQUIRE((co_await context.request(test_request)).has_value());
 
 	auto check_request = [&]<typename ExpectedRequest>(const ExpectedRequest & expected_request) {
 		if (auto* request = std::get_if<ConfiguredRequest<ExpectedRequest>>(&mock_client->request)) {
@@ -347,7 +290,7 @@ CORO_TEST_CASE("RequestorContext all with empty config") {
 	auto parser_config = std::make_shared<ParserConfig>();
 	auto client_cookie_jar = std::make_shared<DummyCookieJar>();
 
-	auto mock_client = std::make_shared<ClientContextMock>(client_cookie_jar);
+	auto mock_client = std::make_shared<CannedClientMock>(client_cookie_jar);
 
 	RequestorContext context(mock_client, nullptr, parser_config);
 
@@ -358,13 +301,13 @@ CORO_TEST_CASE("RequestorContext all with empty config") {
 		return false;
 	};
 
-	REQUIRE_THROWS_AS(co_await context.request(test_get_request), MockSuccess);
+	REQUIRE((co_await context.request(test_get_request)).has_value());
 	REQUIRE(check_request(test_get_request));
 
-	REQUIRE_THROWS_AS(co_await context.request(test_post_request), MockSuccess);
+	REQUIRE((co_await context.request(test_post_request)).has_value());
 	REQUIRE(check_request(test_post_request));
 
-	REQUIRE_THROWS_AS(co_await context.request(test_post_multipart_request), MockSuccess);
+	REQUIRE((co_await context.request(test_post_multipart_request)).has_value());
 	REQUIRE(check_request(test_post_multipart_request));
 }
 
@@ -381,11 +324,11 @@ CORO_TEST_CASE("RequestorContext request headers take priority over config") {
 	parser_config->headers["X-Extra"]       = "config-only"; // must still be merged in
 
 	auto client_cookie_jar = std::make_shared<DummyCookieJar>();
-	auto mock_client = std::make_shared<ClientContextMock>(client_cookie_jar);
+	auto mock_client = std::make_shared<CannedClientMock>(client_cookie_jar);
 
 	RequestorContext context(mock_client, nullptr, parser_config);
 
-	REQUIRE_THROWS_AS(co_await context.request(test_request), MockSuccess);
+	REQUIRE((co_await context.request(test_request)).has_value());
 
 	auto* captured = std::get_if<ConfiguredGetRequest>(&mock_client->request);
 	REQUIRE(captured != nullptr);
