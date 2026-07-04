@@ -5,6 +5,7 @@
  */
 #include "aniparse/Client.hpp"
 #include "aniparse/Headers.hpp"
+#include "aniparse/types/NetError.hpp"
 
 #include <asyncnet/Exceptions.hpp>
 #include <curlpp/Options.hpp>
@@ -19,15 +20,47 @@ using asyncnet::NetworkTask;
 
 namespace aniparse {
 
+// Map a libcurl result code onto the backend-neutral classification. Lives here,
+// in the curl backend, so the neutral NetError type stays free of curl headers.
+static NetErrc classify_curl_error(CURLcode code) {
+	switch (code) {
+	case CURLE_OPERATION_TIMEDOUT:
+		return NetErrc::timed_out;
+	case CURLE_ABORTED_BY_CALLBACK:
+		return NetErrc::cancelled;
+	case CURLE_COULDNT_CONNECT:
+	case CURLE_COULDNT_RESOLVE_HOST:
+	case CURLE_COULDNT_RESOLVE_PROXY:
+		return NetErrc::connect_failed;
+	case CURLE_SSL_CONNECT_ERROR:
+	case CURLE_PEER_FAILED_VERIFICATION:
+	case CURLE_SSL_CERTPROBLEM:
+	case CURLE_SSL_CIPHER:
+	case CURLE_SSL_CACERT_BADFILE:
+		return NetErrc::tls_failed;
+	default:
+		return NetErrc::other;
+	}
+}
+
+// Translate the curl-bound transport exception into the neutral NetError that
+// escapes the client. Transport failures carry no HTTP status (there is no
+// response), so http_status stays 0.
+static NetError to_net_error(const asyncnet::NetworkRuntimeError& error) {
+	return NetError(classify_curl_error(error.whatCode()), 0, error.what());
+}
+
 template <typename Functor>
 NetworkTask<asyncnet::Response> with_retry(uint32_t max_retries,
                                            Functor operation) {
 	for (uint32_t i = 0; i <= max_retries; ++i) {
 		try {
 			co_return co_await operation();
-		} catch (const asyncnet::NetworkRuntimeError&) {
-			if (i == max_retries) {
-				std::rethrow_exception(std::current_exception());
+		} catch (const asyncnet::NetworkRuntimeError& raw_error) {
+			NetError error = to_net_error(raw_error);
+			// A cancelled request was stopped on purpose — never retry it.
+			if (error.code == NetErrc::cancelled || i == max_retries) {
+				throw error;
 			}
 			// TODO:
 			//if (delay.count() > 0) {
