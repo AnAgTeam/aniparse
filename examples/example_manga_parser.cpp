@@ -61,12 +61,12 @@ public:
 	// Получение информации о переводах манги, может быть несколько
 	NetworkRequestTask<PageResults<MangaTranslationInfo>> translation_info(
 		RequestorContext context,
-		GetFilters filters) noexcept {
+		GetFilters filters) noexcept override {
 		PageResults<MangaTranslationInfo> pages;
 
 		// Вернуть 0 страниц, если столько запрашивается.
 		// Иначе вернуть сколько возможно, то есть 1. Лимит лишь указывает максимальное количество
-		if (filters.limit <= 0) {
+		if (filters.limit == 0) {
 			co_return std::move(pages);
 		}
 
@@ -96,7 +96,7 @@ public:
 
 		// Вернуть 0 страниц, если столько запрашивается.
 		// Иначе вернуть сколько возможно, то есть 1. Лимит лишь указывает максимальное количество
-		if (filters.limit <= 0) {
+		if (filters.limit == 0) {
 			co_return std::move(pages);
 		}
 
@@ -137,7 +137,7 @@ public:
 
 		// Вернуть 0 страниц, если столько запрашивается.
 		// Иначе вернуть сколько возможно, то есть 1. Лимит лишь указывает максимальное количество
-		if (filters.limit <= 0) {
+		if (filters.limit == 0) {
 			co_return std::move(pages);
 		}
 
@@ -225,6 +225,13 @@ public:
 		RequestorContext context,
 		SearchRequestQuery query,
 		GetFilters filters) noexcept override {
+		// Проверка, что в поиске нету лишних/неправильных записей.
+		// За эталон берёт search_support()
+		if (auto errors = validate_query(query, filters); !errors.empty()) {
+			// Не throw, а вернуть ошибку в общем канале. describe_search_query_errors
+			// собирает найденные нарушения в читаемое сообщение.
+			co_return make_response_error(RequestErrorCode::InvalidArguments, describe_search_query_errors(errors));
+		}
 		co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot search");
 	}
 
@@ -238,7 +245,7 @@ public:
 
 		// Вернуть 0 страниц, если столько запрашивается.
 		// Иначе вернуть сколько возможно, то есть 1. Лимит лишь указывает максимальное количество
-		if (filters.limit <= 0) {
+		if (filters.limit == 0) {
 			co_return std::move(pages);
 		}
 		
@@ -290,6 +297,9 @@ class ExampleParser : public Parser {
 	// Вызывается только если домен в ссылке соответствует тем, что были вставлены в emplace_domains(...).
 	// Скорее всего далее будет использоваться ExampleMangaRootGetter::parse_url(...)
 	bool valid_for_url(std::string_view url) const override {
+		// Пример принимает любой url своих доменов; настоящий парсер сверял бы
+		// путь. url здесь намеренно не используется.
+		(void)url;
 		return true;
 	}
 
@@ -355,17 +365,22 @@ struct ConsoleLogger : LoggerContext {
 		auto zoned_now = zoned_time{ current_zone(), now };
 
 		std::format_to(std::ostream_iterator<char>(std::cout),
-			"[{:%T} {} {}:{}] {}",
+			"[{:%T} {} {}:{}] {}\n",
 			zoned_now,
 			message_type,
 			loc.file_name(),
 			loc.line(),
-			message) = '\n';
+			message);
 	}
 };
 
 int main() {
-	std::locale::global(std::locale("ru.utf-8"));
+	// Имена локалей платформозависимы; на системе без "ru.utf-8" это кинет,
+	// что для примера некритично — просто оставляем локаль по умолчанию.
+	try {
+		std::locale::global(std::locale("ru.utf-8"));
+	} catch (const std::exception&) {
+	}
 
 	// Список парсеров, в него можно добавить парсеры, а потом получить при необходимости
 	ParserStore parser_store;

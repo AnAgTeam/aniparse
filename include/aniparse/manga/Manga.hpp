@@ -259,8 +259,5 @@ struct MangaRootGetter {
 	 * @brief Getter for serialized data from one of serialize() methods
 	 */
 	virtual NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData data) noexcept = 0;
-
-protected:
-	GetterContext context;
 };
 } // namespace aniparse
