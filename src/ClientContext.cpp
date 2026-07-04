@@ -52,7 +52,7 @@ RequestorContext::RequestorContext(std::shared_ptr<ClientContext> client,
 	}
 }
 
-asyncnet::NetworkTask<asyncnet::Response> RequestorContext::request(GetRequest request) {
+asyncnet::NetworkTask<ResponseData> RequestorContext::request(GetRequest request) {
 	ClientRequest any_request = std::move(request);
 	apply_config_to(any_request, *config_);
 	assert(std::holds_alternative<GetRequest>(any_request));
@@ -62,7 +62,7 @@ asyncnet::NetworkTask<asyncnet::Response> RequestorContext::request(GetRequest r
 	    .cookies = config_->cookie_jar});
 }
 
-asyncnet::NetworkTask<asyncnet::Response> RequestorContext::request(PostRequest request) {
+asyncnet::NetworkTask<ResponseData> RequestorContext::request(PostRequest request) {
 	ClientRequest any_request = std::move(request);
 	apply_config_to(any_request, *config_);
 	assert(std::holds_alternative<PostRequest>(any_request));
@@ -72,7 +72,7 @@ asyncnet::NetworkTask<asyncnet::Response> RequestorContext::request(PostRequest 
 	    .cookies = config_->cookie_jar});
 }
 
-asyncnet::NetworkTask<asyncnet::Response> RequestorContext::request(PostMultipartRequest request) {
+asyncnet::NetworkTask<ResponseData> RequestorContext::request(PostMultipartRequest request) {
 	ClientRequest any_request = std::move(request);
 	apply_config_to(any_request, *config_);
 	assert(std::holds_alternative<PostMultipartRequest>(any_request));
@@ -82,7 +82,7 @@ asyncnet::NetworkTask<asyncnet::Response> RequestorContext::request(PostMultipar
 	    .cookies = config_->cookie_jar});
 }
 
-asyncnet::NetworkTask<asyncnet::Response> RequestorContext::request(std::shared_ptr<PolymorphicRequest> request) {
+asyncnet::NetworkTask<ResponseData> RequestorContext::request(std::shared_ptr<PolymorphicRequest> request) {
 	throw std::runtime_error("Unsupported");
 }
 

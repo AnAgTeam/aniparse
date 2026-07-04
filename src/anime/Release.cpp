@@ -6,13 +6,10 @@
 #include "aniparse/anime/Release.hpp"
 
 namespace aniparse {
-OptionalRequest<std::string> AsyncReleaseGetter::title() const {
-	return ClientParsedRequest<std::string>{
-	    .request = GetRequest{
-	        .url = "https://www.google.com"},
-	    .parse = [](asyncnet::Response response) {
-		    return std::to_string(response.get_status_code());
-	    }};
-	//return "some title";
+NetworkRequestTask<std::string> AsyncReleaseGetter::title(RequestorContext context) {
+	auto response = co_await context.request(GetRequest{
+	    .url = "https://www.google.com"});
+
+	co_return std::to_string(response.status_code);
 }
 } // namespace aniparse

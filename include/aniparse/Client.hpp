@@ -44,30 +44,30 @@ public:
 	static constexpr size_t default_max_retries = 4;
 
 	/**
-	 * @bief Initialize client
+	 * @brief Initializeclient
 	 */
 	AsyncClient();
 
 	/**
-	 * @bief Perform HTTP GET request
+	 * @brief Perform HTTP GET request
 	 * @param request HTTP request
 	 * @return Task with response
 	 */
-	asyncnet::NetworkTask<asyncnet::Response> do_request(ConfiguredGetRequest request) override;
+	asyncnet::NetworkTask<ResponseData> do_request(ConfiguredGetRequest request) override;
 
 	/**
-	 * @bief Perform HTTP POST request
+	 * @brief Perform HTTP POST request
 	 * @param request HTTP request
 	 * @return Task with response
 	 */
-	asyncnet::NetworkTask<asyncnet::Response> do_request(ConfiguredPostRequest request) override;
+	asyncnet::NetworkTask<ResponseData> do_request(ConfiguredPostRequest request) override;
 
 	/**
-	 * @bief Perform HTTP POST multipart/form-data request
+	 * @brief Perform HTTP POST multipart/form-data request
 	 * @param request HTTP request
 	 * @return Task with response
 	 */
-	asyncnet::NetworkTask<asyncnet::Response> do_request(ConfiguredPostMultipartRequest request) override;
+	asyncnet::NetworkTask<ResponseData> do_request(ConfiguredPostMultipartRequest request) override;
 
 	ClientConfig config() const;
 

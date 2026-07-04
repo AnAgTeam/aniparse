@@ -13,17 +13,19 @@
 #include <charconv>
 
 using asyncnet::NetworkTask;
-using asyncnet::Response;
+// NB: don't `using asyncnet::Response` here — inside namespace aniparse the
+// unqualified name would resolve to aniparse::Response<T> (the expected alias),
+// not the curl-bound HTTP response. Qualify asyncnet::Response explicitly.
 
 namespace aniparse {
 
 template <typename Functor>
-NetworkTask<Response> with_retry(uint32_t max_retries,
-                                 Functor operation) {
+NetworkTask<asyncnet::Response> with_retry(uint32_t max_retries,
+                                           Functor operation) {
 	for (uint32_t i = 0; i <= max_retries; ++i) {
 		try {
 			co_return co_await operation();
-		} catch (const asyncnet::NetworkRuntimeError& e) {
+		} catch (const asyncnet::NetworkRuntimeError&) {
 			if (i == max_retries) {
 				std::rethrow_exception(std::current_exception());
 			}
@@ -34,6 +36,16 @@ NetworkTask<Response> with_retry(uint32_t max_retries,
 		}
 	}
 	throw std::logic_error("with_retry: unreachable");
+}
+
+// Flatten the backend's curl-bound Response into the neutral ResponseData that
+// crosses into parser code. Status is read off the lvalue before the body is
+// moved out (designated initializers evaluate left to right).
+static ResponseData to_response_data(asyncnet::Response&& response) {
+	return ResponseData{
+	    .status_code = response.get_status_code(),
+	    .body        = std::move(response).get_text(),
+	};
 }
 
 // Route the request onto the cookie jar's own share handle so that every
@@ -223,7 +235,7 @@ const std::shared_ptr<asyncnet::CurlShared>& CurlCookieJar::shared() const {
 	return shared_;
 }
 
-NetworkTask<Response> AsyncClient::do_request(ConfiguredGetRequest configured_request) {
+NetworkTask<ResponseData> AsyncClient::do_request(ConfiguredGetRequest configured_request) {
 	auto session  = session_.load();
 	auto& request = configured_request.request;
 
@@ -233,12 +245,12 @@ NetworkTask<Response> AsyncClient::do_request(ConfiguredGetRequest configured_re
 	apply_cookie_share(get_request, configured_request.cookies);
 
 	// Okay to hold references (ref to frame variable), because we will wait for next coroutine end
-	co_return co_await with_retry(max_retries_, [&get_request, &session]() {
+	co_return to_response_data(co_await with_retry(max_retries_, [&get_request, &session]() {
 		return session->perform_request(get_request);
-	});
+	}));
 }
 
-NetworkTask<Response> AsyncClient::do_request(ConfiguredPostRequest configured_request) {
+NetworkTask<ResponseData> AsyncClient::do_request(ConfiguredPostRequest configured_request) {
 	auto session  = session_.load();
 	auto& request = configured_request.request;
 
@@ -248,12 +260,12 @@ NetworkTask<Response> AsyncClient::do_request(ConfiguredPostRequest configured_r
 	apply_cookie_share(post_request, configured_request.cookies);
 
 	// Okay to hold references (ref to frame variable), because we will wait for next coroutine end
-	co_return co_await with_retry(max_retries_, [&post_request, &session]() {
+	co_return to_response_data(co_await with_retry(max_retries_, [&post_request, &session]() {
 		return session->perform_request(post_request);
-	});
+	}));
 }
 
-NetworkTask<Response> AsyncClient::do_request(ConfiguredPostMultipartRequest) {
+NetworkTask<ResponseData> AsyncClient::do_request(ConfiguredPostMultipartRequest) {
 	throw std::logic_error("Not implemented");
 }
 

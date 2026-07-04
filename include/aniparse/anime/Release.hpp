@@ -5,7 +5,7 @@
  */
 #pragma once
 #include "aniparse/FlagsBitfield.hpp"
-#include "aniparse/types/Request.hpp"
+#include "aniparse/ClientContext.hpp"
 
 #include <asyncnet/CancellingTask.hpp>
 #include <string>
@@ -97,10 +97,7 @@ class AsyncReleaseGetter {
 public:
 	virtual ~AsyncReleaseGetter() = default;
 
-	virtual OptionalRequest<std::string> title() const;
-
-protected:
-	GetterContext context;
+	virtual NetworkRequestTask<std::string> title(RequestorContext context);
 };
 
 } // namespace aniparse

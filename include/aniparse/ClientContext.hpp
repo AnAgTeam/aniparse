@@ -5,11 +5,11 @@
  */
 #pragma once
 #include "aniparse/types/Request.hpp"
+#include "aniparse/types/Response.hpp"
 #include "aniparse/CookieJar.hpp"
 #include "aniparse/utility/Format.hpp"
 
 #include <asyncnet/CancellingTask.hpp>
-#include <asyncnet/Response.hpp>
 
 namespace aniparse {
 
@@ -62,25 +62,25 @@ struct ClientContext {
 	virtual ~ClientContext() = default;
 
 	/**
-	 * @bief Perform HTTP GET request
+	 * @brief Perform HTTP GET request
 	 * @param request HTTP request
 	 * @return Task with response
 	 */
-	virtual asyncnet::NetworkTask<asyncnet::Response> do_request(ConfiguredGetRequest request) = 0;
+	virtual asyncnet::NetworkTask<ResponseData> do_request(ConfiguredGetRequest request) = 0;
 
 	/**
-	 * @bief Perform HTTP POST request
+	 * @brief Perform HTTP POST request
 	 * @param request HTTP request
 	 * @return Task with response
 	 */
-	virtual asyncnet::NetworkTask<asyncnet::Response> do_request(ConfiguredPostRequest request) = 0;
+	virtual asyncnet::NetworkTask<ResponseData> do_request(ConfiguredPostRequest request) = 0;
 
 	/**
-	 * @bief Perform HTTP POST multipart/form-data request
+	 * @brief Perform HTTP POST multipart/form-data request
 	 * @param request HTTP request
 	 * @return Task with response
 	 */
-	virtual asyncnet::NetworkTask<asyncnet::Response> do_request(ConfiguredPostMultipartRequest request) = 0;
+	virtual asyncnet::NetworkTask<ResponseData> do_request(ConfiguredPostMultipartRequest request) = 0;
 
 	/**
 	 * @todo docs
@@ -136,30 +136,30 @@ public:
 	                 std::shared_ptr<ResourceCache> resources = nullptr);
 
 	/**
-	 * @bief Perform HTTP GET request with respect to client config
+	 * @brief Perform HTTP GET request with respect to client config
 	 * @param request HTTP request
 	 * @return Task with response
 	 */
-	asyncnet::NetworkTask<asyncnet::Response> request(GetRequest request);
+	asyncnet::NetworkTask<ResponseData> request(GetRequest request);
 
 	/**
-	 * @bief Perform HTTP POST request with respect to client config
+	 * @brief Perform HTTP POST request with respect to client config
 	 * @param request HTTP request
 	 * @return Task with response
 	 */
-	asyncnet::NetworkTask<asyncnet::Response> request(PostRequest request);
+	asyncnet::NetworkTask<ResponseData> request(PostRequest request);
 
 	/**
-	 * @bief Perform HTTP POST multipart/form-data request with respect to client config
+	 * @brief Perform HTTP POST multipart/form-data request with respect to client config
 	 * @param request HTTP request
 	 * @return Task with response
 	 */
-	asyncnet::NetworkTask<asyncnet::Response> request(PostMultipartRequest request);
+	asyncnet::NetworkTask<ResponseData> request(PostMultipartRequest request);
 
 	/**
 	 * @todo
 	 */
-	asyncnet::NetworkTask<asyncnet::Response> request(std::shared_ptr<PolymorphicRequest> request);
+	asyncnet::NetworkTask<ResponseData> request(std::shared_ptr<PolymorphicRequest> request);
 
 	/**
 	 * @brief Output INFO to logger
