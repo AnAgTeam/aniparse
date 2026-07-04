@@ -1,7 +1,7 @@
 [submodule "libasyncnet"]
 	path = libasyncnet
 	url = https://github.com/AnAgTeam/libasyncnet
-	branch = feat/task-progress
+	branch = nightly
 [submodule "lexbor"]
 	path = lexbor
 	url = https://github.com/lexbor/lexbor

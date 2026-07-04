@@ -18,17 +18,17 @@ struct ClientContextMock : ClientContext {
 
 	ClientContextMock(std::shared_ptr<CookieJar> cookie_jar) : cookie_jar(cookie_jar) {}
 
-	asyncnet::NetworkTask<asyncnet::Response> do_request(ConfiguredGetRequest request) override {
+	asyncnet::NetworkTask<ResponseData> do_request(ConfiguredGetRequest request) override {
 		this->request = request;
 		throw MockSuccess("Success");
 	}
 
-	asyncnet::NetworkTask<asyncnet::Response> do_request(ConfiguredPostRequest request) override {
+	asyncnet::NetworkTask<ResponseData> do_request(ConfiguredPostRequest request) override {
 		this->request = request;
 		throw MockSuccess("Success");
 	}
 
-	asyncnet::NetworkTask<asyncnet::Response> do_request(ConfiguredPostMultipartRequest request) override {
+	asyncnet::NetworkTask<ResponseData> do_request(ConfiguredPostMultipartRequest request) override {
 		this->request = request;
 		throw MockSuccess("Success");
 	}

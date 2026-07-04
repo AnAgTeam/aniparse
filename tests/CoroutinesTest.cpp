@@ -16,10 +16,8 @@
 
 using namespace aniparse;
 
-CORO_TEST_CASE("gather_awaitables") {
-	auto pool = coro::thread_pool::make_shared({});
-
-	auto test_coro = [](std::shared_ptr<coro::thread_pool> pool, std::string val) -> coro::task<std::string> {
+static coro::task<void> gather_awaitables_impl(coro::thread_pool* pool) {
+	auto test_coro = [](coro::thread_pool* pool, std::string val) -> coro::task<std::string> {
 		co_await pool->schedule();
 		co_return val;
 	};
@@ -31,6 +29,15 @@ CORO_TEST_CASE("gather_awaitables") {
 		test_coro(pool, "blabla")
 	);
 	REQUIRE((r1 == "bla" && r2 == "blabla"));
+}
+
+TEST_CASE("gather_awaitables") {
+	// Own the pool in this synchronous scope so ~thread_pool runs on the main
+	// thread. If the pool were created inside the coroutine, a worker thread
+	// would resume it (libcoro resumes inline) and then destroy the pool from
+	// within itself — ~thread_pool joins that same worker → deadlock.
+	auto pool = coro::thread_pool::make_unique({});
+	coro::sync_wait(gather_awaitables_impl(pool.get()));
 }
 
 struct TestStruct {

@@ -8,6 +8,7 @@
 #include "aniparse/types/NetError.hpp"
 
 #include <asyncnet/Exceptions.hpp>
+#include <asyncnet/MultipartForms.hpp>
 #include <curlpp/Options.hpp>
 
 #include <array>
@@ -88,6 +89,44 @@ static asyncnet::UrlParameters to_asyncnet_params(const UrlParameters& params) {
 	asyncnet::UrlParameters result;
 	for (const auto& [key, value] : params) {
 		result += std::pair<std::string_view, std::string_view>(key, value);
+	}
+	return result;
+}
+
+// Translate the neutral multipart form into asyncnet's curlpp form list:
+//   Text   -> Content        (an inline field)
+//   Buffer -> FileBufferPart (an in-memory file part; bytes are moved in)
+//   File   -> File           (curl reads the path lazily off disk)
+// curlpp's File cannot override the presented filename, so a File part carrying
+// an explicit filename is rejected — use a Buffer if a custom name is needed.
+// Takes the form by value so the Buffer bytes can be moved rather than copied.
+static asyncnet::MultipartForms to_curlpp_forms(MultipartForm form) {
+	asyncnet::MultipartForms result;
+	for (auto& part : form) {
+		if (auto* text = std::get_if<MultipartPart::Text>(&part.source)) {
+			if (part.content_type) {
+				result.emplace_back(new asyncnet::MultipartContentPart(part.name, text->value, *part.content_type));
+			} else {
+				result.emplace_back(new asyncnet::MultipartContentPart(part.name, text->value));
+			}
+		} else if (auto* buffer = std::get_if<MultipartPart::Buffer>(&part.source)) {
+			std::string filename = part.filename.value_or(std::string{});
+			if (part.content_type) {
+				result.emplace_back(new asyncnet::FileBufferPart(part.name, std::move(buffer->data), std::move(filename), *part.content_type));
+			} else {
+				result.emplace_back(new asyncnet::FileBufferPart(part.name, std::move(buffer->data), std::move(filename)));
+			}
+		} else if (auto* file = std::get_if<MultipartPart::File>(&part.source)) {
+			if (part.filename) {
+				throw std::invalid_argument(
+				    "multipart File part cannot override the presented filename via curl; use a Buffer part for a custom name");
+			}
+			if (part.content_type) {
+				result.emplace_back(new asyncnet::MultipartFilePart(part.name, file->path, *part.content_type));
+			} else {
+				result.emplace_back(new asyncnet::MultipartFilePart(part.name, file->path));
+			}
+		}
 	}
 	return result;
 }
@@ -309,8 +348,20 @@ NetworkTask<ResponseData> AsyncClient::do_request(ConfiguredPostRequest configur
 	}));
 }
 
-NetworkTask<ResponseData> AsyncClient::do_request(ConfiguredPostMultipartRequest) {
-	throw std::logic_error("Not implemented");
+NetworkTask<ResponseData> AsyncClient::do_request(ConfiguredPostMultipartRequest configured_request) {
+	auto session  = session_.load();
+	auto& request = configured_request.request;
+
+	auto multipart_request = session->make_request<asyncnet::PostMultipartRequest>(
+	    std::move(request.url), to_curlpp_forms(std::move(request.forms)));
+	multipart_request.add_headers(to_header_lines(request.headers));
+	multipart_request.set_url_parameters(to_asyncnet_params(request.url_params));
+	apply_cookie_share(multipart_request, configured_request.cookies);
+
+	// Okay to hold references (ref to frame variable), because we will wait for next coroutine end
+	co_return to_response_data(co_await with_retry(max_retries_, [&multipart_request, &session]() {
+		return session->perform_request(multipart_request);
+	}));
 }
 
 // TODO: maybe make max_retries atomic (or who even cares?)

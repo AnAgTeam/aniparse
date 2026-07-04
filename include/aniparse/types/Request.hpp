@@ -8,7 +8,6 @@
 #include "aniparse/Headers.hpp"
 
 #include <algorithm>
-#include <iosfwd>
 #include <map>
 #include <memory>
 #include <optional>
@@ -104,8 +103,8 @@ private:
  * transport backend maps each alternative to its native form primitive.
  * @ref filename and @ref content_type are optional cross-cutting attributes:
  * for a File source an empty filename defaults to the path's own name, a set
- * one overrides it; Buffer/Stream sources carry no inherent name, so set it
- * here when the server needs one.
+ * one overrides it; a Buffer source carries no inherent name, so set it here
+ * when the server needs one.
  */
 struct MultipartPart {
 	/// Plain text field: the value is sent inline as the part body.
@@ -118,23 +117,19 @@ struct MultipartPart {
 		std::string data;
 		friend bool operator==(const Buffer&, const Buffer&) = default;
 	};
-	/// File read from a filesystem path by the transport.
+	/// File read from a filesystem path by the transport (curl reads it lazily,
+	/// so a large on-disk file is not loaded into memory).
 	struct File {
 		std::string path;
 		friend bool operator==(const File&, const File&) = default;
-	};
-	/// File streamed from a caller-owned istream (must outlive the request).
-	struct Stream {
-		std::istream* stream = nullptr;
-		friend bool operator==(const Stream&, const Stream&) = default;
 	};
 
 	/// Form field name.
 	std::string name;
 	/// Payload source for this part.
-	std::variant<Text, Buffer, File, Stream> source;
+	std::variant<Text, Buffer, File> source;
 	/// Filename presented to the server. Empty => derive from a File path, or
-	/// send no filename for Buffer/Stream.
+	/// send no filename for a Buffer.
 	std::optional<std::string> filename;
 	/// MIME type override (e.g. "image/png"). Empty => let the transport decide.
 	std::optional<std::string> content_type;
