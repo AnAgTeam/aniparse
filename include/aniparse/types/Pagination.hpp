@@ -55,7 +55,11 @@ struct SortDescriptor {
 using SupportedSorts = std::map<std::string, SortDescriptor, std::less<>>;
 
 struct GetFilters {
+	/// 0-based ITEM offset to start from (not a page index). A page-based source
+	/// maps it to page = from / page_size + 1 and skips from % page_size within
+	/// that page; each returned PageItem carries its absolute offset.
 	pageoff from = 0;
+	/// Maximum number of items to return; page_no_limit for as many as available.
 	size_t limit = page_no_limit;
 	/// No value = the source's default order
 	std::optional<SortOrder> sort;
