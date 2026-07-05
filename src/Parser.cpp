@@ -60,6 +60,15 @@ AuthState Parser::export_auth(const ParserConfig& config) const {
 	return state;
 }
 
+GetterSuggestionType Parser::suggest_getter(const ParsedUrl&) const {
+	return GetterSuggestionType::Unknown;
+}
+
+bool Parser::valid_for_url(const ParsedUrl& url) const {
+	// A URL is ours when we can route it to a getter category.
+	return suggest_getter(url) != GetterSuggestionType::Unknown;
+}
+
 std::unique_ptr<ImagesGetter> Parser::images_getter() const {
 	return nullptr;
 }

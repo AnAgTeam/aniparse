@@ -66,9 +66,6 @@ struct StubParser : Parser {
 	std::string identifier() const override {
 		return "stub";
 	}
-	bool valid_for_url(std::string_view) const override {
-		return false;
-	}
 	ParserCompatibilities compatibilities() const override {
 		return {};
 	}

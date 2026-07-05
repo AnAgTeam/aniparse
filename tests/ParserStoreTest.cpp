@@ -16,8 +16,8 @@ struct TestParser : aniparse::Parser {
 		return "TestParser";
 	}
 
-	bool valid_for_url(std::string_view url) const override {
-		return url.compare(8, 4, "aaa.") != 0;
+	bool valid_for_url(const aniparse::ParsedUrl& url) const override {
+		return !url.host().starts_with("aaa.");
 	}
 
 	aniparse::ParserCompatibilities compatibilities() const override {

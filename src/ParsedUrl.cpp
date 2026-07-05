@@ -3,7 +3,7 @@
  *
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
-#include "aniparse/UrlView.hpp"
+#include "aniparse/ParsedUrl.hpp"
 
 #include <lexbor/url/url.h>
 
@@ -19,7 +19,7 @@ lxb_status_t append_to_string(const lxb_char_t* data, size_t length, void* ctx) 
 
 } // namespace
 
-std::optional<UrlView> UrlView::parse(std::string_view url) {
+std::optional<ParsedUrl> ParsedUrl::parse(std::string_view url) {
 	lxb_url_parser_t parser;
 	if (lxb_url_parser_init(&parser, nullptr) != LXB_STATUS_OK) {
 		return std::nullopt;
@@ -36,7 +36,7 @@ std::optional<UrlView> UrlView::parse(std::string_view url) {
 		return std::nullopt;
 	}
 
-	UrlView view;
+	ParsedUrl view;
 	lxb_url_serialize_scheme(parsed, append_to_string, &view.scheme_);
 	lxb_url_serialize_host(lxb_url_host(parsed), append_to_string, &view.host_);
 	lxb_url_serialize_path(lxb_url_path(parsed), append_to_string, &view.path_);

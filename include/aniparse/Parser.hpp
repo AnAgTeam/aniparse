@@ -5,6 +5,7 @@
  */
 #pragma once
 #include "aniparse/FlagsBitfield.hpp"
+#include "aniparse/ParsedUrl.hpp"
 #include "aniparse/images/Image.hpp"
 #include "aniparse/manga/Manga.hpp"
 
@@ -78,11 +79,25 @@ struct Parser {
 	virtual std::string identifier() const = 0;
 
 	/**
-	 * @brief Check if the parser can handle given url
-	 * @param url Url to check
-	 * @return true if the parser can handle, false otherwise
+	 * @brief Check whether the parser can handle the given URL.
+	 * A coarse per-parser gate ("is this URL mine?"), consulted during URL
+	 * routing after the domain matches. By default it is derived from
+	 * @ref suggest_getter (true when a category is suggested), so a parser with
+	 * URL entry only overrides suggest_getter. Override this for exotic gating.
+	 * @param url Parsed URL to check
+	 * @return true if the parser handles the URL, false otherwise
 	 */
-	virtual bool valid_for_url(std::string_view url) const = 0;
+	virtual bool valid_for_url(const ParsedUrl& url) const;
+
+	/**
+	 * @brief Suggest which getter category a URL belongs to (Manga / Anime / …).
+	 * The parser knows its own path/query scheme, so it classifies the URL to
+	 * route parse_url to the right getter. Classify on whatever the URL carries —
+	 * path, query (e.g. YouTube's ?v=), or host. Default: Unknown (no URL entry).
+	 * @param url Parsed URL
+	 * @return The getter category, or Unknown if the parser does not handle it
+	 */
+	virtual GetterSuggestionType suggest_getter(const ParsedUrl& url) const;
 
 	/**
 	 * @see ParserCompatibilities, @see namespace compatibilities_flags
@@ -103,8 +118,6 @@ struct Parser {
 	virtual void emplace_domains(EmplaceDomainsContext& context) const = 0;
 
 	//virtual ParseResult<std::unique_ptr<AsyncReleaseGetter>> async_release_getter(ParseContext& ctx);
-
-	//virtual GetterSuggestionResult suggest_getter(std::string_view url) = 0;
 
 	/**
 	 * @brief Authenticate the parser's service with the given credentials.

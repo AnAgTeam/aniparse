@@ -93,7 +93,7 @@ CORO_TEST_CASE("MangaRootGetter search/latest/parse_url default to NotImplemente
 	REQUIRE_FALSE(latest.has_value());
 	CHECK(latest.error().code == RequestErrorCode::NotImplemented);
 
-	auto parsed = co_await getter.parse_url(context, "https://example.com/manga/1");
+	auto parsed = co_await getter.parse_url(context, ParsedUrl::parse("https://example.com/manga/1").value());
 	REQUIRE_FALSE(parsed.has_value());
 	CHECK(parsed.error().code == RequestErrorCode::NotImplemented);
 

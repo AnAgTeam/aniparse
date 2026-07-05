@@ -6,6 +6,7 @@
 #pragma once
 #include "aniparse/DomainScanner.hpp"
 #include "aniparse/Parser.hpp"
+#include "aniparse/ParsedUrl.hpp"
 
 #include <string>
 #include <map>
@@ -13,6 +14,16 @@
 #include <optional>
 
 namespace aniparse {
+
+/**
+ * @brief The result of routing a URL: the owning parser, the getter category the
+ * URL belongs to, and the parsed URL ready to hand to that category's parse_url.
+ */
+struct UrlRoute {
+	std::shared_ptr<Parser> parser;
+	GetterSuggestionType    type;
+	ParsedUrl                 url;
+};
 
 /**
  * @brief Class for storing and retrieving parsers
@@ -55,6 +66,16 @@ public:
 	 * @return Parser if found, empty pointer otherwise
 	 */
 	std::shared_ptr<Parser> find_by_key(std::string_view key);
+
+	/**
+	 * @brief Route a URL to its parser and getter category in one step.
+	 * Parses the URL once, finds the owning parser (domain match + valid_for_url),
+	 * and asks it which getter category the URL is (suggest_getter). The caller
+	 * then calls that category's root getter parse_url with @c route.url.
+	 * @param url The URL to route
+	 * @return The route, or nullopt if the URL is unparsable or no parser handles it
+	 */
+	std::optional<UrlRoute> route_url(std::string_view url);
 
 private:
 	/**

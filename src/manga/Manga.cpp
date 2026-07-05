@@ -84,7 +84,7 @@ NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaRootGetter::l
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot get latest");
 }
 
-NetworkRequestTask<std::unique_ptr<MangaGetter>> MangaRootGetter::parse_url(RequestorContext, std::string) {
+NetworkRequestTask<std::unique_ptr<MangaGetter>> MangaRootGetter::parse_url(RequestorContext, ParsedUrl) {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot parse url");
 }
 

@@ -264,7 +264,7 @@ public:
 	// Build a manga getter from a URL
 	NetworkRequestTask<std::unique_ptr<MangaGetter>> parse_url(
 		RequestorContext context,
-		std::string url) override {
+		ParsedUrl url) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot parse URLs");
 	}
 
@@ -293,14 +293,14 @@ class ExampleParser : public Parser {
 		return "Example";
 	}
 
-	// Check whether the parser can handle the given URL.
-	// Called only if the URL's domain matches one added in emplace_domains(...).
-	// Usually followed by ExampleMangaRootGetter::parse_url(...)
-	bool valid_for_url(std::string_view url) const override {
-		// The example accepts any URL on its domains; a real parser would check
-		// the path. url is intentionally unused here.
+	// Classify a URL to a getter category, used to route parse_url. Called only if
+	// the URL's domain matches one added in emplace_domains(...). valid_for_url is
+	// derived from this by default, so a URL-entry parser overrides only this.
+	GetterSuggestionType suggest_getter(const ParsedUrl& url) const override {
+		// A real parser would inspect url.path() / url.query(); this example is
+		// manga-only, so any URL on its domains routes to the manga getter.
 		(void)url;
-		return true;
+		return GetterSuggestionType::Manga;
 	}
 
 	// Describe the parser's capabilities
@@ -439,10 +439,18 @@ int main() {
 	std::println("Title: {}", first_manga_info.title);
 	std::println("Description: {}", first_manga_info.description.text);
 
-	// An example of a failing request: try to parse a URL
-	auto parsed_manga_response = coro::sync_wait(example_manga_root->parse_url(ready_to_work_client, {}));
-	if (!parsed_manga_response) {
-		// Request error
-		std::println("Failed to parse manga: {}", parsed_manga_response.error().message);
+	// Route a pasted URL to its parser and getter category, then build the getter
+	// from it. The store parses the URL once and hands it back in route->url.
+	if (auto route = parser_store.route_url("https://example.com/manga/123")) {
+		std::println("Routed to '{}' (manga: {})",
+			route->parser->name(),
+			route->type == GetterSuggestionType::Manga);
+
+		auto routed_getter = route->parser->mangas_getter();
+		auto parsed_manga = coro::sync_wait(routed_getter->parse_url(ready_to_work_client, std::move(route->url)));
+		if (!parsed_manga) {
+			// The example parser leaves parse_url unimplemented.
+			std::println("Failed to parse manga: {}", parsed_manga.error().message);
+		}
 	}
 }

@@ -31,7 +31,7 @@ add_library(aniparse STATIC
 	"include/aniparse/detail/StrongBitset.hpp"
 	"src/Client.cpp" "include/aniparse/Client.hpp"
 	"src/ClientContext.cpp" "include/aniparse/ClientContext.hpp"
-	"src/UrlView.cpp" "include/aniparse/UrlView.hpp"
+	"src/ParsedUrl.cpp" "include/aniparse/ParsedUrl.hpp"
 	"include/aniparse/Common.hpp"
 	"include/aniparse/CookieJar.hpp"
 	"include/aniparse/utility/Format.hpp"

@@ -5,6 +5,7 @@
  */
 #pragma once
 #include "aniparse/Common.hpp"
+#include "aniparse/ParsedUrl.hpp"
 
 #include <coro/expected.hpp>
 
@@ -253,7 +254,7 @@ struct MangaRootGetter {
 	 */
 	virtual NetworkRequestTask<std::unique_ptr<MangaGetter>> parse_url(
 	    RequestorContext context,
-	    std::string url);
+	    ParsedUrl url);
 
 	/**
 	 * @brief Getter for serialized data from one of serialize() methods

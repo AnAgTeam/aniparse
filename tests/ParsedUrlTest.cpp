@@ -5,12 +5,12 @@
  */
 #include "catch_amalgamated.hpp"
 
-#include <aniparse/UrlView.hpp>
+#include <aniparse/ParsedUrl.hpp>
 
 using namespace aniparse;
 
-TEST_CASE("UrlView parses scheme, host and path", "[urlview]") {
-	auto url = UrlView::parse("https://x8.h-chan.me/manga/12345-title.html?tab=info#top");
+TEST_CASE("ParsedUrl parses scheme, host and path", "[parsedurl]") {
+	auto url = ParsedUrl::parse("https://x8.h-chan.me/manga/12345-title.html?tab=info#top");
 	REQUIRE(url.has_value());
 	REQUIRE(url->scheme() == "https");
 	REQUIRE(url->host() == "x8.h-chan.me");
@@ -18,12 +18,12 @@ TEST_CASE("UrlView parses scheme, host and path", "[urlview]") {
 	REQUIRE(url->query().find("tab=info") != std::string_view::npos);
 }
 
-TEST_CASE("UrlView exposes the path for routing", "[urlview]") {
-	auto url = UrlView::parse("https://site.tld/anime/99");
+TEST_CASE("ParsedUrl exposes the path for routing", "[parsedurl]") {
+	auto url = ParsedUrl::parse("https://site.tld/anime/99");
 	REQUIRE(url.has_value());
 	REQUIRE(url->path().starts_with("/anime/"));
 }
 
-TEST_CASE("UrlView rejects a string without a scheme", "[urlview]") {
-	REQUIRE_FALSE(UrlView::parse("not a url").has_value());
+TEST_CASE("ParsedUrl rejects a string without a scheme", "[parsedurl]") {
+	REQUIRE_FALSE(ParsedUrl::parse("not a url").has_value());
 }

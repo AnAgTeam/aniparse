@@ -4,6 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #include "aniparse/ParserStore.hpp"
+#include "aniparse/ParsedUrl.hpp"
 
 #include <ranges>
 
@@ -67,20 +68,44 @@ std::shared_ptr<Parser> ParserStore::add_parser(std::shared_ptr<Parser> parser) 
 }
 
 std::shared_ptr<Parser> ParserStore::find_by_domain(std::string_view domain) {
+	std::string url = "https://" + std::string(domain);
+	auto parsed     = ParsedUrl::parse(url);
+	if (!parsed) {
+		return nullptr;
+	}
 	auto domain_iter  = detail::split_domains(domain);
-	std::string url   = "https://" + std::string(domain);
-	auto found_parser = parsers_scanner_.search_all(domain_iter, [&url](std::shared_ptr<Parser>& parser) {
-		return parser->valid_for_url(url);
+	auto found_parser = parsers_scanner_.search_all(domain_iter, [&parsed](std::shared_ptr<Parser>& parser) {
+		return parser->valid_for_url(*parsed);
 	});
 	return found_parser ? *found_parser : nullptr;
 }
 
 std::shared_ptr<Parser> ParserStore::find_for_url(std::string_view url) {
+	auto parsed = ParsedUrl::parse(url);
+	if (!parsed) {
+		return nullptr;
+	}
 	auto domain_iter  = detail::split_url_domains(url);
-	auto found_parser = parsers_scanner_.search_all(domain_iter, [&url](std::shared_ptr<Parser>& parser) {
-		return parser->valid_for_url(url);
+	auto found_parser = parsers_scanner_.search_all(domain_iter, [&parsed](std::shared_ptr<Parser>& parser) {
+		return parser->valid_for_url(*parsed);
 	});
 	return found_parser ? *found_parser : nullptr;
+}
+
+std::optional<UrlRoute> ParserStore::route_url(std::string_view url) {
+	auto parsed = ParsedUrl::parse(url);
+	if (!parsed) {
+		return std::nullopt;
+	}
+	auto domain_iter  = detail::split_url_domains(url);
+	auto found_parser = parsers_scanner_.search_all(domain_iter, [&parsed](std::shared_ptr<Parser>& parser) {
+		return parser->valid_for_url(*parsed);
+	});
+	if (!found_parser) {
+		return std::nullopt;
+	}
+	GetterSuggestionType type = (*found_parser)->suggest_getter(*parsed);
+	return UrlRoute{ *found_parser, type, std::move(*parsed) };
 }
 
 std::shared_ptr<Parser> ParserStore::find_by_key(std::string_view key) {

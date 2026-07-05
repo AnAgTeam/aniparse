@@ -15,16 +15,16 @@ namespace aniparse {
  * Built once from a string, it holds each component so accessors return cheap
  * views. Parsers get one for routing (`valid_for_url` / `suggest_getter` /
  * `parse_url`) and inspect the @ref path without re-parsing the raw string.
- * @note Owning and movable; the returned views stay valid for the UrlView's life.
+ * @note Owning and movable; the returned views stay valid for the ParsedUrl's life.
  */
-class UrlView {
+class ParsedUrl {
 public:
 	/**
 	 * @brief Parse an absolute URL.
 	 * @param url The URL string
 	 * @return The parsed URL, or nullopt if lexbor rejects it (e.g. no scheme)
 	 */
-	[[nodiscard]] static std::optional<UrlView> parse(std::string_view url);
+	[[nodiscard]] static std::optional<ParsedUrl> parse(std::string_view url);
 
 	/// Scheme without the trailing colon, e.g. "https".
 	[[nodiscard]] std::string_view scheme() const noexcept { return scheme_; }
