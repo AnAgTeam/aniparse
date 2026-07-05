@@ -28,7 +28,7 @@ public:
 
 	/// Scheme without the trailing colon, e.g. "https".
 	[[nodiscard]] std::string_view scheme() const noexcept { return scheme_; }
-	/// Host (ASCII/IDNA), e.g. "x8.h-chan.me".
+	/// Host (ASCII/IDNA), e.g. "api.example.com".
 	[[nodiscard]] std::string_view host() const noexcept { return host_; }
 	/// Path with its leading slash, e.g. "/manga/12345.html". Empty if none.
 	[[nodiscard]] std::string_view path() const noexcept { return path_; }

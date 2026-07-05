@@ -111,7 +111,7 @@ TEST_CASE("parse_json_var returns nullopt when the variable is absent") {
     CHECK_FALSE(parse_json_var("missing", js).has_value());
 }
 
-TEST_CASE("find_json_var and parse_json_var handle the henchan /online page shape") {
+TEST_CASE("find_json_var and parse_json_var handle a quoted-key-inside-object page shape") {
     // The array is a quoted key inside `var data = {...}`, with two decoys
     // that must be skipped: `var fullimg = data.fullimg` and `fullimg[...]`.
     std::string js =

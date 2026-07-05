@@ -10,10 +10,10 @@
 using namespace aniparse;
 
 TEST_CASE("ParsedUrl parses scheme, host and path", "[parsedurl]") {
-	auto url = ParsedUrl::parse("https://x8.h-chan.me/manga/12345-title.html?tab=info#top");
+	auto url = ParsedUrl::parse("https://cdn.example.com/manga/12345-title.html?tab=info#top");
 	REQUIRE(url.has_value());
 	REQUIRE(url->scheme() == "https");
-	REQUIRE(url->host() == "x8.h-chan.me");
+	REQUIRE(url->host() == "cdn.example.com");
 	REQUIRE(url->path() == "/manga/12345-title.html");
 	REQUIRE(url->query().find("tab=info") != std::string_view::npos);
 }
