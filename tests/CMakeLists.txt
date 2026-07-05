@@ -4,6 +4,7 @@ add_executable(aniparse-tests
 	"CoroTest.hpp"
 	"BitsetLiteTest.cpp"
 	"HeadersTest.cpp"
+	"UrlEncodeTest.cpp"
 	"ModelTest.cpp"
 	"AuthExportTest.cpp"
 	"MangaDefaultsTest.cpp"

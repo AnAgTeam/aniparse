@@ -37,6 +37,7 @@ add_library(aniparse STATIC
 	"include/aniparse/utility/Coroutines.hpp"
 	"include/aniparse/utility/Expected.hpp"
 	"include/aniparse/utility/Regex.hpp"
+	"include/aniparse/utility/UrlEncode.hpp"
 
 	"include/aniparse/types/Ids.hpp"
 	"include/aniparse/types/Flags.hpp"

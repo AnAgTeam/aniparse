@@ -6,6 +6,7 @@
 #pragma once
 #include "aniparse/FlagsBitfield.hpp"
 #include "aniparse/Headers.hpp"
+#include "aniparse/utility/UrlEncode.hpp"
 
 #include <algorithm>
 #include <map>
@@ -96,6 +97,28 @@ private:
 
 	std::vector<value_type> params_;
 };
+
+/**
+ * @brief Serialize parameters into an application/x-www-form-urlencoded body
+ * ("k=v&k=v"), percent-encoding every key and value.
+ * Build the form by pushing raw (unencoded) pairs into a @ref UrlParameters,
+ * then hand the result to a POST body — the encoding happens here, so callers
+ * never escape by hand. @see url_encode
+ * @param params Raw key/value pairs
+ * @return Encoded form body
+ */
+inline std::string to_urlencoded(const UrlParameters& params) {
+	std::string body;
+	for (const auto& [key, value] : params) {
+		if (!body.empty()) {
+			body.push_back('&');
+		}
+		body += url_encode(key);
+		body.push_back('=');
+		body += url_encode(value);
+	}
+	return body;
+}
 
 /**
  * @brief One part of a multipart/form-data body.
