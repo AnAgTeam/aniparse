@@ -4,6 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
+#include "aniparse/Headers.hpp"
 #include "aniparse/types/Ids.hpp"
 
 #include <span>
@@ -26,16 +27,24 @@ struct Image {
 	ImageID id{0};
 	std::string url;
 	std::optional<ImageResolution> size;
+	/// Extra request headers the consumer must send when fetching @ref url — e.g.
+	/// a Referer that some sources require to serve their images (a bare GET 403s
+	/// otherwise). Empty when the plain URL suffices; set by the producing parser.
+	Headers headers;
 };
 
 struct Tag {
 	TagID id{0};
 	std::string name;
+	/// Opaque parser-owned reference (e.g. the source href/slug) the producing
+	/// parser round-trips to build follow-up requests. NOT an HTTP Referer and
+	/// not meant for the consumer to interpret.
 	std::string referer;
 };
 
 struct RelatedUser {
 	std::string name;
+	/// Opaque parser-owned reference; @see Tag::referer.
 	std::string referer;
 };
 
@@ -43,6 +52,7 @@ inline constexpr std::string_view series_original = "original";
 
 struct Series {
 	std::string name;
+	/// Opaque parser-owned reference; @see Tag::referer.
 	std::string referer;
 };
 
