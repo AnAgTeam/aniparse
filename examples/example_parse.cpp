@@ -5,11 +5,15 @@
  */
 // example_parse — the parsing half of the toolkit, with no network involved.
 // It loads a saved HTML page from disk and pulls structured data out of it:
-//   - CSS selectors compiled once, then matched with query / query_all
+//   - CSS selectors kept in a set and cached through RequestorContext::resources(),
+//     exactly the way a getter reuses them
 //   - element text and attributes
 //   - a JS array embedded in a <script>, extracted as JSON
 // Pair it with example_net, which shows how such a page is fetched in the first
 // place. Keeping the input on disk makes this example deterministic and offline.
+#include <aniparse/Client.hpp>
+#include <aniparse/ClientContext.hpp>
+#include <aniparse/ResourceCache.hpp>
 #include <aniparse/html/HTMLParser.hpp>
 #include <aniparse/html/DOMElement.hpp>
 #include <aniparse/html/CompiledSelector.hpp>
@@ -22,11 +26,66 @@
 #include <print>
 #include <string>
 
+using namespace aniparse;
 using namespace aniparse::html;
 
 static std::string read_file(const std::string& path) {
 	std::ifstream stream(path, std::ios::binary);
 	return std::string(std::istreambuf_iterator<char>(stream), {});
+}
+
+// A group of selectors, compiled once and cached by type. A getter reaches its
+// set through context.resources().get<T>() — the set is built on first use via
+// create() and reused afterwards, so selectors are never re-parsed per call.
+struct CardSelectors {
+	CompiledSelector title;
+	CompiledSelector card;
+	CompiledSelector link;
+	CompiledSelector tag;
+	CompiledSelector rating;
+
+	static CardSelectors create() {
+		SelectorCompiler compiler; // transient, one per set
+		return {
+			compiler.compile("title"),
+			compiler.compile(".card"),
+			compiler.compile(".card-link"),
+			compiler.compile(".tag"),
+			compiler.compile(".rating"),
+		};
+	}
+};
+
+// Extract the card list from a parsed page. Shaped like a getter method: it takes
+// a RequestorContext and pulls its selectors from the shared cache rather than
+// compiling them locally — so every call reuses the same compiled set.
+static void extract_cards(RequestorContext context, const HTMLDocument& document) {
+	auto selectors = context.resources().get<CardSelectors>();
+
+	if (auto title = document.query(selectors->title)) {
+		std::println("Title: {}\n", title->text());
+	}
+
+	// query_all returns every match in document order; query returns the first.
+	for (const DOMElementView& card : document.query_all(selectors->card)) {
+		auto link = card.query(selectors->link);
+		if (!link) {
+			continue; // a card without a link is not one we can use
+		}
+
+		std::println("- {}", link->text());
+		std::println("  url:    {}", link->get_attr("href").value_or("?"));
+		std::println("  id:     {}", card.get_attr("data-id").value_or("?"));
+		if (auto rating = card.query(selectors->rating)) {
+			std::println("  rating: {}", rating->text());
+		}
+
+		std::print("  tags:   ");
+		for (const DOMElementView& tag : card.query_all(selectors->tag)) {
+			std::print("{} ", tag.text());
+		}
+		std::println("");
+	}
 }
 
 int main() {
@@ -47,36 +106,12 @@ int main() {
 		return 1;
 	}
 	HTMLDocument& document = *document_result;
-	std::println("Title: {}\n", document.title());
 
-	// Compile the selectors up front; SelectorCompiler reuses one parser for the
-	// whole batch. Matching afterwards (query / query_all) never fails.
-	SelectorCompiler selectors;
-	CompiledSelector card_sel   = selectors.compile(".card");
-	CompiledSelector link_sel   = selectors.compile(".card-link");
-	CompiledSelector tag_sel    = selectors.compile(".tag");
-	CompiledSelector rating_sel = selectors.compile(".rating");
-
-	// query_all returns every match in document order; query returns the first.
-	for (const DOMElementView& card : document.query_all(card_sel)) {
-		auto link = card.query(link_sel);
-		if (!link) {
-			continue; // a card without a link is not one we can use
-		}
-
-		std::println("- {}", link->text());
-		std::println("  url:    {}", link->get_attr("href").value_or("?"));
-		std::println("  id:     {}", card.get_attr("data-id").value_or("?"));
-		if (auto rating = card.query(rating_sel)) {
-			std::println("  rating: {}", rating->text());
-		}
-
-		std::print("  tags:   ");
-		for (const DOMElementView& tag : card.query_all(tag_sel)) {
-			std::print("{} ", tag.text());
-		}
-		std::println("");
-	}
+	// A RequestorContext is what a parser's getters receive; here we build one only
+	// to reach its selector cache via resources(). No request is made — the HTML
+	// already came from the fixture on disk.
+	RequestorContext context(std::make_shared<AsyncClient>(), nullptr, nullptr);
+	extract_cards(context, document);
 
 	// Many sites ship data as a JS literal rather than as markup. parse_json_var
 	// locates `var gallery = [...]` inside the <script> and returns parsed JSON.
