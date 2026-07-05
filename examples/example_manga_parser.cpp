@@ -2,19 +2,19 @@
 #include <aniparse/ParserStore.hpp>
 #include <aniparse/Client.hpp>
 
-// для coro::sync_wait
+// for coro::sync_wait
 #include <coro/sync_wait.hpp>
-// Для std::println
+// for std::println
 #include <print>
 
 using namespace aniparse;
 
 /**
- * Класс для получения различных сведений о конкретной манге
+ * Getter for various pieces of information about a specific manga
  */
 class ExampleMangaGetter : public MangaGetter {
 public:
-	/// Коструктор геттера
+	/// Getter constructor
 	ExampleMangaGetter() : private_url_("https://example.com") {
 
 	}
@@ -22,63 +22,63 @@ public:
 
 	}
 
-	// Метод для получения базовой информации о парсере. 
+	// Returns the getter's basic capability information.
 	MangaGetterCompatibilities compatibilies() const noexcept override {
 		using namespace compatibilities_flags;
 		return {
-			// Список альтернативных ссылок (зеркал) геттера
+			// The getter's list of alternative links (mirrors)
 			.alt_links = { { "https://example.com" } },
-			// Поддерживает комментарии, поддерживает голоса (пока не сделано)
+			// Supports commenting, supports voting (not implemented yet)
 			.flags = supports_commenting
 				| supports_voting
 		};
 	}
 
-	// Опционально. Если не перегружено, то используется info(...).
-	// Этот метод должен вызываться, когда нужна минимальная информация (название, превью, ...)
-	// и эта информация уже есть в геттере.
+	// Optional. If not overridden, info(...) is used instead.
+	// Called when only minimal information is needed (title, preview, ...)
+	// and that information is already available in the getter.
 	NetworkRequestTask<MangaInfo> preview_info(RequestorContext context) override {
 		co_return MangaInfo{
-			.title = "Тест",
-			.description = "Какое-то описание",
+			.title = "Test",
+			.description = "Some description",
 			.status = AiredStatus {
 				.name = std::string(aired_status_released)
 			}
 		};
 	}
 
-	// Получение всей информации о манге
+	// Fetch the full information about the manga
 	NetworkRequestTask<MangaInfo> info(RequestorContext context) override {
 		co_return MangaInfo{
-			.title = "Тест",
-			.description = "Какое-то описание",
+			.title = "Test",
+			.description = "Some description",
 			.status = AiredStatus {
 				.name = std::string(aired_status_released)
 			}
 		};
 	}
 
-	// Получение информации о переводах манги, может быть несколько
+	// Fetch the manga's translation information; there can be several
 	NetworkRequestTask<PageResults<MangaTranslationInfo>> translation_info(
 		RequestorContext context,
 		GetFilters filters) override {
 		PageResults<MangaTranslationInfo> pages;
 
-		// Вернуть 0 страниц, если столько запрашивается.
-		// Иначе вернуть сколько возможно, то есть 1. Лимит лишь указывает максимальное количество
+		// Return 0 pages if that is what was requested.
+		// Otherwise return as many as possible (here 1). The limit is only an upper bound.
 		if (filters.limit == 0) {
 			co_return std::move(pages);
 		}
 
-		// Общее количество найденных, без учёта какие сейчас запрашиваются
+		// Total number found, regardless of which are currently requested
 		pages.total_count = 10;
-		// Результаты
+		// Results
 		pages.results = {
 			PageItem<MangaTranslationInfo> {
 				.item = {
 					.id = 0,
 					.language = "ru-ru",
-					.translator = "Ру переводчик"
+					.translator = "Ru translator"
 				},
 				.offset = 0
 			}
@@ -87,28 +87,28 @@ public:
 		co_return std::move(pages);
 	}
 
-	// Получение информации о главах манги, может быть несколько
+	// Fetch the manga's chapter information; there can be several
 	NetworkRequestTask<PageResults<MangaChapterInfo>> chapters_info(
 		RequestorContext context,
 		GetFilters filters,
 		std::optional<MangaTranslationID> translation) override {
 		PageResults<MangaChapterInfo> pages;
 
-		// Вернуть 0 страниц, если столько запрашивается.
-		// Иначе вернуть сколько возможно, то есть 1. Лимит лишь указывает максимальное количество
+		// Return 0 pages if that is what was requested.
+		// Otherwise return as many as possible (here 1). The limit is only an upper bound.
 		if (filters.limit == 0) {
 			co_return std::move(pages);
 		}
 
-		// Общее количество найденных, без учёта какие сейчас запрашиваются
+		// Total number found, regardless of which are currently requested
 		pages.total_count = 1;
-		// Результаты
+		// Results
 		pages.results = {
 			PageItem<MangaChapterInfo> {
 				.item = {
 					.volume = 0,
 					.chapter = 0,
-					.name = "Глава 1",
+					.name = "Chapter 1",
 				},
 				.offset = 0
 			}
@@ -117,17 +117,17 @@ public:
 		co_return std::move(pages);
 	}
 
-	// Опционально. Получение похожей манги, если поддерживается
-	// Если неподдерживается, то необходимо вернуть NotImplemented
+	// Optional. Fetch related manga, if supported.
+	// If unsupported, return NotImplemented.
 	NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> related(
 		RequestorContext context,
 		GetFilters filters) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "Parser doesn't support related");
 	}
 
-	// Получение всех страниц у конкретной главы с ссылками на изображения.
-	// Глава идентифицируется round-trip'ом: сюда передаётся ref() элемента
-	// из chapters_info() (его id может нести внутренний ключ парсера).
+	// Fetch all pages of a specific chapter, with image links.
+	// The chapter is identified by round-trip: the ref() of an element from
+	// chapters_info() is passed here (its id may carry a parser-internal key).
 	NetworkRequestTask<PageResults<MangaPage>> chapter_pages(
 		RequestorContext context,
 		MangaChapterRef chapter,
@@ -135,21 +135,21 @@ public:
 	    std::optional<MangaTranslationID> translation) override {
 		PageResults<MangaPage> pages;
 
-		// Вернуть 0 страниц, если столько запрашивается.
-		// Иначе вернуть сколько возможно, то есть 1. Лимит лишь указывает максимальное количество
+		// Return 0 pages if that is what was requested.
+		// Otherwise return as many as possible (here 1). The limit is only an upper bound.
 		if (filters.limit == 0) {
 			co_return std::move(pages);
 		}
 
-		// Общее количество найденных, без учёта какие сейчас запрашиваются
+		// Total number found, regardless of which are currently requested
 		pages.total_count = 2;
-		// Результаты
-		// Отступы должны начинаться с 0 и идти дальше
+		// Results
+		// Offsets must start at 0 and increase from there
 		pages.results = {
 			PageItem<MangaPage> {
 				.item = {
 					.image = {
-						// ID опционален, используется только парсерами для доп информации
+						// The id is optional, used only by parsers for extra info
 						.id = 0,
 						.url = "https://example.com/image1"
 					}
@@ -159,7 +159,7 @@ public:
 			PageItem<MangaPage> {
 				.item = {
 					.image = {
-						// ID опционален, используется только парсерами для доп информации
+						// The id is optional, used only by parsers for extra info
 						.id = 1,
 						.url = "https://example.com/image2"
 					}
@@ -171,9 +171,9 @@ public:
 		co_return std::move(pages);
 	}
 
-	// Преобразование всех данных геттера в сериализованную структуру.
-	// Например, необходима для сохранения результатов в файл с последующим получением этого геттера.
-	// Используется в купе с ExampleParser::from_serialized(...)
+	// Serialize all of the getter's data into a serializable struct.
+	// Needed e.g. to save results to a file and reconstruct this getter later.
+	// Used together with ExampleParser::from_serialized(...)
 	NetworkRequestTask<SerializedGetterData> serialize() override {
 		co_return SerializedGetterData{
 			.url = private_url_
@@ -188,18 +188,18 @@ private:
 class ExampleMangaRootGetter : public MangaRootGetter {
 public:
 
-	// Получение информации о возможностях поиска манги
-	// К этому относятся фильтры, сортировка, ...
+	// Describe the manga search capabilities.
+	// This covers filters, sorting, ...
 	SearchCompatibilities search_support() const noexcept override {
 		return {
 			// no sort, no filters
 		};
 	}
 
-	// Получение информации о возможных способах получениия последний манг.
-	// Ключи сортировки открытые: стандартные лежат в sort_keys, но сайт может
-	// декларировать и свои. Дескриптор задаёт поддерживаемые направления
-	// (descending = true по умолчанию).
+	// Describe the ways the latest manga can be fetched.
+	// Sort keys are open: the standard ones live in sort_keys, but a site may
+	// declare its own. The descriptor sets the supported directions
+	// (descending = true by default).
 	MangaGetterRootCompatibilities latest_support() const noexcept override {
 		using namespace sort_keys;
 		return {
@@ -213,62 +213,62 @@ public:
 		};
 	}
 
-	// Создать готовый конфиг для парсера
+	// Build a ready-to-use config for the parser
 	std::shared_ptr<ParserConfig> default_config_from(std::shared_ptr<const ParserConfig> base_config) const override {
 		auto new_config = std::make_shared<ParserConfig>(*base_config);
 		new_config->headers["User-Agent"] = "ExampleParser/1.0";
 		return new_config;
 	}
 
-	// Поиск по указаным критериям. Для получения возможностей поиска используется search_support()
+	// Search by the given criteria. Capabilities come from search_support().
 	NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> search(
 		RequestorContext context,
 		SearchRequestQuery query,
 		GetFilters filters) override {
-		// Проверка, что в поиске нету лишних/неправильных записей.
-		// За эталон берёт search_support()
+		// Check the search has no invalid/extra entries.
+		// search_support() is the reference.
 		if (auto errors = validate_query(query, filters); !errors.empty()) {
-			// Не throw, а вернуть ошибку в общем канале. describe_search_query_errors
-			// собирает найденные нарушения в читаемое сообщение.
+			// Don't throw; return the error through the common channel.
+			// describe_search_query_errors collects the violations into a readable message.
 			co_return make_response_error(RequestErrorCode::InvalidArguments, describe_search_query_errors(errors));
 		}
 		co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot search");
 	}
 
-	// Получение последних предметов по выбранным фильтрам
+	// Fetch the latest items for the chosen filters
 	NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> latest(
 		RequestorContext context,
 		GetFilters filters) override {
 		PageResults<std::unique_ptr<MangaGetter>> pages;
-		// Логирование
-		context.info("Вызван latest(), от {}, лимит {}", filters.from, filters.limit);
+		// Logging
+		context.info("latest() called, from {}, limit {}", filters.from, filters.limit);
 
-		// Вернуть 0 страниц, если столько запрашивается.
-		// Иначе вернуть сколько возможно, то есть 1. Лимит лишь указывает максимальное количество
+		// Return 0 pages if that is what was requested.
+		// Otherwise return as many as possible (here 1). The limit is only an upper bound.
 		if (filters.limit == 0) {
 			co_return std::move(pages);
 		}
-		
-		// Общее количество найденных, без учёта какие сейчас запрашиваются
+
+		// Total number found, regardless of which are currently requested
 		pages.total_count = 2;
-		// Результаты
+		// Results
 		PageItem<std::unique_ptr<MangaGetter>> manga_item = {
 			.item = std::make_unique<ExampleMangaGetter>(),
 			.offset = 0
 		};
 		pages.results.push_back(std::move(manga_item));
-		
+
 		co_return std::move(pages);
 	}
 
-	// Получение манги из ссылки
+	// Build a manga getter from a URL
 	NetworkRequestTask<std::unique_ptr<MangaGetter>> parse_url(
 		RequestorContext context,
 		std::string url) override {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "Парсер не умеет парсить ссылки");
+		co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot parse URLs");
 	}
 
-	// Получение манги из сериализованных данных
+	// Build a manga getter from serialized data
 	NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData data) override {
 		if (data.url.empty()) {
 			co_return make_response_error(RequestErrorCode::NotImplemented, "Invalid serialized url");
@@ -282,54 +282,54 @@ private:
 
 class ExampleParser : public Parser {
 
-	// Получение имени парсера, которое может отображаться пользователю
+	// The parser's display name, shown to the user
 	std::string name() const override {
-		return "Пример";
+		return "Example";
 	}
 
-	// Получение идентификатора парсера, должен быть уникальным
-	// Может быть использован для получения парсера из списка
+	// The parser's identifier; must be unique.
+	// Can be used to look the parser up in the store.
 	std::string identifier() const override {
 		return "Example";
 	}
 
-	// Проверка может ли парсер обрабатывать данную ссылку.
-	// Вызывается только если домен в ссылке соответствует тем, что были вставлены в emplace_domains(...).
-	// Скорее всего далее будет использоваться ExampleMangaRootGetter::parse_url(...)
+	// Check whether the parser can handle the given URL.
+	// Called only if the URL's domain matches one added in emplace_domains(...).
+	// Usually followed by ExampleMangaRootGetter::parse_url(...)
 	bool valid_for_url(std::string_view url) const override {
-		// Пример принимает любой url своих доменов; настоящий парсер сверял бы
-		// путь. url здесь намеренно не используется.
+		// The example accepts any URL on its domains; a real parser would check
+		// the path. url is intentionally unused here.
 		(void)url;
 		return true;
 	}
 
-	// Получение возможностей парсера
+	// Describe the parser's capabilities
 	ParserCompatibilities compatibilities() const override {
 		using namespace compatibilities_flags;
 		return {
-			// Основной язык парсера: русский
+			// The parser's primary language: Russian
 			.primary_language = "ru-ru",
-			// Флаги: поддерживает получение манги
+			// Flags: supports the manga store
 			.flags = supports_manga_store
 		};
 	}
 
-	// Вставка всех известных доменов, которые умеет обрабатывать парсер.
-	// Вызывается, когда пользователь добавляет этот парсер в общий список парсеров
+	// Register every domain the parser can handle.
+	// Called when the user adds this parser to the store.
 	void emplace_domains(EmplaceDomainsContext& context) const override {
 		context.add_domain("example.com");
 		context.add_domain("example-test.com");
 	}
 
-	// Авторизация сервиса. Логин общий на весь парсер (сайт), а не на категорию:
-	// возвращённый конфиг авторизует все геттеры этого парсера.
+	// Authenticate the service. Login is per parser (site), not per category:
+	// the returned config authorizes all of this parser's getters.
 	NetworkRequestTask<std::shared_ptr<const ParserConfig>> authenticate_context(
 		RequestorContext context,
 		AuthenticationData data) override {
 		co_return context.config();
 	}
 
-	// Получение геттера манги для данного парсера
+	// The manga root getter for this parser
 	std::unique_ptr<MangaRootGetter> mangas_getter() const override {
 		return std::make_unique<ExampleMangaRootGetter>();
 	}
@@ -375,74 +375,74 @@ struct ConsoleLogger : LoggerContext {
 };
 
 int main() {
-	// Имена локалей платформозависимы; на системе без "ru.utf-8" это кинет,
-	// что для примера некритично — просто оставляем локаль по умолчанию.
+	// Locale names are platform-dependent; on a system without "ru.utf-8" this
+	// throws, which is fine for the example — we just keep the default locale.
 	try {
 		std::locale::global(std::locale("ru.utf-8"));
 	} catch (const std::exception&) {
 	}
 
-	// Список парсеров, в него можно добавить парсеры, а потом получить при необходимости
+	// The parser store: parsers can be added to it and looked up when needed
 	ParserStore parser_store;
 
-	// Базовый клиент, которым парсер будет получать информации из интернета
+	// The base client the parser uses to fetch data from the internet
 	auto client = std::make_shared<AsyncClient>();
-	// Контекст для парсера, который содержит клиент, логгер и указание на альт. ссылку
+	// The parser context: holds the client, logger and the alt-link selection
 	RequestorContext client_context(client, std::make_shared<ConsoleLogger>(), nullptr);
 
-	// Добавить парсер в список
+	// Add the parser to the store
 	parser_store.add_parser(std::make_shared<ExampleParser>());
 
-	// Далее его можно получить по ключу
+	// It can then be looked up by key
 	auto example_parser = parser_store.find_by_key("Example");
 
-	// Получить геттер для манги у парсера
+	// Get the manga getter from the parser
 	auto example_manga_root = example_parser->mangas_getter();
 
-	// Получить клиент, готовый для работы для данного парсера
+	// Get a context ready to work for this parser
 	auto ready_to_work_client = client_context.new_with_config(example_manga_root->default_config_from(client_context.config()));
 
-	// Получить список последних манг у парсера.
-	// Также корутина выполняется синхронно благодаря sync_wait.
-	// В других корутинах можно использовать co_await.
+	// Fetch the parser's latest manga.
+	// The coroutine also runs synchronously thanks to sync_wait.
+	// Inside other coroutines you can use co_await.
 	auto latest_mangas_response = coro::sync_wait(example_manga_root->latest(ready_to_work_client, {
 		.from = 0,
 		.limit = 10,
-		// Можно указать сортировку, но в парсере для примера это не используется
+		// A sort can be specified, though the example parser ignores it
 		.sort = SortOrder{ .key = std::string(sort_keys::title), .ascending = true }
 		}));
 
 	if (!latest_mangas_response) {
-		// Ошибка при запросе
-		std::println("Не удалось получить последние манги: {}", latest_mangas_response.error().message);
+		// Request error
+		std::println("Failed to fetch the latest manga: {}", latest_mangas_response.error().message);
 		return -1;
 	}
 
-	// Получить геттеры последних манг из ответа
+	// Get the latest manga getters from the response
 	auto& latest_mangas = latest_mangas_response.value();
 	if (latest_mangas.results.empty()) {
-		// Нет результатов
-		std::println("Последних манг нет");
+		// No results
+		std::println("No latest manga");
 		return -1;
 	}
 	std::unique_ptr<MangaGetter> first_manga_getter = std::move(latest_mangas.results[0].item);
 
-	// Получить информацию о первой манге
+	// Fetch information about the first manga
 	auto first_manga_info_response = coro::sync_wait(first_manga_getter->info(ready_to_work_client));
 	if (!first_manga_info_response) {
-		// Ошибка при запросе
-		std::println("Не удалось получить информацию о манге: {}", first_manga_info_response.error().message);
+		// Request error
+		std::println("Failed to fetch manga info: {}", first_manga_info_response.error().message);
 		return -1;
 	}
 
 	auto& first_manga_info = first_manga_info_response.value();
-	std::println("Название: {}", first_manga_info.title);
-	std::println("Описание: {}", first_manga_info.description.text);
+	std::println("Title: {}", first_manga_info.title);
+	std::println("Description: {}", first_manga_info.description.text);
 
-	// Пример запроса с ошибкой, в примере попробовать распарсить URL
+	// An example of a failing request: try to parse a URL
 	auto parsed_manga_response = coro::sync_wait(example_manga_root->parse_url(ready_to_work_client, {}));
 	if (!parsed_manga_response) {
-		// Ошибка при запросе
-		std::println("Не удалось распарсить мангу: {}", parsed_manga_response.error().message);
+		// Request error
+		std::println("Failed to parse manga: {}", parsed_manga_response.error().message);
 	}
 }

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head><title>Example Manga List</title></head>
+<body>
+  <div id="content">
+    <div class="card" data-id="1">
+      <a class="card-link" href="/manga/one-piece">One Piece</a>
+      <div class="tags">
+        <a class="tag" href="/tag/action">Action</a>
+        <a class="tag" href="/tag/adventure">Adventure</a>
+      </div>
+      <span class="rating">9.2</span>
+    </div>
+    <div class="card" data-id="2">
+      <a class="card-link" href="/manga/berserk">Berserk</a>
+      <div class="tags">
+        <a class="tag" href="/tag/dark-fantasy">Dark Fantasy</a>
+      </div>
+      <span class="rating">9.5</span>
+    </div>
+  </div>
+
+  <script>
+    // Real sites often ship gallery data as a JS array rather than markup.
+    var gallery = ['https://cdn.example.com/1.jpg', 'https://cdn.example.com/2.jpg'];
+  </script>
+</body>
+</html>
