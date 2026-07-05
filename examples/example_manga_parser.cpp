@@ -190,8 +190,8 @@ public:
 
 	// Describe the manga search capabilities.
 	// This covers filters, sorting, ...
-	SearchCompatibilities search_support() const noexcept override {
-		return {
+	NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext) override {
+		co_return SearchCompatibilities{
 			// no sort, no filters
 		};
 	}
@@ -227,7 +227,11 @@ public:
 		GetFilters filters) override {
 		// Check the search has no invalid/extra entries.
 		// search_support() is the reference.
-		if (auto errors = validate_query(query, filters); !errors.empty()) {
+		auto support = co_await search_support(context);
+		if (!support) {
+			co_return unexpected(std::move(support.error()));
+		}
+		if (auto errors = validate_query(*support, query, filters); !errors.empty()) {
 			// Don't throw; return the error through the common channel.
 			// describe_search_query_errors collects the violations into a readable message.
 			co_return make_response_error(RequestErrorCode::InvalidArguments, describe_search_query_errors(errors));

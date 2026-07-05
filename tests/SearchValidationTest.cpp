@@ -158,12 +158,16 @@ TEST_CASE("Search validation describes all violations in one line") {
 
 namespace {
 
+SearchCompatibilities filtering_support() {
+	return {
+		.supported_filters = make_supported(),
+		.supported_sorts   = { { std::string(sort_keys::popularity), {} } },
+	};
+}
+
 struct FilteringRootGetter : MangaRootGetter {
-	SearchCompatibilities search_support() const noexcept override {
-		return {
-			.supported_filters = make_supported(),
-			.supported_sorts   = { { std::string(sort_keys::popularity), {} } },
-		};
+	NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext) override {
+		co_return filtering_support();
 	}
 
 	MangaGetterRootCompatibilities latest_support() const noexcept override {
@@ -184,14 +188,14 @@ TEST_CASE("MangaRootGetter validates against its own declaration") {
 		.filters = { { std::string(search_keys::tag), TextQuery{ .text = "vanilla" } } },
 	};
 	GetFilters valid_filters{ .sort = SortOrder{ .key = std::string(sort_keys::popularity) } };
-	REQUIRE(getter.validate_query(valid, valid_filters).empty());
+	REQUIRE(validate_query(filtering_support(), valid, valid_filters).empty());
 
 	// Filter and sort violations are collected together.
 	SearchRequestQuery invalid{
 		.filters = { { "made_up", Checkmark{} } },
 	};
 	GetFilters invalid_filters{ .sort = SortOrder{ .key = "comments" } };
-	auto errors = getter.validate_query(invalid, invalid_filters);
+	auto errors = validate_query(filtering_support(), invalid, invalid_filters);
 	REQUIRE(errors.size() == 2);
 	REQUIRE(has_error(errors, SearchQueryError::Reason::UnknownKey, "made_up"));
 	REQUIRE(has_error(errors, SearchQueryError::Reason::UnknownSortKey, "comments"));

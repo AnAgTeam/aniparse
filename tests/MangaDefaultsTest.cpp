@@ -68,9 +68,10 @@ struct StubMangaRootGetter : MangaRootGetter {
 TEST_CASE("MangaRootGetter default support declarations are empty") {
 	StubMangaRootGetter getter;
 
-	SearchCompatibilities search = getter.search_support();
-	CHECK(search.supported_filters.empty());
-	CHECK(search.supported_sorts.empty());
+	auto search = coro::sync_wait(getter.search_support(make_context()));
+	REQUIRE(search);
+	CHECK(search->supported_filters.empty());
+	CHECK(search->supported_sorts.empty());
 
 	MangaGetterRootCompatibilities latest = getter.latest_support();
 	CHECK(latest.supported_sorts.empty());

@@ -39,18 +39,18 @@ NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaGetter::simil
 void MangaGetter::reset() noexcept {
 }
 
-SearchCompatibilities MangaRootGetter::search_support() const noexcept {
-	return {};
+NetworkRequestTask<SearchCompatibilities> MangaRootGetter::search_support(RequestorContext) {
+	co_return SearchCompatibilities{};
 }
 
 MangaGetterRootCompatibilities MangaRootGetter::latest_support() const noexcept {
 	return {};
 }
 
-std::vector<SearchQueryError> MangaRootGetter::validate_query(
+std::vector<SearchQueryError> validate_query(
+	const SearchCompatibilities& support,
 	const SearchRequestQuery& query,
-	const GetFilters& filters) const {
-	SearchCompatibilities support = search_support();
+	const GetFilters& filters) {
 	std::vector<SearchQueryError> errors = validate_search_query(support.supported_filters, query);
 	std::vector<SearchQueryError> sort_errors = validate_sort(support.supported_sorts, filters.sort);
 	errors.insert(errors.end(),

@@ -186,20 +186,15 @@ struct MangaGetter {
 struct MangaRootGetter {
 	virtual ~MangaRootGetter() = default;
 
-	virtual SearchCompatibilities search_support() const noexcept;
-	virtual MangaGetterRootCompatibilities latest_support() const noexcept;
-
 	/**
-	 * @brief Check query filters and the requested sort against this getter's
-	 * own search_support(). Keeps the declaration the single source of truth:
-	 * call at the start of search() and report InvalidArguments (see
-	 * describe_search_query_errors) instead of silently ignoring unsupported
-	 * filters.
-	 * @return Empty if the query is valid; otherwise all violations found
+	 * @brief The search filters and sorts this getter supports.
+	 * Cache-first and async: returns the cached table, fetching it from the source
+	 * (and caching it, e.g. in RequestorContext::resources()) on a cold cache. A
+	 * static-catalog parser just returns its table. Read it once and validate
+	 * synchronously via the free @ref validate_query for UI pre-flight.
 	 */
-	[[nodiscard]] std::vector<SearchQueryError> validate_query(
-	    const SearchRequestQuery& query,
-	    const GetFilters& filters) const;
+	virtual NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext context);
+	virtual MangaGetterRootCompatibilities latest_support() const noexcept;
 
 	/**
 	 * @brief Check the requested sort against this getter's own
@@ -261,4 +256,18 @@ struct MangaRootGetter {
 	 */
 	virtual NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData data) = 0;
 };
+
+/**
+ * @brief Validate a query + sort against an already-fetched support table.
+ * A 1:1 free replacement for the old validate_query member (search_support is now
+ * async): await the support once, then validate here — at the start of search()
+ * or as a UI pre-flight. Combines validate_search_query (filters) and validate_sort
+ * (sort), which a single validate_search_query does not.
+ * @return Empty if valid; otherwise all violations found.
+ */
+[[nodiscard]] std::vector<SearchQueryError> validate_query(
+    const SearchCompatibilities& support,
+    const SearchRequestQuery& query,
+    const GetFilters& filters);
+
 } // namespace aniparse
