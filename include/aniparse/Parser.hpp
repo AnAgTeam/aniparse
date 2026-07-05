@@ -101,7 +101,7 @@ struct Parser {
 
 	/**
 	 * @see ParserCompatibilities, @see namespace compatibilities_flags
-	 * Get compatibilies, that parser can handle.
+	 * Get compatibilities, that parser can handle.
 	 * For example, if the parser support anime it should
 	 * set the compatibilities_flags::supports_images_search flag.
 	 * @return Compatibilities of the parser

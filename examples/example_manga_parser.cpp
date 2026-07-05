@@ -23,7 +23,7 @@ public:
 	}
 
 	// Returns the getter's basic capability information.
-	MangaGetterCompatibilities compatibilies() const noexcept override {
+	MangaGetterCompatibilities compatibilities() const noexcept override {
 		using namespace compatibilities_flags;
 		return {
 			// The getter's list of alternative links (mirrors)

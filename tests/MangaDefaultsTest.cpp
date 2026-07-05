@@ -40,7 +40,7 @@ RequestorContext make_context() {
 // Implements only the pure-virtual surface; every optional override keeps its
 // base default (NotImplemented / delegating).
 struct StubMangaGetter : MangaGetter {
-	MangaGetterCompatibilities compatibilies() const noexcept override {
+	MangaGetterCompatibilities compatibilities() const noexcept override {
 		return {};
 	}
 	NetworkRequestTask<MangaInfo> info(RequestorContext) override {

@@ -140,7 +140,7 @@ struct SearchCompatibilities {
 struct MangaGetter {
 	virtual ~MangaGetter() = default;
 
-	virtual MangaGetterCompatibilities compatibilies() const noexcept = 0;
+	virtual MangaGetterCompatibilities compatibilities() const noexcept = 0;
 
 	virtual NetworkRequestTask<MangaInfo> preview_info(RequestorContext context);
 
