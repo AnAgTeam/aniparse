@@ -5,74 +5,111 @@
   <img src="assets/lockup-light.svg" alt="aniparse" width="280">
 </picture>
 
-**C++ библиотека для парсинга аниме, манги, изображений и видео**
+**C++ library for parsing anime, manga, images and video**
 
 ![C++20](https://img.shields.io/badge/C%2B%2B-20-blue?logo=cplusplus&logoColor=white)
 ![CMake](https://img.shields.io/badge/build-CMake-orange?logo=cmake&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green)
 ![Branch: nightly](https://img.shields.io/badge/branch-nightly-purple)
+[![CI](https://github.com/AnAgTeam/aniparse/actions/workflows/coverage.yml/badge.svg?branch=nightly)](https://github.com/AnAgTeam/aniparse/actions/workflows/coverage.yml)
 [![codecov](https://codecov.io/gh/AnAgTeam/aniparse/branch/nightly/graph/badge.svg)](https://codecov.io/gh/AnAgTeam/aniparse)
+
+**English** · [Русский](README.ru.md)
 
 </div>
 
-> [!WARNING]  
-> Библиотека находится в ранней стадии разработки, API может существенно изменятся.
+> [!WARNING]
+> The library is in an early stage of development; the API may change substantially.
 
 ---
 
-## О проекте
+## About
 
-**aniparse** — статическая C++20 библиотека для парсинга контента из различных источников. Основной фокус — аниме и манга; также поддерживается получение изображений и видео.
+**aniparse** is a static C++20 library for parsing content from various sources. The primary focus is anime and manga; fetching images and video is also supported.
 
-Библиотека построена на асинхронной сети ([libasyncnet](https://github.com/AnAgTeam/libasyncnet)) и HTML-парсере [lexbor](https://github.com/lexbor/lexbor), что позволяет эффективно обрабатывать веб-страницы без лишних зависимостей.
-
----
-
-## Возможности
-
-- Парсинг аниме-тайтлов (релизы, метаданные)
-- Парсинг манги
-- Получение изображений и видео из различных источников
-- Backend-нейтральный HTTP-клиент: curl сейчас, но контракт запроса/ответа не завязан на него (можно подменить бэкенд, например на NSURLSession)
-- Типизированные запросы `request_html` / `request_json` с обработкой ошибок без исключений (`tl::expected`)
-- Встроенный HTML/DOM-парсер, CSS-селекторы и JS-парсер на базе `lexbor`
-- Куки и авторизация парсеров, `multipart/form-data`, произвольные HTTP-методы
+It is built on an asynchronous network layer ([libasyncnet](https://github.com/AnAgTeam/libasyncnet)) and the [lexbor](https://github.com/lexbor/lexbor) HTML parser, so it processes web pages efficiently without heavy dependencies.
 
 ---
 
-## Требования
+## Features
 
-- **Компилятор:** с поддержкой C++20 (GCC 12+, Clang 15+, MSVC 2022+). Сами примеры и тесты собираются как C++23 (используют `std::print`/`std::println`), поэтому для них нужен более новый компилятор и стандартная библиотека (ориентировочно GCC 14+, Clang 18+, MSVC 19.40+).
+- Parsing anime titles (releases, metadata)
+- Parsing manga
+- Fetching images and video from various sources
+- Backend-neutral HTTP client: curl today, but the request/response contract is not tied to it (the backend can be swapped, e.g. for NSURLSession)
+- Typed `request_html` / `request_json` requests with exception-free error handling (`tl::expected`)
+- Built-in HTML/DOM parser, CSS selectors and a JS parser powered by `lexbor`
+- Parser cookies and authentication, `multipart/form-data`, arbitrary HTTP methods
+
+---
+
+## Quick start
+
+Fetch a page and parse it as HTML — the client is backend-neutral, a parser never sees curl:
+
+```cpp
+#include <aniparse/Client.hpp>
+#include <aniparse/ClientContext.hpp>
+#include <coro/sync_wait.hpp>
+#include <print>
+
+using namespace aniparse;
+
+int main() {
+    auto client = std::make_shared<AsyncClient>();
+    RequestorContext ctx(client, nullptr, nullptr);
+
+    // request_html: fetch + status check + parse, all in one expected value.
+    auto page = coro::sync_wait(ctx.request_html(GetRequest{ .url = "https://example.com" }));
+    if (page) {
+        std::println("{}", page->title());
+    }
+}
+```
+
+To write your own source, copy the [parser skeleton](examples/example_manga_parser.cpp) and fill in the getters. See all [examples](#examples) below.
+
+---
+
+## How it works
+
+A **`Parser`** registers the domains it handles and exposes getters (e.g. `MangaRootGetter`) that fetch and parse content. Getters run through a **`RequestorContext`**, which carries the parser's config, cookies and logger and sits on top of a backend-neutral **`ClientContext`** (curl today). Parsers only ever touch neutral request/response types — so the HTTP backend can be replaced without changing a single parser.
+
+---
+
+## Requirements
+
+- **Compiler:** with C++20 support (GCC 12+, Clang 15+, MSVC 2022+). The examples and tests are built as C++23 (they use `std::print` / `std::println`), so they need a newer compiler and standard library (roughly GCC 14+, Clang 18+, MSVC 19.40+).
 - **CMake:** 3.18+
-- **vcpkg** (рекомендуется для управления зависимостями)
+- **vcpkg** (recommended for dependency management)
 
-**Зависимости** (устанавливаются через vcpkg). Все обязательны — библиотека линкует их безусловно:
+**Dependencies** (installed via vcpkg). All are required — the library links them unconditionally:
 
-| Пакет | Назначение |
+| Package | Purpose |
 |---|---|
-| `boost-json` | JSON-парсинг |
-| `boost-regex` | Регулярные выражения |
-| `boost-system` | Системные утилиты Boost |
-| `curl` | HTTP-клиент (через `libasyncnet`) |
-| `fmt` | Форматирование строк |
-| `tl-expected` | Обработка ошибок без исключений (`tl::expected`) |
+| `boost-json` | JSON parsing |
+| `boost-regex` | Regular expressions |
+| `boost-system` | Boost system utilities |
+| `curl` | HTTP client (via `libasyncnet`) |
+| `fmt` | String formatting |
+| `tl-expected` | Exception-free error handling (`tl::expected`) |
 
-Субмодули (подтягиваются автоматически):
-- [lexbor](https://github.com/lexbor/lexbor) — HTML-парсер
-- [libasyncnet](https://github.com/AnAgTeam/libasyncnet) — асинхронная сеть
+Submodules (pulled in automatically):
+- [lexbor](https://github.com/lexbor/lexbor) — HTML parser
+- [libasyncnet](https://github.com/AnAgTeam/libasyncnet) — asynchronous networking
 
 ---
 
-## Сборка
+## Building
 
-### Клонирование
+### Cloning
 
 ```bash
 git clone --recurse-submodules https://github.com/AnAgTeam/aniparse
 cd aniparse
 ```
 
-### С vcpkg (рекомендуется)
+### With vcpkg (recommended)
 
 ```bash
 cmake -B build \
@@ -81,39 +118,39 @@ cmake -B build \
 cmake --build build
 ```
 
-### Без vcpkg
+### Without vcpkg
 
-Убедитесь, что зависимости установлены в системе, затем:
+Make sure the dependencies are installed on the system, then:
 
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
-### CMake-опции
+### CMake options
 
-| Опция | По умолчанию | Описание |
+| Option | Default | Description |
 |---|---|---|
-| `ANIPARSE_BUILD_TESTS` | `OFF` | Сборка тестов |
-| `ANIPARSE_BUILD_EXAMPLES` | `OFF` | Сборка примеров |
-| `ANIPARSE_BUILD_TOOLS` | `OFF` | Сборка утилит |
+| `ANIPARSE_BUILD_TESTS` | `OFF` | Build tests |
+| `ANIPARSE_BUILD_EXAMPLES` | `OFF` | Build examples |
+| `ANIPARSE_BUILD_TOOLS` | `OFF` | Build tools |
 
 ---
 
-## Установка
+## Installation
 
 ```bash
 cmake --install build --prefix /usr/local
 ```
 
-После установки библиотека доступна через CMake:
+After installation the library is available through CMake:
 
 ```cmake
 find_package(aniparse REQUIRED)
 target_link_libraries(your_target PRIVATE aniparse::aniparse)
 ```
 
-Или через pkg-config:
+Or through pkg-config:
 
 ```bash
 pkg-config --libs --cflags aniparse
@@ -121,44 +158,44 @@ pkg-config --libs --cflags aniparse
 
 ---
 
-## Примеры
+## Examples
 
-Примеры находятся в директории [`examples/`](examples/). Для их сборки:
+The examples live in the [`examples/`](examples/) directory. To build them:
 
 ```bash
 cmake -B build -DANIPARSE_BUILD_EXAMPLES=ON
 cmake --build build
 ```
 
-- [Скелет парсера](examples/example_manga_parser.cpp) — структура парсера: какие методы реализовать. Копируется под свой источник.
-- [Парсинг](examples/example_parse.cpp) — извлечение данных из HTML: CSS-селекторы, DOM, JSON из `<script>`. Работает офлайн, на фикстуре.
-- [Сеть](examples/example_net.cpp) — реальные HTTP-запросы через `request` / `request_html` / `request_json`.
+- [Parser skeleton](examples/example_manga_parser.cpp) — the shape of a parser: which methods to implement. Copy it for your own source.
+- [Parsing](examples/example_parse.cpp) — extracting data from HTML: CSS selectors, DOM, JSON from a `<script>`. Runs offline, against a fixture.
+- [Networking](examples/example_net.cpp) — real HTTP requests via `request` / `request_html` / `request_json`.
 
 ---
 
-## Структура проекта
+## Project structure
 
 ```
 aniparse/
-├── include/aniparse/       # Публичные заголовки
-│   ├── anime/              # Парсинг аниме (Release и др.)
-│   ├── manga/              # Парсинг манги
-│   ├── images/             # Парсинг изображений
-│   ├── html/               # HTML/DOM/JS парсер
-│   └── utility/            # Вспомогательные утилиты
-├── src/                    # Реализация
-├── examples/               # Примеры использования
-├── tests/                  # Тесты
-├── tools/                  # Дополнительные инструменты
-├── lexbor/                 # Субмодуль: HTML-парсер
-└── libasyncnet/            # Субмодуль: асинхронная сеть
+├── include/aniparse/       # Public headers
+│   ├── anime/              # Anime parsing (Release, etc.)
+│   ├── manga/              # Manga parsing
+│   ├── images/             # Image parsing
+│   ├── html/               # HTML/DOM/JS parser
+│   └── utility/            # Helper utilities
+├── src/                    # Implementation
+├── examples/               # Usage examples
+├── tests/                  # Tests
+├── tools/                  # Additional tooling
+├── lexbor/                 # Submodule: HTML parser
+└── libasyncnet/            # Submodule: asynchronous networking
 ```
 
 ---
 
-## Вклад в проект
+## Contributing
 
-Pull request'ы и issue приветствуются. Убедитесь, что код компилируется без предупреждений (`-Wall -Wextra -Wpedantic`) и проходит тесты:
+Pull requests and issues are welcome. Make sure the code builds without warnings (`-Wall -Wextra -Wpedantic`) and passes the tests:
 
 ```bash
 cmake -B build -DANIPARSE_BUILD_TESTS=ON
@@ -168,8 +205,8 @@ ctest --test-dir build
 
 ---
 
-## Лицензия
+## License
 
-Распространяется под лицензией [MIT](LICENSE). Copyright © 2025–2026 Toilettrauma.
+Distributed under the [MIT](LICENSE) license. Copyright © 2025–2026 Toilettrauma.
 
-Обратите внимание: проект включает сторонние компоненты с собственными лицензиями — см. файл [NOTICE](NOTICE).
+Note: the project bundles third-party components under their own licenses — see the [NOTICE](NOTICE) file.
