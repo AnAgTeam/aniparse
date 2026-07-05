@@ -42,7 +42,7 @@ add_library(aniparse STATIC
 	"include/aniparse/types/Flags.hpp"
 	"include/aniparse/types/Text.hpp"
 	"src/types/Model.cpp" "include/aniparse/types/Model.hpp"
-	"src/types/Request.cpp" "include/aniparse/types/Request.hpp"
+	"include/aniparse/types/Request.hpp"
 	"include/aniparse/types/Pagination.hpp"
 	"include/aniparse/types/Response.hpp"
 	"src/types/Search.cpp" "include/aniparse/types/Search.hpp"

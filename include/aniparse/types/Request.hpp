@@ -141,14 +141,33 @@ struct MultipartPart {
 using MultipartForm = std::vector<MultipartPart>;
 
 /**
+ * @brief HTTP request method (verb).
+ * The request struct fixes the body shape; this selects the verb layered on top.
+ * Defaults match the struct (GetRequest -> Get, PostRequest / PostMultipartRequest
+ * -> Post), so the common case sets nothing. Head suppresses the response body;
+ * Put/Patch/Delete reuse the struct's body. A backend that cannot express a verb
+ * reports RequestErrorCode::NotImplemented rather than silently downgrading it.
+ */
+enum class HttpMethod {
+	Get,
+	Head,
+	Post,
+	Put,
+	Patch,
+	Delete,
+	Options,
+};
+
+/**
  * HTTP GET request
  */
 struct GetRequest {
 	std::string url;
 	UrlParameters url_params;
 	Headers headers;
+	HttpMethod method = HttpMethod::Get;
 
-	friend bool operator==(const GetRequest& left, const GetRequest& right);
+	friend bool operator==(const GetRequest& left, const GetRequest& right) = default;
 };
 
 /**
@@ -159,8 +178,9 @@ struct PostRequest {
 	UrlParameters url_params;
 	Headers headers;
 	std::string body;
+	HttpMethod method = HttpMethod::Post;
 
-	friend bool operator==(const PostRequest& left, const PostRequest& right);
+	friend bool operator==(const PostRequest& left, const PostRequest& right) = default;
 };
 
 /**
@@ -171,8 +191,9 @@ struct PostMultipartRequest {
 	UrlParameters url_params;
 	Headers headers;
 	MultipartForm forms;
+	HttpMethod method = HttpMethod::Post;
 
-	friend bool operator==(const PostMultipartRequest& left, const PostMultipartRequest& right);
+	friend bool operator==(const PostMultipartRequest& left, const PostMultipartRequest& right) = default;
 };
 
 /**

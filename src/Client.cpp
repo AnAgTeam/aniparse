@@ -70,6 +70,36 @@ static ResponseData to_response_data(asyncnet::Response&& response) {
 	return data;
 }
 
+// Apply the request verb onto an already-built asyncnet request. The request type
+// fixes the body shape and a natural default verb (GET/POST); this overrides the
+// verb when the caller chose another. GET/POST need no override (curl warns against
+// CUSTOMREQUEST for them); HEAD uses NOBODY (the curl-blessed way); the rest go
+// through CUSTOMREQUEST, reusing whatever body the request type set. An unhandled
+// verb yields NotImplemented so the backend never silently downgrades to GET/POST.
+static std::optional<RequestErrorCode> apply_method(asyncnet::Request& request, HttpMethod method) {
+	switch (method) {
+	case HttpMethod::Get:
+	case HttpMethod::Post:
+		return std::nullopt;
+	case HttpMethod::Head:
+		request.set_option<curlpp::options::NoBody>(true);
+		return std::nullopt;
+	case HttpMethod::Put:
+		request.set_option<curlpp::options::CustomRequest>("PUT");
+		return std::nullopt;
+	case HttpMethod::Patch:
+		request.set_option<curlpp::options::CustomRequest>("PATCH");
+		return std::nullopt;
+	case HttpMethod::Delete:
+		request.set_option<curlpp::options::CustomRequest>("DELETE");
+		return std::nullopt;
+	case HttpMethod::Options:
+		request.set_option<curlpp::options::CustomRequest>("OPTIONS");
+		return std::nullopt;
+	}
+	return RequestErrorCode::NotImplemented;
+}
+
 // Translate the neutral, editable UrlParameters into asyncnet's pre-serialized
 // form. asyncnet percent-encodes each pair as it is appended, keeping URL
 // encoding a single-sourced transport concern.
@@ -314,6 +344,9 @@ NetworkRequestTask<ResponseData> AsyncClient::do_request(ConfiguredGetRequest co
 	get_request.add_headers(to_header_lines(request.headers));
 	get_request.set_url_parameters(to_asyncnet_params(request.url_params));
 	apply_cookie_share(get_request, configured_request.cookies);
+	if (auto method_error = apply_method(get_request, request.method)) {
+		co_return make_response_error(*method_error, "HTTP method not supported by this client");
+	}
 
 	// Okay to hold references (ref to frame variable), because we will wait for next coroutine end
 	try {
@@ -334,6 +367,9 @@ NetworkRequestTask<ResponseData> AsyncClient::do_request(ConfiguredPostRequest c
 	post_request.add_headers(to_header_lines(request.headers));
 	post_request.set_url_parameters(to_asyncnet_params(request.url_params));
 	apply_cookie_share(post_request, configured_request.cookies);
+	if (auto method_error = apply_method(post_request, request.method)) {
+		co_return make_response_error(*method_error, "HTTP method not supported by this client");
+	}
 
 	// Okay to hold references (ref to frame variable), because we will wait for next coroutine end
 	try {
@@ -358,6 +394,9 @@ NetworkRequestTask<ResponseData> AsyncClient::do_request(ConfiguredPostMultipart
 	multipart_request.add_headers(to_header_lines(request.headers));
 	multipart_request.set_url_parameters(to_asyncnet_params(request.url_params));
 	apply_cookie_share(multipart_request, configured_request.cookies);
+	if (auto method_error = apply_method(multipart_request, request.method)) {
+		co_return make_response_error(*method_error, "HTTP method not supported by this client");
+	}
 
 	// Okay to hold references (ref to frame variable), because we will wait for next coroutine end
 	try {

@@ -342,6 +342,35 @@ CORO_TEST_CASE("RequestorContext request headers take priority over config") {
 	REQUIRE(headers.contains("authorization"));
 }
 
+CORO_TEST_CASE("request carries the HTTP method through to the client") {
+	auto mock_client = std::make_shared<CannedClientMock>(std::make_shared<DummyCookieJar>());
+	RequestorContext context(mock_client, nullptr, std::make_shared<ParserConfig>());
+
+	// GET defaults to Get.
+	REQUIRE((co_await context.request(GetRequest{ .url = "https://example.com" })).has_value());
+	{
+		auto* captured = std::get_if<ConfiguredGetRequest>(&mock_client->request);
+		REQUIRE(captured != nullptr);
+		REQUIRE(captured->request.method == HttpMethod::Get);
+	}
+
+	// An explicit verb survives config application and routing.
+	REQUIRE((co_await context.request(GetRequest{ .url = "https://example.com", .method = HttpMethod::Head })).has_value());
+	{
+		auto* captured = std::get_if<ConfiguredGetRequest>(&mock_client->request);
+		REQUIRE(captured != nullptr);
+		REQUIRE(captured->request.method == HttpMethod::Head);
+	}
+
+	// POST defaults to Post.
+	REQUIRE((co_await context.request(PostRequest{ .url = "https://example.com" })).has_value());
+	{
+		auto* captured = std::get_if<ConfiguredPostRequest>(&mock_client->request);
+		REQUIRE(captured != nullptr);
+		REQUIRE(captured->request.method == HttpMethod::Post);
+	}
+}
+
 CORO_TEST_CASE("request_html parses a 2xx HTML body") {
 	auto context = canned_context(ResponseData{
 		.status_code = 200,
