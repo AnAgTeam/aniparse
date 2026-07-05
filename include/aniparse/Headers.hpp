@@ -49,4 +49,49 @@ inline std::list<std::string> to_header_lines(const Headers& headers) {
 	return lines;
 }
 
+/**
+ * @brief Parse a raw response header block into a Headers map.
+ * Inverse of @ref to_header_lines. Accepts a block of CRLF- or LF-delimited
+ * "Name: Value" lines (a trailing CR is tolerated). Lines with no colon (a
+ * status line, a blank separator, an obsolete fold continuation) are skipped;
+ * optional whitespace around the value is trimmed. Duplicate names collapse
+ * last-wins, matching the case-insensitive map (Set-Cookie is handled by the
+ * cookie jar, not here).
+ * @param block Raw header block
+ * @return Parsed headers
+ */
+inline Headers parse_header_block(std::string_view block) {
+	Headers headers;
+	size_t pos = 0;
+	while (pos < block.size()) {
+		size_t eol = block.find('\n', pos);
+		std::string_view line = block.substr(pos, eol == std::string_view::npos ? std::string_view::npos : eol - pos);
+		pos = eol == std::string_view::npos ? block.size() : eol + 1;
+
+		if (!line.empty() && line.back() == '\r') {
+			line.remove_suffix(1);
+		}
+		size_t colon = line.find(':');
+		if (colon == std::string_view::npos) {
+			continue;
+		}
+		std::string_view name  = line.substr(0, colon);
+		std::string_view value = line.substr(colon + 1);
+		if (name.empty()) {
+			continue;
+		}
+
+		constexpr std::string_view ows = " \t";
+		value.remove_prefix(std::min(value.find_first_not_of(ows), value.size()));
+		if (auto last = value.find_last_not_of(ows); last != std::string_view::npos) {
+			value = value.substr(0, last + 1);
+		} else {
+			value = {};
+		}
+
+		headers[std::string(name)] = std::string(value);
+	}
+	return headers;
+}
+
 } // namespace aniparse

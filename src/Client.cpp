@@ -51,13 +51,23 @@ NetworkTask<asyncnet::Response> with_retry(uint32_t max_retries,
 }
 
 // Flatten the backend's curl-bound Response into the neutral ResponseData that
-// crosses into parser code. Status is read off the lvalue before the body is
-// moved out (designated initializers evaluate left to right).
+// crosses into parser code. Every field is read off the lvalue first; the body
+// is moved out last so no accessor runs on a moved-from response.
 static ResponseData to_response_data(asyncnet::Response&& response) {
-	return ResponseData{
-	    .status_code = response.get_status_code(),
-	    .body        = std::move(response).get_text(),
+	long status               = response.get_status_code();
+	Headers headers           = parse_header_block(response.get_header_block());
+	std::string effective_url = response.get_effective_url();
+	std::string body          = std::move(response).get_text();
+
+	ResponseData data{
+	    .status_code = status,
+	    .body        = std::move(body),
+	    .headers     = std::move(headers),
 	};
+	if (!effective_url.empty()) {
+		data.effective_url = std::move(effective_url);
+	}
+	return data;
 }
 
 // Translate the neutral, editable UrlParameters into asyncnet's pre-serialized

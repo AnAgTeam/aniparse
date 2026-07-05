@@ -3,6 +3,7 @@ add_executable(aniparse-tests
 	"catch_amalgamated.cpp" "catch_amalgamated.hpp"
 	"CoroTest.hpp"
 	"BitsetLiteTest.cpp"
+	"HeadersTest.cpp"
 	"ModelTest.cpp"
 	"AuthExportTest.cpp"
 	"MangaDefaultsTest.cpp"
