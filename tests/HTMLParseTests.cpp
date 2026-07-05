@@ -87,6 +87,18 @@ TEST_CASE("HTML try_parse reports failure as a value, not an exception") {
     REQUIRE(parsed->body().contains_class("class1"));
 }
 
+TEST_CASE("HTMLDocument title returns the <title> text") {
+    HTMLParser parser;
+
+    HTMLDocument with_title = parser.parse(
+        "<!DOCTYPE html><html><head><title>Hello World</title></head><body></body></html>");
+    REQUIRE(with_title.title() == "Hello World");
+
+    HTMLDocument without_title = parser.parse(
+        "<!DOCTYPE html><html><head></head><body></body></html>");
+    REQUIRE(without_title.title().empty());
+}
+
 TEST_CASE("HTML document iterate") {
     auto check_tags = [](HTMLDocument& document) -> bool {
         bool success = true;

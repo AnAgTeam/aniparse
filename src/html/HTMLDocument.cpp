@@ -52,6 +52,17 @@ DOMElementView HTMLDocument::body() const {
 	return DOMElementView(body);
 }
 
+std::string_view HTMLDocument::title() const {
+	// Points into the document's <title> text, which outlives this view; NULL
+	// (no <title>) maps to an empty string per the declared contract.
+	size_t length = 0;
+	const lxb_char_t* title = lxb_html_document_title(document_, &length);
+	if (!title) {
+		return {};
+	}
+	return std::string_view(reinterpret_cast<const char*>(title), length);
+}
+
 std::optional<DOMElementView> HTMLDocument::query(const CompiledSelector& selector) const {
 	return as_element().query(selector);
 }
