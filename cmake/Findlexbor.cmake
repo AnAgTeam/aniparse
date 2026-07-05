@@ -9,6 +9,14 @@ if (LEXBOR_BUILD_SHARED)
 else()
 	set(LEXBOR_LIBRARIES lexbor_static)
 endif()
+
+# lexbor's CSS sources embed U+FFFD (the Unicode replacement char) in narrow
+# string literals. Under MSVC with a non-UTF-8 code page (e.g. 1251) that raises
+# C4566 and mis-encodes the character to '?'. Compile lexbor as UTF-8 to fix both.
+if (MSVC)
+	target_compile_options(${LEXBOR_LIBRARIES} PRIVATE /utf-8)
+endif()
+
 set(LEXBOR_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/lexbor/source")
 set(LEXBOR_FOUND ON)
 
