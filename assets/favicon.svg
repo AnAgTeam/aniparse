@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+  <!-- favicon: heavier strokes, no eyes (unreadable at 16 px), adapts to browser theme -->
+  <style>
+    path { stroke: #161B33; }
+    @media (prefers-color-scheme: dark) { path { stroke: #F2EDE3; } }
+  </style>
+  <path d="M 28 62 L 34 20 L 56 40"/>
+  <path d="M 92 62 L 86 20 L 64 40"/>
+  <path d="M 28 62 L 60 96 L 92 62"/>
+  <path d="M 54 78 L 60 84 L 66 78"/>
+</svg>

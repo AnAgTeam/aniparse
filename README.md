@@ -1,6 +1,9 @@
 <div align="center">
 
-# aniparse
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/lockup-dark.svg">
+  <img src="assets/lockup-light.svg" alt="aniparse" width="280">
+</picture>
 
 **C++ библиотека для парсинга аниме, манги, изображений и видео**
 
@@ -30,8 +33,10 @@
 - Парсинг аниме-тайтлов (релизы, метаданные)
 - Парсинг манги
 - Получение изображений и видео из различных источников
-- Асинхронный HTTP-клиент на базе `libasyncnet` + `libcurl`
-- Встроенный HTML/DOM-парсер и JS-парсер на базе `lexbor`
+- Backend-нейтральный HTTP-клиент: curl сейчас, но контракт запроса/ответа не завязан на него (можно подменить бэкенд, например на NSURLSession)
+- Типизированные запросы `request_html` / `request_json` с обработкой ошибок без исключений (`tl::expected`)
+- Встроенный HTML/DOM-парсер, CSS-селекторы и JS-парсер на базе `lexbor`
+- Куки и авторизация парсеров, `multipart/form-data`, произвольные HTTP-методы
 - Гибкая настройка зависимостей через CMake-опции
 
 ---
@@ -129,7 +134,9 @@ cmake -B build -DANIPARSE_BUILD_EXAMPLES=ON
 cmake --build build
 ```
 
-[Пример манга парсера](examples/example_manga_parser.cpp)
+- [Скелет парсера](examples/example_manga_parser.cpp) — структура парсера: какие методы реализовать. Копируется под свой источник.
+- [Парсинг](examples/example_parse.cpp) — извлечение данных из HTML: CSS-селекторы, DOM, JSON из `<script>`. Работает офлайн, на фикстуре.
+- [Сеть](examples/example_net.cpp) — реальные HTTP-запросы через `request` / `request_html` / `request_json`.
 
 ---
 
