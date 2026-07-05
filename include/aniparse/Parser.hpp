@@ -123,10 +123,18 @@ struct Parser {
 	 * @brief Authenticate the parser's service with the given credentials.
 	 *
 	 * Login is per-site (per-parser), not per-category: the returned config
-	 * authorizes every getter of this parser. By default reports NotImplemented.
-	 * @param context Client to perform HTTP requests
+	 * authorizes every getter of this parser.
+	 *
+	 * Contract: returns a FRESH authenticated config and does NOT mutate the
+	 * passed context. Implementations log in on a new config with its own cookie
+	 * jar (copy the config, clear its cookie_jar, adopt it via new_with_config,
+	 * and perform the login through that context), so the caller's session is left
+	 * untouched — retries and failed logins never pollute it. The caller adopts
+	 * the result via RequestorContext::new_with_config. By default reports
+	 * NotImplemented.
+	 * @param context Client to perform HTTP requests (left unmodified)
 	 * @param data Credentials to authenticate with
-	 * @return Task with the authenticated config
+	 * @return Task with a new authenticated config for the caller to adopt
 	 */
 	virtual NetworkRequestTask<std::shared_ptr<const ParserConfig>> authenticate_context(
 	    RequestorContext context,
