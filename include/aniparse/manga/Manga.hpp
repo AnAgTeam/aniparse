@@ -44,6 +44,15 @@ struct MangaInfo {
 	std::chrono::system_clock::time_point release_time = unknown_time;
 	AiredStatus status;
 
+	/// Opaque change marker for the whole manga, filled from the cheapest
+	/// signal the source exposes (an ETag, an updated-at value, an explicit
+	/// version, or a composite). Compared only for equality: a changed value
+	/// means the source reports the content as a different revision. Equality
+	/// is a cheap "probably unchanged" hint, not a content-integrity guarantee
+	/// (it does not catch a single re-uploaded chapter or mid-list id drift).
+	/// Empty = the source exposes no such signal.
+	std::string revision;
+
 	RelatedUser author;
 	RelatedUser artist;
 	std::optional<Series> series;
