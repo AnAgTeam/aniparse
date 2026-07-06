@@ -31,6 +31,18 @@ It is built on an asynchronous network layer ([libasyncnet](https://github.com/A
 
 ---
 
+## Design principles
+
+**All-in-one, by design.** Search, routing, catalog, cookies and selectors are content-neutral — a new content type is a getter, not a fork. Manga leads today; anime and booru are what the design invites, not a rewrite away.
+
+**A new parser is quick to write.** A source is a copy of the [skeleton](examples/example_manga_parser.cpp), a handful of CSS selectors and a fixture test — networking, routing, errors and cookies are the library's job.
+
+**Fragile things are data.** Sites break, and the library is designed around that: domains, mirrors and selectors belong in refreshable data, not code — so fixing a source shouldn't mean shipping a new binary.
+
+**Native, down to iOS.** A static C++20 library with no runtime behind it — no Node, no Python, no Android bindings. The HTTP backend is swappable (NSURLSession-ready), and the public API is designed with Swift interop in mind.
+
+---
+
 ## Features
 
 - Parsing anime titles (releases, metadata)
@@ -40,6 +52,26 @@ It is built on an asynchronous network layer ([libasyncnet](https://github.com/A
 - Typed `request_html` / `request_json` requests with exception-free error handling (`tl::expected`)
 - Built-in HTML/DOM parser, CSS selectors and a JS parser powered by `lexbor`
 - Parser cookies and authentication, `multipart/form-data`, arbitrary HTTP methods
+- No code from the network: only data ever crosses the wire, never executable code — parsers are compiled in, so there's no downloadable-extension attack surface
+
+---
+
+## Roadmap
+
+- [x] Backend-neutral HTTP contract (curl today, swappable backend)
+- [x] Typed `request_html` / `request_json` with exception-free errors
+- [x] CSS selectors and JS variable extraction
+- [ ] First full-featured manga source
+- [ ] URL routing: hand the library a link, get the right parser and content
+- [ ] Data-driven source catalog: domain mirrors and volatile selectors refresh at runtime — broken sources get fixed without an app release
+- [ ] Configurable request retries
+- [ ] HTTP caching (ETag)
+- [ ] Streaming downloads for large media
+- [ ] Swift bindings and an NSURLSession backend for iOS/macOS
+- [ ] Parser-writing tutorial: a new source in an evening
+- [ ] vcpkg port
+
+Want one of these sooner — or a source we don't cover yet? Issues and PRs are welcome.
 
 ---
 
