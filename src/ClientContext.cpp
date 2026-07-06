@@ -10,6 +10,7 @@
 
 #include <boost/json.hpp>
 
+#include <cassert>
 #include <ranges>
 
 namespace aniparse {
@@ -29,51 +30,73 @@ static void apply_config_to(ClientRequest& any_request, const ParserConfig& conf
 	}
 }
 
-RequestorContext::RequestorContext(std::shared_ptr<ClientContext> client,
-                                   std::shared_ptr<LoggerContext> logger,
-                                   std::shared_ptr<ParserConfig> config,
-                                   std::shared_ptr<ResourceCache> resources)
-    : client_(std::move(client))
-    , logger_(std::move(logger))
-    , config_(config ? std::move(config) : std::make_shared<ParserConfig>())
-    , resources_(resources ? std::move(resources) : std::make_shared<ResourceCache>()) {
-	if (!client_) {
+RequestorContext::RequestorContext(std::shared_ptr<const ServiceState> services,
+                                   std::shared_ptr<ParserConfig> config)
+    : services_(std::move(services))
+    , config_(config ? std::move(config) : std::make_shared<ParserConfig>()) {
+	if (!services_ || !services_->client) {
 		throw std::invalid_argument("Client has to be valid");
+	}
+	// resources() hands out a reference, so a cache must always exist. Fill one in
+	// if the caller left it null, copying the state only in that (rare) case.
+	if (!services_->resources) {
+		auto filled = std::make_shared<ServiceState>(*services_);
+		filled->resources = std::make_shared<ResourceCache>();
+		services_ = std::move(filled);
 	}
 	// Provision a jar only if the config does not already carry one. Overwriting
 	// would drop a session established earlier (login, or a restored jar) and
 	// would make new_with_logger/new_with_config silently wipe cookies.
 	if (!config_->cookie_jar) {
-		config_->cookie_jar = client_->make_cookie_jar();
+		config_->cookie_jar = services_->client->make_cookie_jar();
 	}
+
+	// Post-construction invariant every other method relies on: a valid service
+	// bundle with a client and a resource cache, and a valid config. The cookie
+	// jar is best-effort (a client's make_cookie_jar may legitimately return null),
+	// so it is not part of the invariant.
+	assert(services_ && services_->client && services_->resources);
+	assert(config_);
 }
 
+RequestorContext::RequestorContext(std::shared_ptr<ClientContext> client,
+                                   std::shared_ptr<LoggerContext> logger,
+                                   std::shared_ptr<ParserConfig> config)
+    : RequestorContext(std::make_shared<ServiceState>(ServiceState{
+                           .client = std::move(client),
+                           .logger = std::move(logger),
+                       }),
+                       std::move(config)) {}
+
 NetworkRequestTask<ResponseData> RequestorContext::request(GetRequest request) {
+	assert(config_ && services_ && services_->client);
 	ClientRequest any_request = std::move(request);
 	apply_config_to(any_request, *config_);
 	assert(std::holds_alternative<GetRequest>(any_request));
 
-	return client_->do_request(ConfiguredGetRequest{
+	return services_->client->do_request(ConfiguredGetRequest{
 	    .request = std::get<GetRequest>(std::move(any_request)),
 	    .cookies = config_->cookie_jar});
 }
 
 NetworkRequestTask<ResponseData> RequestorContext::request(PostRequest request) {
+	assert(config_ && services_ && services_->client);
 	ClientRequest any_request = std::move(request);
 	apply_config_to(any_request, *config_);
 	assert(std::holds_alternative<PostRequest>(any_request));
 
-	return client_->do_request(ConfiguredPostRequest{
+	return services_->client->do_request(ConfiguredPostRequest{
 	    .request = std::get<PostRequest>(std::move(any_request)),
 	    .cookies = config_->cookie_jar});
 }
 
 NetworkRequestTask<ResponseData> RequestorContext::request(PostMultipartRequest request) {
+	assert(config_ && services_ && services_->client);
 	ClientRequest any_request = std::move(request);
 	apply_config_to(any_request, *config_);
 	assert(std::holds_alternative<PostMultipartRequest>(any_request));
 
-	return client_->do_request(ConfiguredPostMultipartRequest{
+	return services_->client->do_request(ConfiguredPostMultipartRequest{
 	    .request = std::get<PostMultipartRequest>(std::move(any_request)),
 	    .cookies = config_->cookie_jar});
 }
@@ -176,31 +199,45 @@ NetworkRequestTask<boost::json::value> RequestorContext::request_json(PostReques
 }
 
 std::shared_ptr<const ParserConfig> RequestorContext::config() const {
+	assert(config_);
 	return config_;
 }
 
 ResourceCache& RequestorContext::resources() const {
-	return *resources_;
+	assert(services_ && services_->resources);
+	return *services_->resources;
+}
+
+const html::SelectorSource& RequestorContext::selector_source() const {
+	assert(services_);
+	// A null source (the default, until the volatile index populates one) reads as
+	// the shared empty source, so every selector falls back to its built-in literal.
+	return services_->selector_source ? *services_->selector_source
+	                                  : html::SelectorSource::empty();
 }
 
 size_t RequestorContext::alt_link() const {
+	assert(config_);
 	return config_->alt_link;
 }
 
 void RequestorContext::set_alt_link(size_t alt_link) {
+	assert(config_);
 	config_->alt_link = alt_link;
 }
 
 RequestorContext RequestorContext::new_with_logger(std::shared_ptr<LoggerContext> logger) const {
-	return RequestorContext(client_, logger, config_, resources_);
+	assert(services_);
+	// A different logger is a different service bundle: copy the state and swap it.
+	auto services = std::make_shared<ServiceState>(*services_);
+	services->logger = std::move(logger);
+	return RequestorContext(std::move(services), config_);
 }
 
-//RequestorContext RequestorContext::new_with_client(std::shared_ptr<ClientContext> client) const {
-//    return RequestorContext(client, logger_, config_);
-//}
-
 RequestorContext RequestorContext::new_with_config(std::shared_ptr<ParserConfig> config) const {
-	return RequestorContext(client_, logger_, config, resources_);
+	assert(services_);
+	// Only the config changes; the services are shared as-is (no allocation).
+	return RequestorContext(services_, std::move(config));
 }
 
 }; // namespace aniparse

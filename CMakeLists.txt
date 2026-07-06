@@ -59,6 +59,7 @@ add_library(aniparse STATIC
 	"src/html/HTMLParser.cpp" "include/aniparse/html/HTMLParser.hpp"
 	"src/html/JSParser.cpp" "include/aniparse/html/JSParser.hpp"
 	"src/html/CompiledSelector.cpp" "include/aniparse/html/CompiledSelector.hpp"
+	"src/html/SelectorSource.cpp" "include/aniparse/html/SelectorSource.hpp"
 
 	"src/ParserStore.cpp" "include/aniparse/ParserStore.hpp"
 	"src/Parser.cpp" "include/aniparse/Parser.hpp"

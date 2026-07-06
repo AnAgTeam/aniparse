@@ -7,6 +7,8 @@
 #include "aniparse/types/Request.hpp"
 #include "aniparse/types/Response.hpp"
 #include "aniparse/CookieJar.hpp"
+#include "aniparse/ResourceCache.hpp"
+#include "aniparse/html/SelectorSource.hpp"
 #include "aniparse/utility/Format.hpp"
 
 #include <asyncnet/CancellingTask.hpp>
@@ -18,8 +20,6 @@ class HTMLDocument;
 } // namespace aniparse::html
 
 namespace aniparse {
-
-class ResourceCache;
 
 using ClientConfigFlags = FlagsBitfield<64, struct ClientConfigFlagsTag>;
 using ParserConfigFlags = FlagsBitfield<64, struct ParserConfigFlagsTag>;
@@ -128,6 +128,28 @@ struct LoggerContext {
 };
 
 /**
+ * @brief The per-parser-invariant services a RequestorContext runs on: the HTTP
+ * client, logger, compiled-resource cache and CSS selector overrides.
+ *
+ * Grouped into one handle so the context takes (services, config) instead of a
+ * parameter list that grows with every new shared service. Held by
+ * shared_ptr<const> and shared across contexts derived via new_with_config (a
+ * no-alloc pointer swap) / new_with_logger. Only @ref client is required; the
+ * rest default in (an empty resource cache, an empty selector source). New
+ * shared services are added HERE, not as constructor parameters.
+ */
+struct ServiceState {
+	/// Required — the context throws if this is null.
+	std::shared_ptr<ClientContext> client;
+	/// Optional; null = no logging.
+	std::shared_ptr<LoggerContext> logger = nullptr;
+	/// Optional; a fresh empty cache is filled in when null.
+	std::shared_ptr<ResourceCache> resources = nullptr;
+	/// Optional; null reads as SelectorSource::empty() (all built-in selectors).
+	std::shared_ptr<const html::SelectorSource> selector_source = nullptr;
+};
+
+/**
  * @brief General context for parsers with client, its config and logger
  * @see ParserConfig
  */
@@ -136,17 +158,28 @@ public:
 	//constexpr RequestorContext() noexcept = default;
 
 	/**
-	 * @brief Construct new context for parsers
+	 * @brief Construct a context over a bundle of shared services and a config.
+	 * @param services Shared services; must be valid and carry a valid client. A
+	 *        null resources is filled with a fresh cache; a null selector source
+	 *        reads as empty. New shared services are added to ServiceState, not here.
+	 * @param config Optional per-parser config; a null one is replaced by a default.
+	 * @note Even if @p config is nullptr, config() always returns a valid config.
+	 * @throws std::invalid_argument if @p services or its client is nullptr
+	 */
+	explicit RequestorContext(std::shared_ptr<const ServiceState> services,
+	                          std::shared_ptr<ParserConfig> config = nullptr);
+
+	/**
+	 * @brief Convenience overload for the common "just a client (and maybe a
+	 * logger)" case; bundles them into a ServiceState and delegates.
 	 * @param client Client for HTTP requests. Should be valid
 	 * @param logger Optional message logger
-	 * @param config Optional config for HTTP client
-	 * @note Even if passed config is nullptr, config() returns always valid config.
-	 * @throws std::invalid_argument if client is nullptr
+	 * @param config Optional per-parser config
+	 * @throws std::invalid_argument if @p client is nullptr
 	 */
 	RequestorContext(std::shared_ptr<ClientContext> client,
-	                 std::shared_ptr<LoggerContext> logger,
-	                 std::shared_ptr<ParserConfig> config,
-	                 std::shared_ptr<ResourceCache> resources = nullptr);
+	                 std::shared_ptr<LoggerContext> logger = nullptr,
+	                 std::shared_ptr<ParserConfig> config = nullptr);
 
 	/**
 	 * @brief Perform HTTP GET request with respect to client config
@@ -218,8 +251,8 @@ public:
 	 */
 	template <typename... Args>
 	void info(SourcedFormatString<Args...> sourced_fmt, Args&&... args) {
-		if (logger_) {
-			logger_->log(LogLevel::Info,
+		if (services_->logger) {
+			services_->logger->log(LogLevel::Info,
 			             format(sourced_fmt.fmt, std::forward<Args>(args)...),
 			             sourced_fmt.loc);
 		}
@@ -233,8 +266,8 @@ public:
 	 */
 	template <typename... Args>
 	void debug(SourcedFormatString<Args...> sourced_fmt, Args&&... args) {
-		if (logger_) {
-			logger_->log(LogLevel::Debug,
+		if (services_->logger) {
+			services_->logger->log(LogLevel::Debug,
 			             format(sourced_fmt.fmt, std::forward<Args>(args)...),
 			             sourced_fmt.loc);
 		}
@@ -248,8 +281,8 @@ public:
 	 */
 	template <typename... Args>
 	void warning(SourcedFormatString<Args...> sourced_fmt, Args&&... args) {
-		if (logger_) {
-			logger_->log(LogLevel::Warning,
+		if (services_->logger) {
+			services_->logger->log(LogLevel::Warning,
 			             format(sourced_fmt.fmt, std::forward<Args>(args)...),
 			             sourced_fmt.loc);
 		}
@@ -263,8 +296,8 @@ public:
 	 */
 	template <typename... Args>
 	void error(SourcedFormatString<Args...> sourced_fmt, Args&&... args) {
-		if (logger_) {
-			logger_->log(LogLevel::Error,
+		if (services_->logger) {
+			services_->logger->log(LogLevel::Error,
 			             format(sourced_fmt.fmt, std::forward<Args>(args)...),
 			             sourced_fmt.loc);
 		}
@@ -278,8 +311,8 @@ public:
 	 */
 	template <typename... Args>
 	void fatal(SourcedFormatString<Args...> sourced_fmt, Args&&... args) {
-		if (logger_) {
-			logger_->log(LogLevel::Fatal,
+		if (services_->logger) {
+			services_->logger->log(LogLevel::Fatal,
 			             format(sourced_fmt.fmt, std::forward<Args>(args)...),
 			             sourced_fmt.loc);
 		}
@@ -299,6 +332,29 @@ public:
 	 * @return The resource cache
 	 */
 	ResourceCache& resources() const;
+
+	/**
+	 * @brief The data-driven CSS selector overrides for this context.
+	 * Empty by default (every selector falls back to its built-in literal); a
+	 * populated source arrives from the volatile catalog/index. Shared across
+	 * contexts derived via new_with_config / new_with_logger, like resources().
+	 * @return The selector source
+	 */
+	const html::SelectorSource& selector_source() const;
+
+	/**
+	 * @brief Build (once, cached) a selector set @p T from this context's selector
+	 * source, falling back to the set's built-in literals.
+	 *
+	 * Sugar over resources().get<T>(...) that feeds the selector source into
+	 * T::create, so getters name the set without repeating the factory lambda.
+	 * @tparam T Selector set type exposing `static T create(const html::SelectorSource&)`
+	 * @return Shared handle to the built set
+	 */
+	template <class T>
+	[[nodiscard]] std::shared_ptr<const T> selectors() const {
+		return resources().get<T>([this] { return T::create(selector_source()); });
+	}
 
 	size_t alt_link() const;
 	void set_alt_link(size_t alt_link);
@@ -322,9 +378,7 @@ public:
 	RequestorContext new_with_config(std::shared_ptr<ParserConfig> config) const;
 
 private:
-	std::shared_ptr<ClientContext> client_;
-	std::shared_ptr<LoggerContext> logger_;
+	std::shared_ptr<const ServiceState> services_;
 	std::shared_ptr<ParserConfig> config_;
-	std::shared_ptr<ResourceCache> resources_;
 };
 } // namespace aniparse
