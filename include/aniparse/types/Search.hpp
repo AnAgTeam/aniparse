@@ -115,7 +115,7 @@ struct ItemSelectionValue {
  * The map key is the token the parser addresses by and echoes back verbatim in
  * search(); the consumer never invents or parses it, only toggles options the
  * parser produced. For an axis with a matching model object (tags), the key
- * equals that object's handle (Tag::referer), so a discovered item round-trips
+ * equals that object's handle (Tag::ref), so a discovered item round-trips
  * into a query. Each option's human-readable label lives in ItemSelectionValue.
  * @see ItemSelectionValue
  */
@@ -141,6 +141,10 @@ using SearchItemVariant = std::variant<
     ItemSelection,
     Checkmark>;
 
+/**
+ * @brief Search key-value used in search() methods.
+ * @see search_keys
+ */
 using SearchItems = std::map<std::string, SearchItemVariant, std::less<>>;
 
 /**
@@ -224,7 +228,7 @@ inline constexpr std::string_view series          = "series";
 inline constexpr std::string_view pages           = "icount";
 inline constexpr std::string_view episodes        = "icount";
 /// Filter by Tag. TextQuery for free-text sources; ItemSelection where the
-/// source enumerates its tags, keyed by the opaque token that equals Tag::referer
+/// source enumerates its tags, keyed by the opaque token that equals Tag::ref
 /// so a tag from MangaInfo searches directly. @see ItemSelection
 inline constexpr std::string_view tag             = "tag";
 /// Filter by upload time (last time when item was updated on specific page). Usually DirectionalInterval/BidirectionalInterval

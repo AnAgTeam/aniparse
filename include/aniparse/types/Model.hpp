@@ -45,21 +45,21 @@ struct Tag {
 	/// Prefer the source's stable identity (a slug/id) over a request path or
 	/// URL, so a route or mirror change does not invalidate a stored handle; the
 	/// parser rebuilds the request from it.
-	std::string referer;
+	std::string ref;
 };
 
 struct RelatedUser {
 	std::string name;
-	/// Opaque parser-owned reference; @see Tag::referer.
-	std::string referer;
+	/// Opaque parser-owned reference; @see Tag::ref.
+	std::string ref;
 };
 
 inline constexpr std::string_view series_original = "original";
 
 struct Series {
 	std::string name;
-	/// Opaque parser-owned reference; @see Tag::referer.
-	std::string referer;
+	/// Opaque parser-owned reference; @see Tag::ref.
+	std::string ref;
 };
 
 /**
