@@ -39,7 +39,7 @@ TEST_CASE("Search validation accepts a query matching the declaration") {
 		.filters = {
 			{ std::string(search_keys::tag), TextQuery{ .text = "vanilla", .exclusive = true } },
 			{ std::string(search_keys::pages), IntInterval{ .from = 10, .to = 100 } },
-			{ "language", ItemSelection{ { "en", { .enabled = true, .exclusive = true } } } },
+			{ "language", ItemSelection{ { "en", { .exclusive = true } } } },
 			{ "uncensored", Checkmark{} },
 		},
 	};
@@ -79,8 +79,8 @@ TEST_CASE("Search validation rejects unsupported exclusion") {
 			{ std::string(search_keys::pages), IntInterval{ .from = 1, .exclusive = true } },
 			// the "ru" item forbids exclusion, "en" allows it
 			{ "language", ItemSelection{
-				{ "en", { .enabled = true, .exclusive = true } },
-				{ "ru", { .enabled = true, .exclusive = true } },
+				{ "en", { .exclusive = true } },
+				{ "ru", { .exclusive = true } },
 			} },
 		},
 	};
@@ -98,7 +98,7 @@ TEST_CASE("Search validation rejects malformed values") {
 			{ std::string(search_keys::tag), TextQuery{ .text = "", .exclusive = true } },
 			// inverted interval, and 2000 is above the declared max of 1000
 			{ std::string(search_keys::pages), IntInterval{ .from = 2000, .to = 5 } },
-			{ "language", ItemSelection{ { "jp", { .enabled = true } } } },
+			{ "language", ItemSelection{ { "jp", {} } } },
 		},
 	};
 

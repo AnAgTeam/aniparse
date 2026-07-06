@@ -86,9 +86,9 @@ using TimeInterval = Interval<std::chrono::system_clock::time_point>;
 using RelativeTimeInterval = Interval<std::chrono::system_clock::duration>;
 
 /**
- * @brief State of one selectable option: its display label plus selection
- *        flags. The option's opaque token is the ItemSelection map key, not
- *        stored here.
+ * @brief State of one selectable option: its display label and whether the
+ *        selection is inverted. Presence in the ItemSelection marks the option
+ *        as in play; the opaque token is the map key, not stored here.
  */
 struct ItemSelectionValue {
 	/**
@@ -98,14 +98,9 @@ struct ItemSelectionValue {
 	 */
 	std::string name;
 	/**
-	 * Whether this option is selected in the query. A support table lists every
-	 * option with enabled = false (the menu); a query flips it to true on the
-	 * chosen ones. Validation ignores it — a false option is a no-op.
-	 */
-	bool enabled;
-	/**
-	 * Whether the selection is inverted (exclude items matching this option),
-	 * honored only where the descriptor's matching option allows exclusion.
+	 * Whether the selection is inverted: in a query, exclude items matching this
+	 * option instead of including them; in a support table, whether exclusion is
+	 * offered for it. Honored only where the descriptor's option allows it.
 	 */
 	bool exclusive;
 };
@@ -113,10 +108,12 @@ struct ItemSelectionValue {
 /**
  * @brief A set of selectable options keyed by opaque parser-owned token.
  * The map key is the token the parser addresses by and echoes back verbatim in
- * search(); the consumer never invents or parses it, only toggles options the
- * parser produced. For an axis with a matching model object (tags), the key
- * equals that object's handle (Tag::ref), so a discovered item round-trips
- * into a query. Each option's human-readable label lives in ItemSelectionValue.
+ * search(); the consumer never invents or parses it. An option present in the
+ * map is in play — a support table lists every offered option, a query carries
+ * only the selected ones (there is no separate enabled flag). For an axis with
+ * a matching model object (tags), the key equals that object's handle
+ * (Tag::ref), so a discovered item round-trips into a query. Each option's
+ * human-readable label lives in ItemSelectionValue.
  * @see ItemSelectionValue
  */
 using ItemSelection = std::map<std::string, ItemSelectionValue, std::less<>>;
