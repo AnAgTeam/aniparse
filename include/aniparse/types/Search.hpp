@@ -85,12 +85,40 @@ using TimeInterval = Interval<std::chrono::system_clock::time_point>;
  */
 using RelativeTimeInterval = Interval<std::chrono::system_clock::duration>;
 
+/**
+ * @brief State of one selectable option: its display label plus selection
+ *        flags. The option's opaque token is the ItemSelection map key, not
+ *        stored here.
+ */
 struct ItemSelectionValue {
-	std::string value;
+	/**
+	 * Human-readable label for this option — what the UI shows and the user
+	 * picks by. Display only: not the machine token (that is the map key), and
+	 * it need not be unique across options.
+	 */
+	std::string name;
+	/**
+	 * Whether this option is selected in the query. A support table lists every
+	 * option with enabled = false (the menu); a query flips it to true on the
+	 * chosen ones. Validation ignores it — a false option is a no-op.
+	 */
 	bool enabled;
+	/**
+	 * Whether the selection is inverted (exclude items matching this option),
+	 * honored only where the descriptor's matching option allows exclusion.
+	 */
 	bool exclusive;
 };
 
+/**
+ * @brief A set of selectable options keyed by opaque parser-owned token.
+ * The map key is the token the parser addresses by and echoes back verbatim in
+ * search(); the consumer never invents or parses it, only toggles options the
+ * parser produced. For an axis with a matching model object (tags), the key
+ * equals that object's handle (Tag::referer), so a discovered item round-trips
+ * into a query. Each option's human-readable label lives in ItemSelectionValue.
+ * @see ItemSelectionValue
+ */
 using ItemSelection = std::map<std::string, ItemSelectionValue, std::less<>>;
 
 /**
@@ -195,7 +223,9 @@ inline constexpr std::string_view series          = "series";
 /// Filter by pages/episodes count. Usually DirectionalInterval/BidirectionalInterval
 inline constexpr std::string_view pages           = "icount";
 inline constexpr std::string_view episodes        = "icount";
-/// Filter by Tag. Usually TextQuery
+/// Filter by Tag. TextQuery for free-text sources; ItemSelection where the
+/// source enumerates its tags, keyed by the opaque token that equals Tag::referer
+/// so a tag from MangaInfo searches directly. @see ItemSelection
 inline constexpr std::string_view tag             = "tag";
 /// Filter by upload time (last time when item was updated on specific page). Usually DirectionalInterval/BidirectionalInterval
 inline constexpr std::string_view upload_time     = "upd_time";

@@ -36,9 +36,15 @@ struct Image {
 struct Tag {
 	TagID id{0};
 	std::string name;
-	/// Opaque parser-owned reference (e.g. the source href/slug) the producing
-	/// parser round-trips to build follow-up requests. NOT an HTTP Referer and
-	/// not meant for the consumer to interpret.
+	/// Opaque parser-owned handle for this tag. NOT an HTTP Referer and not for
+	/// the consumer to interpret — it is moved, never parsed. It round-trips to
+	/// build follow-up requests; and where the parser supports searching by tag,
+	/// it is the tag's search token: the same value advertised as the option's
+	/// ItemSelection map key (search_keys::tag) and accepted back in search(),
+	/// so a Tag from MangaInfo drops straight into a query.
+	/// Prefer the source's stable identity (a slug/id) over a request path or
+	/// URL, so a route or mirror change does not invalidate a stored handle; the
+	/// parser rebuilds the request from it.
 	std::string referer;
 };
 
