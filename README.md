@@ -47,7 +47,7 @@ It is built on an asynchronous network layer ([libasyncnet](https://github.com/A
 
 - Parsing anime titles (releases, metadata)
 - Parsing manga
-- Fetching images and video from various sources
+- Fetching images and video
 - Backend-neutral HTTP client: curl today, but the request/response contract is not tied to it (the backend can be swapped, e.g. for NSURLSession)
 - Typed `request_html` / `request_json` requests with exception-free error handling (`tl::expected`)
 - Built-in HTML/DOM parser, CSS selectors and a JS parser powered by `lexbor`
