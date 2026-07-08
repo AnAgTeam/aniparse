@@ -15,7 +15,7 @@ void import_auth(ParserConfig& config, const AuthState& state) {
 		}
 	}
 	for (const auto& [name, value] : state.headers) {
-		config.headers[name] = value;
+		config.headers.set(name, value);
 	}
 	for (const auto& [name, value] : state.url_params) {
 		config.url_params[name] = value;

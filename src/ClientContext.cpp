@@ -17,8 +17,8 @@ namespace aniparse {
 
 static void apply_config_to(ClientRequest& any_request, const ParserConfig& config) {
 	std::visit([&](auto& request) {
-		// Request headers take priority over config: insert() keeps existing keys.
-		request.headers.insert(config.headers.begin(), config.headers.end());
+		// Request headers take priority over config: merge_missing keeps existing names.
+		request.headers.merge_missing(config.headers);
 
 		for (const auto& [key, value] : config.url_params) {
 			request.url_params.add(key, value);

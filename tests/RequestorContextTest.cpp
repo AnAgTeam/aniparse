@@ -255,7 +255,7 @@ CORO_TEST_CASE("RequestorContext GET with normal config") {
 	};
 
 	auto parser_config = std::make_shared<ParserConfig>();
-	parser_config->headers["Authorization"] = "some-password";
+	parser_config->headers.set("Authorization", "some-password");
 	parser_config->url_params["version"] = "1.0";
 	parser_config->modifiers.push_back([](ClientRequest& any_request) {
 		if (auto* request = std::get_if<GetRequest>(&any_request)) {
@@ -320,8 +320,8 @@ CORO_TEST_CASE("RequestorContext request headers take priority over config") {
 	};
 
 	auto parser_config = std::make_shared<ParserConfig>();
-	parser_config->headers["Authorization"] = "from-config"; // must lose to the request
-	parser_config->headers["X-Extra"]       = "config-only"; // must still be merged in
+	parser_config->headers.set("Authorization", "from-config"); // must lose to the request
+	parser_config->headers.set("X-Extra", "config-only");       // must still be merged in
 
 	auto client_cookie_jar = std::make_shared<DummyCookieJar>();
 	auto mock_client = std::make_shared<CannedClientMock>(client_cookie_jar);

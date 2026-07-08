@@ -37,8 +37,8 @@ int main() {
 	if (auto response = coro::sync_wait(context.request(GetRequest{ .url = "https://example.com" }))) {
 		std::println("  status:        {}", response->status_code);
 		std::println("  effective_url: {}", response->effective_url.value_or("(none)"));
-		if (auto header = response->headers.find("content-type"); header != response->headers.end()) {
-			std::println("  content-type:  {}", header->second);
+		if (response->headers.contains("content-type")) {
+			std::println("  content-type:  {}", response->headers.get("content-type"));
 		}
 		std::println("  body bytes:    {}", response->body.size());
 	} else {

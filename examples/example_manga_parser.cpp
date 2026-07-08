@@ -216,7 +216,7 @@ public:
 	// Build a ready-to-use config for the parser
 	std::shared_ptr<ParserConfig> default_config_from(std::shared_ptr<const ParserConfig> base_config) const override {
 		auto new_config = std::make_shared<ParserConfig>(*base_config);
-		new_config->headers["User-Agent"] = "ExampleParser/1.0";
+		new_config->headers.set("User-Agent", "ExampleParser/1.0");
 		return new_config;
 	}
 

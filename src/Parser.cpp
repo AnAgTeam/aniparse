@@ -54,7 +54,11 @@ AuthState Parser::export_auth(const ParserConfig& config) const {
 	if (config.cookie_jar) {
 		state.cookies = pick_named_cookies(config.cookie_jar->cookies(), keys.cookies);
 	}
-	state.headers    = pick_named(config.headers, keys.headers);
+	for (const std::string& name : keys.headers) {
+		for (std::string_view value : config.headers.get_all(name)) {
+			state.headers.append(name, std::string(value));
+		}
+	}
 	state.url_params = pick_named(config.url_params, keys.url_params);
 	state.alt_link   = config.alt_link;
 	return state;

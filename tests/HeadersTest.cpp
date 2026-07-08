@@ -62,13 +62,15 @@ TEST_CASE("parse_header_block tolerates bare LF and a missing trailing newline",
 	REQUIRE(headers.at("B") == "2");
 }
 
-TEST_CASE("parse_header_block collapses duplicate names last-wins", "[headers]") {
+TEST_CASE("parse_header_block keeps duplicate names in order", "[headers]") {
 	Headers headers = parse_header_block(
 	    "X: first\r\n"
 	    "x: second\r\n");
 
-	REQUIRE(headers.size() == 1);
-	REQUIRE(headers.at("X") == "second");
+	REQUIRE(headers.size() == 2);
+	// by-name lookup returns the first; get_all exposes every value (case-insensitive).
+	REQUIRE(headers.at("X") == "first");
+	REQUIRE(headers.get_all("x") == std::vector<std::string_view>{"first", "second"});
 }
 
 TEST_CASE("parse_header_block accepts an empty value", "[headers]") {
@@ -80,8 +82,8 @@ TEST_CASE("parse_header_block accepts an empty value", "[headers]") {
 
 TEST_CASE("parse_header_block round-trips to_header_lines", "[headers]") {
 	Headers original;
-	original["Accept"]       = "*/*";
-	original["Content-Type"] = "text/plain";
+	original.set("Accept", "*/*");
+	original.set("Content-Type", "text/plain");
 
 	std::string block;
 	for (const auto& line : to_header_lines(original)) {

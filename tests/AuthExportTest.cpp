@@ -98,8 +98,8 @@ ParserConfig make_authed_config() {
 	config.cookie_jar = std::make_shared<FakeCookieJar>();
 	config.cookie_jar->set_cookie(make_cookie("session", "secret"));
 	config.cookie_jar->set_cookie(make_cookie("antibot", "volatile"));
-	config.headers["Authorization"] = "Bearer xyz";
-	config.headers["User-Agent"]    = "volatile-agent";
+	config.headers.set("Authorization", "Bearer xyz");
+	config.headers.set("User-Agent", "volatile-agent");
 	config.url_params["token"]      = "kept";
 	config.url_params["ts"]         = "dropped";
 	config.alt_link                 = 3;
@@ -170,7 +170,7 @@ TEST_CASE("export_auth with no declared keys yields an empty session but keeps a
 TEST_CASE("export_auth tolerates a config without a cookie jar") {
 	CredentialParser parser;
 	ParserConfig config;
-	config.headers["Authorization"] = "Bearer xyz";
+	config.headers.set("Authorization", "Bearer xyz");
 
 	AuthState state = parser.export_auth(config);
 
@@ -181,7 +181,7 @@ TEST_CASE("export_auth tolerates a config without a cookie jar") {
 TEST_CASE("import_auth without a cookie jar skips cookies but restores the rest") {
 	AuthState state;
 	state.cookies.push_back(make_cookie("session", "secret"));
-	state.headers["Authorization"] = "Bearer xyz";
+	state.headers.set("Authorization", "Bearer xyz");
 	state.url_params["token"]      = "kept";
 	state.alt_link                 = 4;
 
