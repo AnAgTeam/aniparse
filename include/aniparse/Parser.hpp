@@ -15,7 +15,6 @@
 #include <span>
 
 namespace aniparse {
-struct AsyncReleaseGetter;
 struct ImagesGetter;
 
 using ParseFlags = FlagsBitfield<64, struct ParseFlagsTag>;
@@ -117,8 +116,6 @@ struct Parser {
 	 * @param context Context to use to add domains
 	 */
 	virtual void emplace_domains(EmplaceDomainsContext& context) const = 0;
-
-	//virtual ParseResult<std::unique_ptr<AsyncReleaseGetter>> async_release_getter(ParseContext& ctx);
 
 	/**
 	 * @brief Authenticate the parser's service with the given credentials.

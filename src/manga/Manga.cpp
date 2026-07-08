@@ -30,6 +30,12 @@ NetworkRequestTask<PageResults<MangaTranslationInfo>> MangaGetter::translation_i
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get translation info");
 }
 
+NetworkRequestTask<PageResults<Comment>> MangaGetter::comments(
+    RequestorContext,
+    GetFilters) {
+	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get comments");
+}
+
 NetworkRequestTask<PageResults<MangaChapterInfo>> MangaGetter::chapters_info(
     RequestorContext,
     GetFilters,

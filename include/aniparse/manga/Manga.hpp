@@ -178,6 +178,19 @@ struct MangaGetter {
 	    GetFilters filters,
 	    std::optional<MangaTranslationID> translation = std::nullopt);
 
+	/**
+	 * @brief User comments on the manga, paginated via @p filters.
+	 * Available when the parser advertises supports_commenting; by default reports
+	 * NotImplemented. Top-level comments page through @p filters like any list;
+	 * thread replies come inline on each @ref Comment.
+	 * @param context Client to perform HTTP requests
+	 * @param filters Pagination (and any supported ordering) for the comment list
+	 * @return A page of comments, or a RequestError
+	 */
+	virtual NetworkRequestTask<PageResults<Comment>> comments(
+	    RequestorContext context,
+	    GetFilters filters);
+
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> related(
 	    RequestorContext context,
 	    GetFilters filters);

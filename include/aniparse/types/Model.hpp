@@ -6,6 +6,7 @@
 #pragma once
 #include "aniparse/Headers.hpp"
 #include "aniparse/types/Ids.hpp"
+#include "aniparse/types/Text.hpp"
 
 #include <span>
 #include <array>
@@ -13,6 +14,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace aniparse {
 /// Minimal age allowed to access the item. Use 0 for all
@@ -184,5 +186,26 @@ struct UserList {
 
 struct ViewStats {
 	int views = 0;
+};
+
+/**
+ * @brief A user comment on an item (manga / anime / …). Available when the parser
+ * advertises compatibilities_flags::supports_commenting.
+ *
+ * A single flat comment, or the root of a thread via @ref replies. Top-level
+ * comments paginate through the getter's GetFilters like any other list; deep
+ * reply pagination, when a source has it, is a later follow-up keyed by @ref ref.
+ */
+struct Comment {
+	RelatedUser author;
+	AttributedText text;
+	std::chrono::system_clock::time_point time = unknown_time;
+	/// Net score / likes, if the source exposes one.
+	std::optional<int> score;
+	/// Inline thread replies; empty when the source is flat or the comment has none.
+	std::vector<Comment> replies;
+	/// Opaque parser-owned handle; @see Tag::ref. Round-trips to fetch this
+	/// comment's replies when a source paginates threads separately.
+	std::string ref;
 };
 } // namespace aniparse
