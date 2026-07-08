@@ -208,12 +208,18 @@ ResourceCache& RequestorContext::resources() const {
 	return *services_->resources;
 }
 
-const html::SelectorSource& RequestorContext::selector_source() const {
+std::shared_ptr<const html::SelectorSource> RequestorContext::selector_source() const {
 	assert(services_);
-	// A null source (the default, until the volatile index populates one) reads as
-	// the shared empty source, so every selector falls back to its built-in literal.
-	return services_->selector_source ? *services_->selector_source
-	                                  : html::SelectorSource::empty();
+	if (services_->selectors) {
+		if (auto source = services_->selectors->get()) {
+			return source;
+		}
+	}
+	// No holder (the default, until the volatile index populates one): a shared
+	// empty source, so every selector falls back to its built-in literal.
+	static const std::shared_ptr<const html::SelectorSource> empty =
+	    std::make_shared<const html::SelectorSource>();
+	return empty;
 }
 
 size_t RequestorContext::alt_link() const {

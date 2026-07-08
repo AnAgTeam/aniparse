@@ -26,8 +26,8 @@ constexpr std::string_view good_payload = R"({
     "schema_version": 1,
     "revision": 7,
     "parsers": {
-        "MangaLib": { "domains": ["mangalib.me", "mangalib.org"] },
-        "HenChan":  { "domains": ["henchan.pro"] }
+        "ExampleParser": { "domains": ["example.com", "example.org"] },
+        "OtherParser":   { "domains": ["other.example"] }
     }
 })";
 } // namespace
@@ -37,9 +37,9 @@ TEST_CASE("decode_catalog accepts a signed, well-formed payload") {
 	auto result = decode_catalog(good_payload, "sig", verifier);
 	REQUIRE(result.has_value());
 	CHECK(result->revision == 7);
-	REQUIRE(result->domains.contains("MangaLib"));
-	CHECK(result->domains.at("MangaLib") == std::vector<std::string>{ "mangalib.me", "mangalib.org" });
-	CHECK(result->domains.at("HenChan") == std::vector<std::string>{ "henchan.pro" });
+	REQUIRE(result->domains.contains("ExampleParser"));
+	CHECK(result->domains.at("ExampleParser") == std::vector<std::string>{ "example.com", "example.org" });
+	CHECK(result->domains.at("OtherParser") == std::vector<std::string>{ "other.example" });
 }
 
 TEST_CASE("decode_catalog rejects a bad signature before parsing") {
@@ -77,6 +77,21 @@ TEST_CASE("decode_catalog accepts a strictly newer revision") {
 	auto result = decode_catalog(good_payload, "sig", verifier, 6);
 	REQUIRE(result.has_value());
 	CHECK(result->revision == 7);
+}
+
+TEST_CASE("decode_catalog reads the flat top-level selectors table") {
+	StubVerifier verifier(true);
+	std::string_view payload = R"({
+        "schema_version": 1,
+        "revision": 2,
+        "parsers": {},
+        "selectors": { "example.info.description": "#desc", "example.card.link": "a.card" }
+    })";
+	auto result = decode_catalog(payload, "sig", verifier);
+	REQUIRE(result.has_value());
+	REQUIRE(result->selectors.contains("example.info.description"));
+	CHECK(result->selectors.at("example.info.description") == "#desc");
+	CHECK(result->selectors.at("example.card.link") == "a.card");
 }
 
 TEST_CASE("decode_catalog treats a missing required field as bad format") {

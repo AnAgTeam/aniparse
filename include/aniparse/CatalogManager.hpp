@@ -5,9 +5,11 @@
  */
 #pragma once
 #include "aniparse/Catalog.hpp"
+#include "aniparse/ClientContext.hpp"
 #include "aniparse/ParserStore.hpp"
 
 #include <cstdint>
+#include <memory>
 #include <string_view>
 
 namespace aniparse {
@@ -29,9 +31,13 @@ public:
 	 *                 the manager.
 	 * @param verifier The signature verifier (carries the pinned key); must outlive
 	 *                 the manager.
+	 * @param services Optional shared services; when given, a successful apply also
+	 *                 swaps the catalog's selectors into its holder and clears its
+	 *                 resource cache so compiled sets rebuild. Null = domains only.
 	 */
-	CatalogManager(ParserStore& store, const SignatureVerifier& verifier)
-	    : store_(store), verifier_(verifier) {}
+	CatalogManager(ParserStore& store, const SignatureVerifier& verifier,
+	               std::shared_ptr<const ServiceState> services = nullptr)
+	    : store_(store), verifier_(verifier), services_(std::move(services)) {}
 
 	/**
 	 * @brief Verify, decode and apply a catalog payload.
@@ -51,6 +57,7 @@ public:
 private:
 	ParserStore& store_;
 	const SignatureVerifier& verifier_;
+	std::shared_ptr<const ServiceState> services_;
 	uint64_t revision_ = 0;
 };
 

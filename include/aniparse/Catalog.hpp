@@ -46,13 +46,15 @@ struct SignatureVerifier {
 };
 
 /**
- * @brief A verified, parsed catalog. Domains only for now (selectors and filters
- * join later); @c domains maps a parser identifier to the extra domains it
- * should route, ready to hand to ParserStore::refresh_domains.
+ * @brief A verified, parsed catalog. @c domains maps a parser identifier to the
+ * extra domains it should route (for ParserStore::refresh_domains); @c selectors
+ * maps a stable selector name (e.g. "example.info.description") to its override
+ * CSS, a flat table fed straight into a SelectorSource. Filters join later.
  */
 struct CatalogData {
 	uint64_t revision = 0;
 	std::map<std::string, std::vector<std::string>, std::less<>> domains;
+	std::map<std::string, std::string, std::less<>> selectors;
 };
 
 /// The catalog schema version this build understands.

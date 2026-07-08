@@ -70,6 +70,16 @@ expected<CatalogData, CatalogError> decode_catalog(
 		}
 	}
 
+	// Selectors are a flat name -> CSS table, fed straight into a SelectorSource.
+	if (const boost::json::object* selectors = json::object_field(*root, "selectors")) {
+		for (const boost::json::key_value_pair& entry : *selectors) {
+			if (const boost::json::string* css = entry.value().if_string()) {
+				data.selectors.emplace(std::string(entry.key()),
+				                       std::string(css->c_str(), css->size()));
+			}
+		}
+	}
+
 	return data;
 }
 

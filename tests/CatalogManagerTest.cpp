@@ -43,48 +43,72 @@ std::string catalog(int revision, std::string_view parser_id, std::string_view d
 
 TEST_CASE("CatalogManager applies a verified catalog to routing") {
 	ParserStore store;
-	store.add_parser(std::make_unique<CatalogParser>("MangaLib"));
+	store.add_parser(std::make_unique<CatalogParser>("ExampleParser"));
 	StubVerifier verifier(true);
 	CatalogManager manager(store, verifier);
 
 	// Nothing routes there before any catalog.
-	CHECK_FALSE(store.find_for_url("https://mangalib.me"));
+	CHECK_FALSE(store.find_for_url("https://example.com"));
 
-	auto applied = manager.apply(catalog(3, "MangaLib", "mangalib.me"), "sig");
+	auto applied = manager.apply(catalog(3, "ExampleParser", "example.com"), "sig");
 	REQUIRE(applied.has_value());
 	CHECK(*applied == 3);
 	CHECK(manager.revision() == 3);
-	CHECK(store.find_for_url("https://mangalib.me"));
+	CHECK(store.find_for_url("https://example.com"));
 }
 
 TEST_CASE("CatalogManager leaves state unchanged on a bad signature") {
 	ParserStore store;
-	store.add_parser(std::make_unique<CatalogParser>("MangaLib"));
+	store.add_parser(std::make_unique<CatalogParser>("ExampleParser"));
 	StubVerifier verifier(false);
 	CatalogManager manager(store, verifier);
 
-	auto applied = manager.apply(catalog(3, "MangaLib", "mangalib.me"), "sig");
+	auto applied = manager.apply(catalog(3, "ExampleParser", "example.com"), "sig");
 	REQUIRE_FALSE(applied.has_value());
 	CHECK(applied.error() == CatalogError::BadSignature);
 	CHECK(manager.revision() == 0);
-	CHECK_FALSE(store.find_for_url("https://mangalib.me"));
+	CHECK_FALSE(store.find_for_url("https://example.com"));
 }
 
 TEST_CASE("CatalogManager rejects a non-newer catalog and keeps the applied one") {
 	ParserStore store;
-	store.add_parser(std::make_unique<CatalogParser>("MangaLib"));
+	store.add_parser(std::make_unique<CatalogParser>("ExampleParser"));
 	StubVerifier verifier(true);
 	CatalogManager manager(store, verifier);
 
-	REQUIRE(manager.apply(catalog(5, "MangaLib", "mangalib.me"), "sig").has_value());
+	REQUIRE(manager.apply(catalog(5, "ExampleParser", "example.com"), "sig").has_value());
 	CHECK(manager.revision() == 5);
 
 	// An older revision is rejected against the tracked revision; the revision-5
 	// domains stay in place, the older catalog's domain never lands.
-	auto stale = manager.apply(catalog(4, "MangaLib", "other.example"), "sig");
+	auto stale = manager.apply(catalog(4, "ExampleParser", "other.example"), "sig");
 	REQUIRE_FALSE(stale.has_value());
 	CHECK(stale.error() == CatalogError::StaleRevision);
 	CHECK(manager.revision() == 5);
-	CHECK(store.find_for_url("https://mangalib.me"));
+	CHECK(store.find_for_url("https://example.com"));
 	CHECK_FALSE(store.find_for_url("https://other.example"));
+}
+
+TEST_CASE("CatalogManager swaps catalog selectors into the services holder") {
+	ParserStore store;
+	StubVerifier verifier(true);
+
+	auto services = std::make_shared<ServiceState>();
+	services->selectors = std::make_shared<html::SelectorSourceHolder>();
+	services->resources = std::make_shared<ResourceCache>();
+	CatalogManager manager(store, verifier, services);
+
+	// Before any catalog the holder is empty -> every key falls back.
+	CHECK(services->selectors->get()->get("example.info.description", "FALLBACK") == "FALLBACK");
+
+	std::string_view payload = R"({
+		"schema_version": 1, "revision": 2, "parsers": {},
+		"selectors": { "example.info.description": "#desc" }
+	})";
+	REQUIRE(manager.apply(payload, "sig").has_value());
+
+	auto source = services->selectors->get();
+	REQUIRE(source);
+	CHECK(source->get("example.info.description", "FALLBACK") == "#desc"); // override applied
+	CHECK(source->get("unknown.key", "FALLBACK") == "FALLBACK");          // unknown still falls back
 }

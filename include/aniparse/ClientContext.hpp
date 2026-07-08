@@ -145,8 +145,9 @@ struct ServiceState {
 	std::shared_ptr<LoggerContext> logger = nullptr;
 	/// Optional; a fresh empty cache is filled in when null.
 	std::shared_ptr<ResourceCache> resources = nullptr;
-	/// Optional; null reads as SelectorSource::empty() (all built-in selectors).
-	std::shared_ptr<const html::SelectorSource> selector_source = nullptr;
+	/// Optional swappable selector-source holder; null reads as an empty source
+	/// (all built-in selectors). A catalog apply set()s a new source into it.
+	std::shared_ptr<html::SelectorSourceHolder> selectors = nullptr;
 };
 
 /**
@@ -340,7 +341,7 @@ public:
 	 * contexts derived via new_with_config / new_with_logger, like resources().
 	 * @return The selector source
 	 */
-	const html::SelectorSource& selector_source() const;
+	std::shared_ptr<const html::SelectorSource> selector_source() const;
 
 	/**
 	 * @brief Build (once, cached) a selector set @p T from this context's selector
@@ -353,7 +354,10 @@ public:
 	 */
 	template <class T>
 	[[nodiscard]] std::shared_ptr<const T> selectors() const {
-		return resources().get<T>([this] { return T::create(selector_source()); });
+		// Hold the source for the whole build so a concurrent catalog swap cannot
+		// free it while T::create reads it.
+		auto source = selector_source();
+		return resources().get<T>([source] { return T::create(*source); });
 	}
 
 	size_t alt_link() const;
