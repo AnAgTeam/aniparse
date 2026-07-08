@@ -63,6 +63,7 @@ add_library(aniparse STATIC
 	"src/html/SelectorSource.cpp" "include/aniparse/html/SelectorSource.hpp"
 
 	"src/ParserStore.cpp" "include/aniparse/ParserStore.hpp"
+	"src/Catalog.cpp" "include/aniparse/Catalog.hpp"
 	"src/Parser.cpp" "include/aniparse/Parser.hpp"
 
 	"src/anime/Release.cpp" "include/aniparse/anime/Release.hpp"

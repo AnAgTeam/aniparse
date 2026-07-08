@@ -11,6 +11,7 @@ add_executable(aniparse-tests
 	"MangaDefaultsTest.cpp"
 	"StrongBitsetTest.cpp"
 	"ParserStoreTest.cpp"
+	"CatalogTest.cpp"
 	"HTMLParseTests.cpp"
 	"CoroutinesTest.cpp"
 	"CookiesAndConfigTest.cpp"
