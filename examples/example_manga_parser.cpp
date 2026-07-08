@@ -213,13 +213,6 @@ public:
 		};
 	}
 
-	// Build a ready-to-use config for the parser
-	std::shared_ptr<ParserConfig> default_config_from(std::shared_ptr<const ParserConfig> base_config) const override {
-		auto new_config = std::make_shared<ParserConfig>(*base_config);
-		new_config->headers.set("User-Agent", "ExampleParser/1.0");
-		return new_config;
-	}
-
 	// Search by the given criteria. Capabilities come from search_support().
 	NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> search(
 		RequestorContext context,
@@ -333,6 +326,12 @@ class ExampleParser : public Parser {
 		co_return context.config();
 	}
 
+	// Seed parser-wide request defaults onto a freshly derived config. Called by
+	// make_config after the common derivation; one shape serves all getters.
+	void configure(ParserConfig& config) const override {
+		config.headers.set("User-Agent", "ExampleParser/1.0");
+	}
+
 	// The manga root getter for this parser
 	std::unique_ptr<MangaRootGetter> mangas_getter() const override {
 		return std::make_unique<ExampleMangaRootGetter>();
@@ -404,7 +403,7 @@ int main() {
 	auto example_manga_root = example_parser->mangas_getter();
 
 	// Get a context ready to work for this parser
-	auto ready_to_work_client = client_context.new_with_config(example_manga_root->default_config_from(client_context.config()));
+	auto ready_to_work_client = client_context.new_with_config(example_parser->make_config(client_context.config()));
 
 	// Fetch the parser's latest manga.
 	// The coroutine also runs synchronously thanks to sync_wait.

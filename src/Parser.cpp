@@ -43,6 +43,25 @@ NetworkRequestTask<std::shared_ptr<const ParserConfig>> Parser::authenticate_con
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot auth");
 }
 
+std::shared_ptr<ParserConfig> Parser::make_config(std::shared_ptr<const ParserConfig> base) const {
+	if (!base) {
+		return nullptr;
+	}
+	auto config = std::make_shared<ParserConfig>(*base);
+	// A derived config belongs to a distinct parser instance and must get its own
+	// session, otherwise two instances of the same parser would share cookies and
+	// their logins would collide. The jar is provisioned lazily by RequestorContext;
+	// restoring a saved session is a separate, explicit path (assign a jar after).
+	config->cookie_jar = nullptr;
+	// Stamp identity so request-time services keyed by parser (mirror overrides)
+	// find this parser without the getter naming its own id.
+	config->parser_id = identifier();
+	configure(*config);
+	return config;
+}
+
+void Parser::configure(ParserConfig&) const {}
+
 AuthKeys Parser::auth_keys() const noexcept {
 	return {};
 }

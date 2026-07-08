@@ -213,13 +213,6 @@ struct MangaRootGetter {
 	[[nodiscard]] std::vector<SearchQueryError> validate_latest_filters(const GetFilters& filters) const;
 
 	/**
-	 * @todo !
-
-	 * @note By default passed client is forwarded.
-	 */
-	virtual std::shared_ptr<ParserConfig> default_config_from(std::shared_ptr<const ParserConfig> base_config) const;
-
-	/**
 	 * @todo
 	 * Search mangas with query and/or filters (advanced query may come as filters)
 	 * By default throws NotImplementedError

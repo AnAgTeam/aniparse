@@ -164,6 +164,35 @@ struct Parser {
 	 */
 	virtual AuthState export_auth(const ParserConfig& config) const;
 
+	/**
+	 * @brief Ready a usable config for this parser from a base config.
+	 *
+	 * The single seam for deriving a config before any getter runs: copies
+	 * @p base, gives the copy a fresh session (its own cookie jar is provisioned
+	 * lazily on adoption, so two instances of a parser never share a login),
+	 * stamps this parser's identity so request-time services keyed by parser
+	 * (mirror overrides) can find it, and applies parser-specific defaults through
+	 * @ref configure. Callers adopt the result via
+	 * RequestorContext::new_with_config. Restoring a saved session is a separate,
+	 * explicit path (assign a deserialized jar to the returned config).
+	 * @param base Base config to derive from.
+	 * @return A fresh derived config, or nullptr if @p base is nullptr.
+	 */
+	[[nodiscard]] std::shared_ptr<ParserConfig> make_config(
+	    std::shared_ptr<const ParserConfig> base) const;
+
+	/**
+	 * @brief Seed parser-specific defaults onto a freshly derived config.
+	 *
+	 * Called by @ref make_config after the common derivation (fresh session,
+	 * identity stamp), so a parser need not repeat these per request. Default:
+	 * no-op. Override to set constant headers/params a parser needs on every
+	 * request (e.g. an API's fixed headers). These are parser-wide, not
+	 * category-specific — one config shape serves all of a parser's getters.
+	 * @param config Config being readied, mutated in place.
+	 */
+	virtual void configure(ParserConfig& config) const;
+
 	virtual std::unique_ptr<ImagesGetter> images_getter() const;
 
 	virtual std::unique_ptr<MangaRootGetter> mangas_getter() const;

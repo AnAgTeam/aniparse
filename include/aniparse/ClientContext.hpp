@@ -48,6 +48,12 @@ struct ParserConfig {
 	std::shared_ptr<CookieJar> cookie_jar;
 	ParserConfigFlags flags;
 
+	/// Identifier of the parser this config was derived for, stamped by
+	/// Parser::make_config. Lets request-time services keyed by parser (mirror
+	/// overrides) find this parser's entry without the getter naming its own id.
+	/// Empty on a config that was not derived through make_config.
+	std::string parser_id;
+
 	/// Selected alternative link (mirror) index. @see AltLink, RequestorContext::alt_link
 	size_t alt_link = 0;
 

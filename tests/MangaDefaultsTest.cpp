@@ -77,11 +77,6 @@ TEST_CASE("MangaRootGetter default support declarations are empty") {
 	CHECK(latest.supported_sorts.empty());
 }
 
-TEST_CASE("default_config_from returns null for a null base config") {
-	StubMangaRootGetter getter;
-	CHECK(getter.default_config_from(nullptr) == nullptr);
-}
-
 CORO_TEST_CASE("MangaRootGetter search/latest/parse_url default to NotImplemented") {
 	StubMangaRootGetter getter;
 	RequestorContext context = make_context();

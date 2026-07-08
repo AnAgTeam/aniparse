@@ -5,6 +5,7 @@
  */
 #include "CoroTest.hpp"
 #include <aniparse/Client.hpp>
+#include <aniparse/Parser.hpp>
 #include <aniparse/manga/Manga.hpp>
 #include <aniparse/html/HTMLDocument.hpp>
 
@@ -114,6 +115,13 @@ struct DummyMangaRootGetter : MangaRootGetter {
 	}
 };
 
+struct DummyParser : Parser {
+	std::string name() const override { return "Dummy"; }
+	std::string identifier() const override { return "Dummy"; }
+	ParserCompatibilities compatibilities() const override { return {}; }
+	void emplace_domains(EmplaceDomainsContext&) const override {}
+};
+
 CORO_TEST_CASE("RequestorContext construct") {
 	auto parser_config = std::make_shared<ParserConfig>();
 	auto client_cookie_jar = std::make_shared<DummyCookieJar>();
@@ -165,27 +173,32 @@ CORO_TEST_CASE("RequestorContext keeps an existing cookie jar") {
 	co_return;
 }
 
-CORO_TEST_CASE("default_config_from does not inherit the base cookie jar") {
-	DummyMangaRootGetter getter;
+CORO_TEST_CASE("make_config does not inherit the base cookie jar") {
+	DummyParser parser;
 
 	auto base        = std::make_shared<ParserConfig>();
 	base->cookie_jar = std::make_shared<DummyCookieJar>(); // pretend the base carries a live session
 
-	auto derived = getter.default_config_from(base);
+	auto derived = parser.make_config(base);
 
 	REQUIRE(derived != nullptr);
 	// A derived config belongs to a distinct instance and must not share the store.
 	REQUIRE(derived->cookie_jar == nullptr);
+	// make_config stamps the parser identity for request-time services.
+	REQUIRE(derived->parser_id == "Dummy");
+
+	// A null base yields a null config (nothing to derive from).
+	REQUIRE(parser.make_config(nullptr) == nullptr);
 
 	co_return;
 }
 
 CORO_TEST_CASE("RequestorContext isolates cookie jars across parser instances") {
-	DummyMangaRootGetter getter;
+	DummyParser parser;
 	auto base = std::make_shared<ParserConfig>();
 
-	auto config_a = getter.default_config_from(base);
-	auto config_b = getter.default_config_from(base);
+	auto config_a = parser.make_config(base);
+	auto config_b = parser.make_config(base);
 
 	auto client = std::make_shared<FreshJarClientMock>(std::make_shared<DummyCookieJar>());
 	RequestorContext context_a(client, nullptr, config_a);
