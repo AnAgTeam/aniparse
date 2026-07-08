@@ -62,6 +62,14 @@ std::shared_ptr<ParserConfig> Parser::make_config(std::shared_ptr<const ParserCo
 
 void Parser::configure(ParserConfig&) const {}
 
+std::span<const std::string_view> Parser::mirrors() const {
+	return {};
+}
+
+std::vector<AltLink> Parser::mirror_choices(const RequestorContext& context) const {
+	return resolve_alt_links(mirrors(), context);
+}
+
 AuthKeys Parser::auth_keys() const noexcept {
 	return {};
 }

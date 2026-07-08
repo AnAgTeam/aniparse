@@ -26,8 +26,6 @@ public:
 	MangaGetterCompatibilities compatibilities() const noexcept override {
 		using namespace compatibilities_flags;
 		return {
-			// The getter's list of alternative links (mirrors)
-			.alt_links = { { "https://example.com" } },
 			// Supports commenting, supports voting (not implemented yet)
 			.flags = supports_commenting
 				| supports_voting
@@ -330,6 +328,13 @@ class ExampleParser : public Parser {
 	// make_config after the common derivation; one shape serves all getters.
 	void configure(ParserConfig& config) const override {
 		config.headers.set("User-Agent", "ExampleParser/1.0");
+	}
+
+	// The source's built-in mirrors: the fetch path (context.base_url) and the UI
+	// picker (mirror_choices) both read this; a catalog override can supersede it.
+	std::span<const std::string_view> mirrors() const override {
+		static constexpr std::array<std::string_view, 1> urls{ "https://example.com" };
+		return urls;
 	}
 
 	// The manga root getter for this parser

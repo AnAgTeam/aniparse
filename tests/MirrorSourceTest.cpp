@@ -7,6 +7,8 @@
 
 #include <aniparse/Client.hpp>
 #include <aniparse/MirrorSource.hpp>
+#include <aniparse/Parser.hpp>
+#include <aniparse/manga/Manga.hpp>
 
 #include <array>
 #include <map>
@@ -50,6 +52,27 @@ std::shared_ptr<ParserConfig> config_for(std::string parser_id, size_t alt_link)
 	config->parser_id = std::move(parser_id);
 	config->alt_link  = alt_link;
 	return config;
+}
+
+// A minimal parser that declares a built-in mirror list, to exercise
+// mirror_choices() overlaying a catalog override onto it.
+struct MirrorParser : Parser {
+	std::string name() const override { return "MirrorParser"; }
+	std::string identifier() const override { return "MirrorParser"; }
+	ParserCompatibilities compatibilities() const override { return {}; }
+	void emplace_domains(EmplaceDomainsContext&) const override {}
+	std::span<const std::string_view> mirrors() const override {
+		static constexpr std::array<std::string_view, 2> urls{ "https://a.example", "https://b.example" };
+		return urls;
+	}
+};
+
+std::vector<std::string> urls_of(const std::vector<AltLink>& links) {
+	std::vector<std::string> out;
+	for (const AltLink& link : links) {
+		out.push_back(link.url);
+	}
+	return out;
 }
 } // namespace
 
@@ -155,4 +178,27 @@ TEST_CASE("RequestorContext snapshots mirrors at construction, immune to a later
 	CHECK(live.base_url(builtin) == "https://old.example");
 	RequestorContext fresh(services, config_for("ParserA", 0));
 	CHECK(fresh.base_url(builtin) == "https://new.example");
+}
+
+TEST_CASE("Parser::mirror_choices returns the built-in mirrors without a catalog override") {
+	MirrorParser parser;
+	auto client = std::make_shared<NullClient>();
+	RequestorContext context(client, nullptr, config_for("MirrorParser", 0));
+
+	CHECK(urls_of(parser.mirror_choices(context)) ==
+	      std::vector<std::string>{ "https://a.example", "https://b.example" });
+}
+
+TEST_CASE("Parser::mirror_choices reflects a catalog override keyed by parser id") {
+	auto services     = std::make_shared<ServiceState>();
+	services->client  = std::make_shared<NullClient>();
+	services->mirrors = holder_with(OverrideMap{
+	    { "MirrorParser", { "https://live1.example", "https://live2.example", "https://live3.example" } } });
+
+	MirrorParser parser;
+	RequestorContext context(services, config_for("MirrorParser", 0));
+
+	// The picker now shows the live (overridden) mirrors, not the built-in list.
+	CHECK(urls_of(parser.mirror_choices(context)) ==
+	      std::vector<std::string>{ "https://live1.example", "https://live2.example", "https://live3.example" });
 }
