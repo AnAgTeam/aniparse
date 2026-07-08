@@ -7,6 +7,7 @@
 #include "aniparse/types/Request.hpp"
 #include "aniparse/types/Response.hpp"
 #include "aniparse/CookieJar.hpp"
+#include "aniparse/MirrorSource.hpp"
 #include "aniparse/ResourceCache.hpp"
 #include "aniparse/html/SelectorSource.hpp"
 #include "aniparse/utility/Format.hpp"
@@ -154,6 +155,10 @@ struct ServiceState {
 	/// Optional swappable selector-source holder; null reads as an empty source
 	/// (all built-in selectors). A catalog apply set()s a new source into it.
 	std::shared_ptr<html::SelectorSourceHolder> selectors = nullptr;
+	/// Optional swappable mirror-source holder; null reads as an empty source
+	/// (every parser falls back to its built-in mirrors). A catalog apply set()s a
+	/// new source into it, keyed by parser identifier.
+	std::shared_ptr<MirrorSourceHolder> mirrors = nullptr;
 };
 
 /**
@@ -366,6 +371,36 @@ public:
 		return resources().get<T>([source] { return T::create(*source); });
 	}
 
+	/**
+	 * @brief A mirror view for this context's parser: the catalog override for it
+	 * (if any) combined with the getter's built-in @p builtin fallback.
+	 *
+	 * The override is looked up by the parser identity stamped into the config by
+	 * Parser::make_config, against a mirror snapshot taken once when this context
+	 * was built — so the whole operation reads one consistent mirror set even if
+	 * the catalog swaps mid-request. The getter passes only its own built-in list;
+	 * it names neither its id nor the override.
+	 * @param builtin The getter's built-in fallback base URLs.
+	 * @return The combined mirror view (@see Mirrors).
+	 */
+	[[nodiscard]] Mirrors mirrors(std::span<const std::string_view> builtin) const {
+		const std::vector<std::string>* override_list =
+		    mirror_snapshot_ ? mirror_snapshot_->list_for(config_->parser_id) : nullptr;
+		return Mirrors{ override_list, builtin };
+	}
+
+	/**
+	 * @brief The base URL to fetch from for this context's selected mirror.
+	 * Folds the override/built-in resolution and the alt_link() selection into one
+	 * call — the common getter path. Resolve it once into a local at the start of
+	 * an operation so a concurrent selection change cannot split it across mirrors.
+	 * @param builtin The getter's built-in fallback base URLs.
+	 * @return The selected base URL, or an empty view if the parser has no mirrors.
+	 */
+	[[nodiscard]] std::string_view base_url(std::span<const std::string_view> builtin) const {
+		return mirrors(builtin).base_url(alt_link());
+	}
+
 	size_t alt_link() const;
 	void set_alt_link(size_t alt_link);
 
@@ -390,5 +425,9 @@ public:
 private:
 	std::shared_ptr<const ServiceState> services_;
 	std::shared_ptr<ParserConfig> config_;
+	/// Mirror overrides snapshotted once at construction, so an operation reads a
+	/// consistent mirror set even across a concurrent catalog swap. Null when the
+	/// services carry no mirror holder (every parser falls back to its built-ins).
+	std::shared_ptr<const MirrorSource> mirror_snapshot_;
 };
 } // namespace aniparse

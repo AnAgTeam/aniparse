@@ -51,6 +51,12 @@ RequestorContext::RequestorContext(std::shared_ptr<const ServiceState> services,
 		config_->cookie_jar = services_->client->make_cookie_jar();
 	}
 
+	// Snapshot the mirror overrides once, so every base_url() this context resolves
+	// reads the same set even if a catalog apply swaps the holder mid-operation.
+	if (services_->mirrors) {
+		mirror_snapshot_ = services_->mirrors->get();
+	}
+
 	// Post-construction invariant every other method relies on: a valid service
 	// bundle with a client and a resource cache, and a valid config. The cookie
 	// jar is best-effort (a client's make_cookie_jar may legitimately return null),

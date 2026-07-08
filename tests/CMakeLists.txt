@@ -23,6 +23,7 @@ add_executable(aniparse-tests
 	"JsParserTest.cpp"
 	"JsonAccessTest.cpp"
 	"ResourceCacheTest.cpp"
+	"MirrorSourceTest.cpp"
 )
 
 set_property(TARGET aniparse-tests PROPERTY CXX_STANDARD 23)
