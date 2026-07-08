@@ -47,13 +47,21 @@ struct SignatureVerifier {
 
 /**
  * @brief A verified, parsed catalog. @c domains maps a parser identifier to the
- * extra domains it should route (for ParserStore::refresh_domains); @c selectors
- * maps a stable selector name (e.g. "example.info.description") to its override
- * CSS, a flat table fed straight into a SelectorSource. Filters join later.
+ * extra domains it should route (for ParserStore::refresh_domains); @c mirrors
+ * maps a parser identifier to its ordered fetch base URLs (for MirrorSource);
+ * @c selectors maps a stable selector name (e.g. "example.info.description") to
+ * its override CSS, a flat table fed straight into a SelectorSource. Filters
+ * join later.
  */
 struct CatalogData {
 	uint64_t revision = 0;
 	std::map<std::string, std::vector<std::string>, std::less<>> domains;
+	/// Per-parser ordered fetch base URLs (for MirrorSource), keyed by the same
+	/// parser identifier as @c domains. Distinct from @c domains: a routing domain
+	/// only recognises a URL, a mirror is a live base URL fetched from; they may
+	/// overlap (a frontend host is both) and CatalogManager unions mirror hosts
+	/// into routing so listing a mirror also makes it route.
+	std::map<std::string, std::vector<std::string>, std::less<>> mirrors;
 	std::map<std::string, std::string, std::less<>> selectors;
 };
 

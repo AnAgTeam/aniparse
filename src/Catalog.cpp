@@ -51,21 +51,32 @@ expected<CatalogData, CatalogError> decode_catalog(
 	}
 
 	if (const boost::json::object* parsers = json::object_field(*root, "parsers")) {
+		// Read a string array under the parser entry (domains / mirrors), dropping
+		// any non-string element.
+		auto read_urls = [](const boost::json::object& fields, const char* key) {
+			std::vector<std::string> out;
+			if (const boost::json::array* list = json::array_field(fields, key)) {
+				for (const boost::json::value& item : *list) {
+					if (const boost::json::string* url = item.if_string()) {
+						out.emplace_back(url->c_str(), url->size());
+					}
+				}
+			}
+			return out;
+		};
 		for (const boost::json::key_value_pair& entry : *parsers) {
 			const boost::json::object* fields = entry.value().if_object();
 			if (!fields) {
 				continue;
 			}
-			std::vector<std::string> domains;
-			if (const boost::json::array* list = json::array_field(*fields, "domains")) {
-				for (const boost::json::value& item : *list) {
-					if (const boost::json::string* domain = item.if_string()) {
-						domains.emplace_back(domain->c_str(), domain->size());
-					}
-				}
-			}
+			std::string id(entry.key());
+			std::vector<std::string> domains = read_urls(*fields, "domains");
 			if (!domains.empty()) {
-				data.domains.emplace(std::string(entry.key()), std::move(domains));
+				data.domains.emplace(id, std::move(domains));
+			}
+			std::vector<std::string> mirrors = read_urls(*fields, "mirrors");
+			if (!mirrors.empty()) {
+				data.mirrors.emplace(std::move(id), std::move(mirrors));
 			}
 		}
 	}

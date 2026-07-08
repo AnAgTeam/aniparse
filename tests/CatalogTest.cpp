@@ -94,6 +94,27 @@ TEST_CASE("decode_catalog reads the flat top-level selectors table") {
 	CHECK(result->selectors.at("example.card.link") == "a.card");
 }
 
+TEST_CASE("decode_catalog reads per-parser mirror base URLs alongside domains") {
+	StubVerifier verifier(true);
+	std::string_view payload = R"({
+        "schema_version": 1,
+        "revision": 3,
+        "parsers": {
+            "ExampleParser": {
+                "domains": ["example.com"],
+                "mirrors": ["https://m0.example.com", "https://m1.example.com"]
+            }
+        }
+    })";
+	auto result = decode_catalog(payload, "sig", verifier);
+	REQUIRE(result.has_value());
+	REQUIRE(result->mirrors.contains("ExampleParser"));
+	CHECK(result->mirrors.at("ExampleParser") ==
+	      std::vector<std::string>{ "https://m0.example.com", "https://m1.example.com" });
+	// domains and mirrors are independent fields on the same parser entry.
+	CHECK(result->domains.at("ExampleParser") == std::vector<std::string>{ "example.com" });
+}
+
 TEST_CASE("decode_catalog treats a missing required field as bad format") {
 	StubVerifier verifier(true);
 	std::string_view no_revision = R"({ "schema_version": 1, "parsers": {} })";

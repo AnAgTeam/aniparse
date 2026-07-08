@@ -11,6 +11,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 using namespace aniparse;
 
@@ -111,4 +112,33 @@ TEST_CASE("CatalogManager swaps catalog selectors into the services holder") {
 	REQUIRE(source);
 	CHECK(source->get("example.info.description", "FALLBACK") == "#desc"); // override applied
 	CHECK(source->get("unknown.key", "FALLBACK") == "FALLBACK");          // unknown still falls back
+}
+
+TEST_CASE("CatalogManager swaps catalog mirrors and unions their hosts into routing") {
+	ParserStore store;
+	store.add_parser(std::make_unique<CatalogParser>("ExampleParser"));
+	StubVerifier verifier(true);
+
+	auto services     = std::make_shared<ServiceState>();
+	services->mirrors = std::make_shared<MirrorSourceHolder>();
+	CatalogManager manager(store, verifier, services);
+
+	// A catalog with only mirrors (no separate "domains") for the parser.
+	std::string_view payload = R"({
+		"schema_version": 1, "revision": 4,
+		"parsers": { "ExampleParser": { "mirrors": ["https://live.example", "https://alt.example:8443/base"] } }
+	})";
+	REQUIRE(manager.apply(payload, "sig").has_value());
+
+	// The override reached the holder, keyed by parser id.
+	auto source = services->mirrors->get();
+	REQUIRE(source);
+	REQUIRE(source->list_for("ExampleParser"));
+	CHECK(*source->list_for("ExampleParser") ==
+	      std::vector<std::string>{ "https://live.example", "https://alt.example:8443/base" });
+
+	// Each mirror's host was unioned into routing, even without a "domains" entry —
+	// the scheme/port/path are stripped to the bare host.
+	CHECK(store.find_for_url("https://live.example/title/1"));
+	CHECK(store.find_for_url("https://alt.example/title/1"));
 }

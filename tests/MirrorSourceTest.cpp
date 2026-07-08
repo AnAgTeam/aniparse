@@ -140,12 +140,17 @@ TEST_CASE("RequestorContext snapshots mirrors at construction, immune to a later
 	services->mirrors = holder_with(OverrideMap{ { "ParserA", { "https://old.example" } } });
 
 	RequestorContext live(services, config_for("ParserA", 0));
-	CHECK(live.base_url(builtin) == "https://old.example");
+	// Pin a view into the live context's snapshot BEFORE the swap.
+	std::string_view pinned = live.base_url(builtin);
+	CHECK(pinned == "https://old.example");
 
 	// A catalog apply swaps the holder after the context was built.
 	services->mirrors->set(std::make_shared<const MirrorSource>(
 	    OverrideMap{ { "ParserA", { "https://new.example" } } }));
 
+	// The context pins its snapshot by refcount, so the swap does not free the old
+	// source: a view obtained earlier is still readable and unchanged.
+	CHECK(pinned == "https://old.example");
 	// The live context keeps its snapshot; only a freshly built context sees the swap.
 	CHECK(live.base_url(builtin) == "https://old.example");
 	RequestorContext fresh(services, config_for("ParserA", 0));
