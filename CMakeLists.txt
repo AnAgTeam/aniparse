@@ -27,6 +27,10 @@ endif()
 
 project(aniparse VERSION 0.1 LANGUAGES CXX)
 
+# Defines CMAKE_INSTALL_INCLUDEDIR / LIBDIR / BINDIR used by the install() rules
+# below; without it a fresh configure fails with "install ... no DESTINATION".
+include(GNUInstallDirs)
+
 # ---- FIND DEPENDENCIES
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
