@@ -66,18 +66,6 @@ MangaGetterRootCompatibilities MangaRootGetter::latest_support() const noexcept 
 	return {};
 }
 
-std::vector<SearchQueryError> validate_query(
-	const SearchCompatibilities& support,
-	const SearchRequestQuery& query,
-	const GetFilters& filters) {
-	std::vector<SearchQueryError> errors = validate_search_query(support.supported_filters, query);
-	std::vector<SearchQueryError> sort_errors = validate_sort(support.supported_sorts, filters.sort);
-	errors.insert(errors.end(),
-		std::make_move_iterator(sort_errors.begin()),
-		std::make_move_iterator(sort_errors.end()));
-	return errors;
-}
-
 std::vector<SearchQueryError> MangaRootGetter::validate_latest_filters(const GetFilters& filters) const {
 	return validate_sort(latest_support().supported_sorts, filters.sort);
 }

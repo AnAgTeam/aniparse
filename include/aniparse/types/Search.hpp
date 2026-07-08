@@ -5,6 +5,7 @@
  */
 #pragma once
 #include "aniparse/types/Pagination.hpp"
+#include "aniparse/types/Flags.hpp"
 
 #include <chrono>
 #include <cstddef>
@@ -212,6 +213,30 @@ struct SearchQueryError {
  * errors from validate_search_query instead.
  */
 [[nodiscard]] std::string describe_search_query_errors(std::span<const SearchQueryError> errors);
+
+/**
+ * @brief A source's declared search capability: the filters and sorts it
+ * accepts, plus feature flags. A root getter's search_support returns it and
+ * validate_query checks a query against it. Domain-agnostic — shared by every
+ * getter that searches (manga, images, ...).
+ */
+struct SearchCompatibilities {
+	SearchItems supported_filters;
+	SupportedSorts supported_sorts;
+	CompatibilitiesFlags compatibilities = compatibilities_flags::default_flags;
+};
+
+/**
+ * @brief Validate a query + sort against an already-fetched support table.
+ * Combines validate_search_query (filters) and validate_sort (sort) in one
+ * pass: await the support once, then validate here — at the start of search()
+ * or as a UI pre-flight.
+ * @return Empty if valid; otherwise all violations found.
+ */
+[[nodiscard]] std::vector<SearchQueryError> validate_query(
+    const SearchCompatibilities& support,
+    const SearchRequestQuery& query,
+    const GetFilters& filters);
 } // namespace aniparse
 
 /**

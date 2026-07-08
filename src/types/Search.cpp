@@ -124,6 +124,18 @@ std::vector<SearchQueryError> validate_sort(
 	return {};
 }
 
+std::vector<SearchQueryError> validate_query(
+	const SearchCompatibilities& support,
+	const SearchRequestQuery& query,
+	const GetFilters& filters) {
+	std::vector<SearchQueryError> errors = validate_search_query(support.supported_filters, query);
+	std::vector<SearchQueryError> sort_errors = validate_sort(support.supported_sorts, filters.sort);
+	errors.insert(errors.end(),
+		std::make_move_iterator(sort_errors.begin()),
+		std::make_move_iterator(sort_errors.end()));
+	return errors;
+}
+
 std::string describe_search_query_errors(std::span<const SearchQueryError> errors) {
 	std::string message;
 	for (const auto& error : errors) {

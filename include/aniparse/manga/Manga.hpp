@@ -149,12 +149,6 @@ struct MangaGetterRootCompatibilities {
 	CompatibilitiesFlags compatibilities = compatibilities_flags::default_flags;
 };
 
-struct SearchCompatibilities {
-	SearchItems supported_filters;
-	SupportedSorts supported_sorts;
-	CompatibilitiesFlags compatibilities = compatibilities_flags::default_flags;
-};
-
 /**
  * @brief Interface for getting one specific manga information.
  */
@@ -283,18 +277,5 @@ struct MangaRootGetter {
 	 */
 	virtual NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData data) = 0;
 };
-
-/**
- * @brief Validate a query + sort against an already-fetched support table.
- * A 1:1 free replacement for the old validate_query member (search_support is now
- * async): await the support once, then validate here — at the start of search()
- * or as a UI pre-flight. Combines validate_search_query (filters) and validate_sort
- * (sort), which a single validate_search_query does not.
- * @return Empty if valid; otherwise all violations found.
- */
-[[nodiscard]] std::vector<SearchQueryError> validate_query(
-    const SearchCompatibilities& support,
-    const SearchRequestQuery& query,
-    const GetFilters& filters);
 
 } // namespace aniparse
