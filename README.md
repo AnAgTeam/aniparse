@@ -203,6 +203,8 @@ cmake --build build
 - [Parsing](examples/example_parse.cpp) — extracting data from HTML: CSS selectors, DOM, JSON from a `<script>`. Runs offline, against a fixture.
 - [Networking](examples/example_net.cpp) — real HTTP requests via `request` / `request_html` / `request_json`.
 
+**Real, complete parsers** live in a separate repo — [aniparse-parsers](https://github.com/AnAgTeam/aniparse-parsers): runnable source parsers against official public APIs (AniList, Kitsu) that show the full `Parser` / getter model end-to-end — search, info, URL routing and serialization against live services. A good reference when writing your own.
+
 ---
 
 ## Project structure

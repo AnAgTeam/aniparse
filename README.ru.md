@@ -203,6 +203,8 @@ cmake --build build
 - [Парсинг](examples/example_parse.cpp) — извлечение данных из HTML: CSS-селекторы, DOM, JSON из `<script>`. Работает офлайн, на фикстуре.
 - [Сеть](examples/example_net.cpp) — реальные HTTP-запросы через `request` / `request_html` / `request_json`.
 
+**Настоящие, полноценные парсеры** — в отдельном репозитории [aniparse-parsers](https://github.com/AnAgTeam/aniparse-parsers): рабочие парсеры источников поверх официальных публичных API (AniList, Kitsu), демонстрирующие всю модель `Parser` / геттеров целиком — поиск, информацию, маршрутизацию URL и сериализацию на живых сервисах. Хороший ориентир для своего парсера.
+
 ---
 
 ## Структура проекта
