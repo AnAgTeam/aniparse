@@ -135,6 +135,20 @@ if (ANIPARSE_NSURLSESSION_BACKEND)
 	# target_link_libraries(aniparse PUBLIC "-framework Foundation")
 endif()
 
+# ---- COROUTINE RUNTIME (libcoro)
+
+# libcoro is the coroutine runtime behind NetworkTask/CancellingTask and the
+# coroutine helpers (utility/Coroutines.hpp) — needed regardless of the HTTP
+# backend. The curl backend already pulls it in transitively via asyncnet, so
+# add it directly only when that backend is off; adding it twice would redefine
+# the target.
+if (NOT ANIPARSE_CURL_BACKEND)
+	set(LIBCORO_BUILD_EXAMPLES OFF)
+	set(LIBCORO_BUILD_TESTS OFF)
+	add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/libasyncnet/libcoro")
+	target_link_libraries(aniparse PUBLIC $<BUILD_INTERFACE:libcoro>)
+endif()
+
 if (ANIPARSE_BUILD_TESTS)
 	enable_testing()
 	add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/tests")
