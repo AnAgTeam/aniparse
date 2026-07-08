@@ -4,6 +4,8 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
+#include "aniparse/utility/Attributes.hpp"
+
 #include <boost/json.hpp>
 
 #include <cstdint>
@@ -42,7 +44,7 @@ namespace aniparse::json {
  * @return A pointer to the nested object, or nullptr if the key is absent or
  *         the value is not an object.
  */
-inline const boost::json::object* object_field(const boost::json::object& object,
+inline const boost::json::object* object_field(const boost::json::object& object ANIPARSE_LIFETIMEBOUND,
                                                std::string_view key) {
 	const boost::json::value* value = object.if_contains(key);
 	return value ? value->if_object() : nullptr;
@@ -55,7 +57,7 @@ inline const boost::json::object* object_field(const boost::json::object& object
  * @return A pointer to the array, or nullptr if the key is absent or the value
  *         is not an array.
  */
-inline const boost::json::array* array_field(const boost::json::object& object,
+inline const boost::json::array* array_field(const boost::json::object& object ANIPARSE_LIFETIMEBOUND,
                                              std::string_view key) {
 	const boost::json::value* value = object.if_contains(key);
 	return value ? value->if_array() : nullptr;
