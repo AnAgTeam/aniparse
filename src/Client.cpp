@@ -10,6 +10,7 @@
 
 #include "aniparse/Client.hpp"
 #include "aniparse/Headers.hpp"
+#include "aniparse/utility/UrlEncode.hpp"
 
 #include <asyncnet/Exceptions.hpp>
 #include <asyncnet/MultipartForms.hpp>
@@ -109,9 +110,15 @@ static std::optional<RequestErrorCode> apply_method(asyncnet::Request& request, 
 // form. asyncnet percent-encodes each pair as it is appended, keeping URL
 // encoding a single-sourced transport concern.
 static asyncnet::UrlParameters to_asyncnet_params(const UrlParameters& params) {
+	// The neutral UrlParameters holds raw (unencoded) pairs by contract; the
+	// transport percent-encodes them on send (see UrlEncode.hpp). asyncnet only
+	// concatenates key=value&..., so a value with a space/':'/'&' would otherwise
+	// produce a malformed URL and the request fails at the curl layer.
 	asyncnet::UrlParameters result;
 	for (const auto& [key, value] : params) {
-		result += std::pair<std::string_view, std::string_view>(key, value);
+		std::string encoded_key   = url_encode(key);
+		std::string encoded_value = url_encode(value);
+		result += std::pair<std::string_view, std::string_view>(encoded_key, encoded_value);
 	}
 	return result;
 }
