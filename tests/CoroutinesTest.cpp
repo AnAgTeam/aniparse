@@ -10,7 +10,7 @@
 #include <coro/thread_pool.hpp>
 #include <coro/expected.hpp>
 
-#include <asyncnet/CancellingTask.hpp>
+#include <aniparse/net/CancellingTask.hpp>
 
 #include <aniparse/Common.hpp>
 

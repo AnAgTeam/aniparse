@@ -14,6 +14,7 @@
             "ANIPARSE_BUILD_TESTS": true,
             "ANIPARSE_BUILD_EXAMPLES": true,
             "ANIPARSE_BUILD_TOOLS": true,
+            "ANIPARSE_CURL_BACKEND": true,
             "ANIPARSE_USE_BOOST_REGEX":  true
           },
             "condition": {

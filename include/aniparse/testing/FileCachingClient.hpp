@@ -4,9 +4,15 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/Client.hpp"
 #include "aniparse/ClientContext.hpp"
 #include "aniparse/utility/Coroutines.hpp"
+
+// Only for the convenience default upstream (the real network = curl). Without
+// the curl backend, an upstream ClientContext must be injected explicitly, so
+// this decorator itself pulls in no HTTP backend.
+#if defined(ANIPARSE_CURL_BACKEND) && ANIPARSE_CURL_BACKEND
+#include "aniparse/Client.hpp"
+#endif
 
 #include <cctype>
 #include <filesystem>
@@ -32,11 +38,16 @@ namespace aniparse::testing {
  */
 class FileCachingClient : public ClientContext {
 public:
-	explicit FileCachingClient(std::filesystem::path cache_dir,
-	                           std::shared_ptr<ClientContext> upstream = std::make_shared<AsyncClient>())
+	FileCachingClient(std::filesystem::path cache_dir, std::shared_ptr<ClientContext> upstream)
 	    : cache_dir_(std::move(cache_dir)), upstream_(std::move(upstream)) {
 		std::filesystem::create_directories(cache_dir_);
 	}
+
+#if defined(ANIPARSE_CURL_BACKEND) && ANIPARSE_CURL_BACKEND
+	// Convenience: default the upstream to the real network (curl backend).
+	explicit FileCachingClient(std::filesystem::path cache_dir)
+	    : FileCachingClient(std::move(cache_dir), std::make_shared<AsyncClient>()) {}
+#endif
 
 	NetworkRequestTask<ResponseData> do_request(ConfiguredGetRequest request) override {
 		// Compute the key BEFORE moving the request: argument evaluation order is
