@@ -12,7 +12,7 @@
 
 namespace aniparse {
 
-/// A single HTTP cookie with the fields common to libcurl's Netscape store and
+/// A single HTTP cookie with the fields common to the Netscape cookie format and
 /// Foundation's NSHTTPCookie, so a jar can round-trip through either backend.
 struct Cookie {
 	std::string name;

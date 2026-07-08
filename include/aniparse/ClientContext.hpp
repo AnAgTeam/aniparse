@@ -90,7 +90,7 @@ struct ClientContext {
 	 * @return Task with the response, or a RequestError on a transport-level failure.
 	 *         No status check here.
 	 * @throws std::invalid_argument If a File form part sets an explicit filename
-	 *         (the curl backend cannot override the presented name) — a caller bug,
+	 *         (the transport presents the on-disk name and cannot override it) — a caller bug,
 	 *         raised when the returned task is awaited
 	 */
 	virtual NetworkRequestTask<ResponseData> do_request(ConfiguredPostMultipartRequest request) = 0;

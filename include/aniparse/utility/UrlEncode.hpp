@@ -12,9 +12,9 @@ namespace aniparse {
 /**
  * @brief Percent-encode a string per RFC 3986.
  * Unreserved characters (A-Z a-z 0-9 - . _ ~) pass through; every other byte
- * becomes %XX with uppercase hex (space -> %20, not '+'), matching curl's
- * escaping. Use it to build application/x-www-form-urlencoded bodies or to
- * escape a value placed into a URL by hand.
+ * becomes %XX with uppercase hex (space -> %20, not '+'). Use it to build
+ * application/x-www-form-urlencoded bodies or to escape a value placed into a
+ * URL by hand.
  * @note URL query parameters set via @ref UrlParameters are encoded by the
  *       transport on send and must NOT be pre-encoded with this (double-encoding).
  * @param value Raw value

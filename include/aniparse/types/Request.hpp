@@ -140,8 +140,8 @@ struct MultipartPart {
 		std::string data;
 		friend bool operator==(const Buffer&, const Buffer&) = default;
 	};
-	/// File read from a filesystem path by the transport (curl reads it lazily,
-	/// so a large on-disk file is not loaded into memory).
+	/// File read from a filesystem path by the transport, which streams it lazily
+	/// so a large on-disk file is not loaded into memory.
 	struct File {
 		std::string path;
 		friend bool operator==(const File&, const File&) = default;
