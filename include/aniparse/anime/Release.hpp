@@ -7,7 +7,7 @@
 #include "aniparse/FlagsBitfield.hpp"
 #include "aniparse/ClientContext.hpp"
 
-#include <asyncnet/CancellingTask.hpp>
+#include "aniparse/net/CancellingTask.hpp"
 #include <string>
 #include <variant>
 #include <chrono>

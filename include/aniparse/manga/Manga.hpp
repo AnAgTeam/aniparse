@@ -7,8 +7,6 @@
 #include "aniparse/Common.hpp"
 #include "aniparse/ParsedUrl.hpp"
 
-#include <coro/expected.hpp>
-
 namespace aniparse {
 
 using MangaID            = int;

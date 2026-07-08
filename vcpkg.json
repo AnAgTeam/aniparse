@@ -5,8 +5,15 @@
 		"boost-json",
 		"boost-regex",
 		"boost-system",
-		"curl",
 		"fmt",
 		"tl-expected"
-	]
+	],
+	"features": {
+		"curl-backend": {
+			"description": "curl HTTP backend (libasyncnet + curl)",
+			"dependencies": [
+				"curl"
+			]
+		}
+	}
 }

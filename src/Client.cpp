@@ -3,6 +3,11 @@
  *
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
+// The curl HTTP backend implementation. Compiled only when the curl backend is
+// enabled (CMake also drops it from the source list then); this guard makes an
+// accidental build a clean no-op rather than a curlpp-not-found error.
+#if defined(ANIPARSE_CURL_BACKEND) && ANIPARSE_CURL_BACKEND
+
 #include "aniparse/Client.hpp"
 #include "aniparse/Headers.hpp"
 
@@ -436,3 +441,5 @@ std::shared_ptr<CookieJar> AsyncClient::make_cookie_jar() {
 }
 
 } // namespace aniparse
+
+#endif // ANIPARSE_CURL_BACKEND

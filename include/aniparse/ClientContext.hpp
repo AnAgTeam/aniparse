@@ -12,7 +12,7 @@
 #include "aniparse/html/SelectorSource.hpp"
 #include "aniparse/utility/Format.hpp"
 
-#include <asyncnet/CancellingTask.hpp>
+#include "aniparse/net/CancellingTask.hpp"
 
 #include <boost/json/fwd.hpp>
 

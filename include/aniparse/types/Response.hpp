@@ -7,7 +7,7 @@
 #include "aniparse/Headers.hpp"
 #include "aniparse/utility/Expected.hpp"
 
-#include <asyncnet/CancellingTask.hpp>
+#include "aniparse/net/CancellingTask.hpp"
 
 #include <optional>
 #include <string>

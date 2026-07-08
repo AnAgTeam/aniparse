@@ -9,7 +9,7 @@
 #include "aniparse/images/Image.hpp"
 #include "aniparse/manga/Manga.hpp"
 
-#include <asyncnet/CancellingTask.hpp>
+#include "aniparse/net/CancellingTask.hpp"
 #include <memory>
 #include <map>
 #include <span>

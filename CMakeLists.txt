@@ -6,6 +6,19 @@ option(ANIPARSE_BUILD_TESTS "build tests, Default=OFF" OFF)
 option(ANIPARSE_BUILD_EXAMPLES "build examples, Default=OFF" OFF)
 option(ANIPARSE_BUILD_TOOLS "build tools, Default=OFF" OFF)
 
+# HTTP backends. The parse core is backend-neutral (talks only to ClientContext);
+# each backend is an optional concrete implementation. libasyncnet (hence curl) is
+# pulled in only for the curl backend. With no backend the core still builds — the
+# consumer injects its own ClientContext.
+option(ANIPARSE_CURL_BACKEND "build the curl HTTP backend (pulls libasyncnet + curl)" ON)
+option(ANIPARSE_NSURLSESSION_BACKEND "build the NSURLSession HTTP backend (Apple)" OFF)
+
+# Select vcpkg manifest features from the backend options, before the toolchain
+# loads (this drives which optional deps, e.g. curl, actually get installed).
+if (ANIPARSE_CURL_BACKEND)
+	list(APPEND VCPKG_MANIFEST_FEATURES "curl-backend")
+endif()
+
 # without this vcpkg won't try to install dependencies
 if (CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg.cmake")
 	message(STATUS "Found vcpkg")
@@ -17,7 +30,10 @@ project(aniparse VERSION 0.1 LANGUAGES CXX)
 # ---- FIND DEPENDENCIES
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
-find_package(asyncnet REQUIRED)
+# asyncnet (and thus curl) is a dependency of the curl backend only.
+if (ANIPARSE_CURL_BACKEND)
+	find_package(asyncnet REQUIRED)
+endif()
 find_package(lexbor REQUIRED)
 find_package(fmt REQUIRED)
 find_package(Boost REQUIRED COMPONENTS json regex)
@@ -29,7 +45,11 @@ add_library(aniparse STATIC
 	"include/aniparse/FlagsBitfield.hpp"
 	"include/aniparse/detail/BitsetLite.hpp"
 	"include/aniparse/detail/StrongBitset.hpp"
-	"src/Client.cpp" "include/aniparse/Client.hpp"
+	# src/Client.cpp (the curl backend) is added conditionally below.
+	"include/aniparse/Client.hpp"
+	"include/aniparse/net/CancellingTask.hpp"
+	"include/aniparse/net/vendor/CancellingTask.hpp"
+	"include/aniparse/net/vendor/Concepts.hpp"
 	"src/ClientContext.cpp" "include/aniparse/ClientContext.hpp"
 	"src/Headers.cpp" "include/aniparse/Headers.hpp"
 	"src/ParsedUrl.cpp" "include/aniparse/ParsedUrl.hpp"
@@ -92,12 +112,28 @@ target_include_directories(aniparse PUBLIC
 )
 
 target_link_libraries(aniparse PUBLIC
-	$<BUILD_INTERFACE:asyncnet
-		${LEXBOR_LIBRARIES}
+	$<BUILD_INTERFACE:${LEXBOR_LIBRARIES}
 		fmt::fmt
 		Boost::json
 		Boost::regex>
 )
+
+# ---- HTTP BACKENDS (optional, concrete ClientContext implementations)
+
+if (ANIPARSE_CURL_BACKEND)
+	# The macro is PUBLIC on purpose: the public header net/CancellingTask.hpp
+	# selects the real asyncnet task type vs the vendored copy off it, so every
+	# consumer TU must see the same value as the library was built with.
+	target_compile_definitions(aniparse PUBLIC ANIPARSE_CURL_BACKEND=1)
+	target_sources(aniparse PRIVATE "src/Client.cpp")
+	target_link_libraries(aniparse PUBLIC $<BUILD_INTERFACE:asyncnet>)
+endif()
+
+if (ANIPARSE_NSURLSESSION_BACKEND)
+	target_compile_definitions(aniparse PUBLIC ANIPARSE_NSURLSESSION_BACKEND=1)
+	# target_sources(aniparse PRIVATE "src/net/NSURLSessionClient.mm")
+	# target_link_libraries(aniparse PUBLIC "-framework Foundation")
+endif()
 
 if (ANIPARSE_BUILD_TESTS)
 	enable_testing()

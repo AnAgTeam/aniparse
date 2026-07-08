@@ -7,6 +7,11 @@
 #include "aniparse/types/Request.hpp"
 #include "aniparse/ClientContext.hpp"
 
+// The curl HTTP backend. Only compiled with ANIPARSE_CURL_BACKEND; the whole
+// header collapses to nothing otherwise, so a stray include never pulls asyncnet
+// (hence curl) into a backend-less or NSURLSession-only build.
+#if defined(ANIPARSE_CURL_BACKEND) && ANIPARSE_CURL_BACKEND
+
 #include <asyncnet/AsyncSession.hpp>
 #include <asyncnet/Requestor.hpp>
 
@@ -82,3 +87,5 @@ private:
 	uint32_t max_retries_;
 };
 } // namespace aniparse
+
+#endif // ANIPARSE_CURL_BACKEND
