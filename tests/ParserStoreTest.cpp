@@ -62,3 +62,25 @@ TEST_CASE("ParserStore find") {
 	CHECK(parser_store.find_by_key("TestParser"));
 	CHECK_FALSE(parser_store.find_by_key("SomeParser"));
 }
+
+TEST_CASE("ParserStore refresh_domains adds and drops volatile domains") {
+	aniparse::ParserStore parser_store;
+	parser_store.add_parser(std::make_unique<TestParser>());
+
+	// A domain the parser never declared statically does not route yet.
+	CHECK_FALSE(parser_store.find_for_url("https://example.org"));
+
+	// A catalog refresh adds a volatile domain for the parser: it now routes, and
+	// the static domains keep working (volatile is merged on top of static).
+	parser_store.refresh_domains({ { "TestParser", { "example.org" } } });
+	CHECK(parser_store.find_for_url("https://example.org"));
+	CHECK(parser_store.find_for_url("https://www.youtube.com"));
+	// valid_for_url still gates the volatile domain like any other.
+	CHECK_FALSE(parser_store.find_for_url("https://aaa.example.org"));
+
+	// An empty refresh falls back to static domains only: the volatile domain is
+	// dropped, the static ones remain.
+	parser_store.refresh_domains({});
+	CHECK_FALSE(parser_store.find_for_url("https://example.org"));
+	CHECK(parser_store.find_for_url("https://www.youtube.com"));
+}

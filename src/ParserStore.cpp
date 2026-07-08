@@ -54,6 +54,7 @@ private:
 } // namespace detail
 
 ParserStore::ParserStore() {
+	rebuild_index();
 }
 
 std::shared_ptr<Parser> ParserStore::add_parser(std::shared_ptr<Parser> parser) {
@@ -62,9 +63,31 @@ std::shared_ptr<Parser> ParserStore::add_parser(std::shared_ptr<Parser> parser) 
 	}
 
 	auto& inserted_parser = parsers_[parser->identifier()] = std::move(parser);
-	detail::DomainAdder adder(parsers_scanner_, inserted_parser);
-	inserted_parser->emplace_domains(adder);
+	rebuild_index();
 	return inserted_parser;
+}
+
+std::shared_ptr<ParserStore::Scanner> ParserStore::build_scanner() const {
+	auto scanner = std::make_shared<Scanner>();
+	for (const auto& [key, parser] : parsers_) {
+		detail::DomainAdder adder(*scanner, parser);
+		parser->emplace_domains(adder);
+		if (auto volatile_iter = volatile_domains_.find(key); volatile_iter != volatile_domains_.end()) {
+			for (const std::string& domain : volatile_iter->second) {
+				adder.add_domain(domain);
+			}
+		}
+	}
+	return scanner;
+}
+
+void ParserStore::rebuild_index() {
+	scanner_.store(build_scanner());
+}
+
+void ParserStore::refresh_domains(std::map<std::string, std::vector<std::string>, std::less<>> volatile_domains) {
+	volatile_domains_ = std::move(volatile_domains);
+	rebuild_index();
 }
 
 std::shared_ptr<Parser> ParserStore::find_by_domain(std::string_view domain) {
@@ -73,8 +96,9 @@ std::shared_ptr<Parser> ParserStore::find_by_domain(std::string_view domain) {
 	if (!parsed) {
 		return nullptr;
 	}
+	auto scanner      = scanner_.load();
 	auto domain_iter  = detail::split_domains(domain);
-	auto found_parser = parsers_scanner_.search_all(domain_iter, [&parsed](std::shared_ptr<Parser>& parser) {
+	auto found_parser = scanner->search_all(domain_iter, [&parsed](std::shared_ptr<Parser>& parser) {
 		return parser->valid_for_url(*parsed);
 	});
 	return found_parser ? *found_parser : nullptr;
@@ -85,8 +109,9 @@ std::shared_ptr<Parser> ParserStore::find_for_url(std::string_view url) {
 	if (!parsed) {
 		return nullptr;
 	}
+	auto scanner      = scanner_.load();
 	auto domain_iter  = detail::split_url_domains(url);
-	auto found_parser = parsers_scanner_.search_all(domain_iter, [&parsed](std::shared_ptr<Parser>& parser) {
+	auto found_parser = scanner->search_all(domain_iter, [&parsed](std::shared_ptr<Parser>& parser) {
 		return parser->valid_for_url(*parsed);
 	});
 	return found_parser ? *found_parser : nullptr;
@@ -97,8 +122,9 @@ std::optional<UrlRoute> ParserStore::route_url(std::string_view url) {
 	if (!parsed) {
 		return std::nullopt;
 	}
+	auto scanner      = scanner_.load();
 	auto domain_iter  = detail::split_url_domains(url);
-	auto found_parser = parsers_scanner_.search_all(domain_iter, [&parsed](std::shared_ptr<Parser>& parser) {
+	auto found_parser = scanner->search_all(domain_iter, [&parsed](std::shared_ptr<Parser>& parser) {
 		return parser->valid_for_url(*parsed);
 	});
 	if (!found_parser) {

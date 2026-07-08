@@ -8,10 +8,12 @@
 #include "aniparse/Parser.hpp"
 #include "aniparse/ParsedUrl.hpp"
 
+#include <atomic>
 #include <string>
 #include <map>
 #include <numeric>
 #include <optional>
+#include <vector>
 
 namespace aniparse {
 
@@ -77,7 +79,20 @@ public:
 	 */
 	std::optional<UrlRoute> route_url(std::string_view url);
 
+	/**
+	 * @brief Replace the volatile (catalog-supplied) domains and rebuild routing.
+	 * Each parser's static domains (from emplace_domains) are always kept; the
+	 * volatile domains here are merged on top, keyed by parser identifier. Passing
+	 * an empty map falls back to static domains only. The routing index is rebuilt
+	 * as a fresh snapshot and swapped in atomically, so lookups already in progress
+	 * keep using their snapshot until they finish.
+	 * @param volatile_domains Parser identifier -> extra domains it should route
+	 */
+	void refresh_domains(std::map<std::string, std::vector<std::string>, std::less<>> volatile_domains);
+
 private:
+	using Scanner = DomainScanner<std::shared_ptr<Parser>>;
+
 	/**
 	 * Check if the parser identifier doesn't conflicting with existing parsers
 	 * @see Parser
@@ -86,7 +101,18 @@ private:
 	 */
 	bool check_is_conflicting(const std::shared_ptr<Parser>& parser) const;
 
+	/**
+	 * Build a fresh routing index from the current parsers and volatile domains.
+	 * Every parser contributes its static domains plus any volatile domains keyed
+	 * by its identifier. Pure: produces a new scanner and mutates nothing.
+	 */
+	std::shared_ptr<Scanner> build_scanner() const;
+
+	/// Rebuild the routing index and swap it in atomically.
+	void rebuild_index();
+
 	std::map<std::string, std::shared_ptr<Parser>, std::less<>> parsers_;
-	DomainScanner<std::shared_ptr<Parser>> parsers_scanner_;
+	std::map<std::string, std::vector<std::string>, std::less<>> volatile_domains_;
+	std::atomic<std::shared_ptr<Scanner>> scanner_;
 };
 } // namespace aniparse
