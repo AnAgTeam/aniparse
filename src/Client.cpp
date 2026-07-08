@@ -116,8 +116,12 @@ static asyncnet::UrlParameters to_asyncnet_params(const UrlParameters& params) {
 	// produce a malformed URL and the request fails at the curl layer.
 	asyncnet::UrlParameters result;
 	for (const auto& [key, value] : params) {
-		std::string encoded_key   = url_encode(key);
-		std::string encoded_value = url_encode(value);
+		// The encoded strings must outlive the operator+= call: append_items copies
+		// their bytes into the target immediately, so the views never escape this
+		// iteration. Keep them as named locals (not inline temporaries) so that
+		// stays true if this loop is ever restructured.
+		const std::string encoded_key   = url_encode(key);
+		const std::string encoded_value = url_encode(value);
 		result += std::pair<std::string_view, std::string_view>(encoded_key, encoded_value);
 	}
 	return result;
