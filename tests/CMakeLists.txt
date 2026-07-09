@@ -7,6 +7,8 @@ add_executable(aniparse-tests
 	"BitsetLiteTest.cpp"
 	"HeadersTest.cpp"
 	"UrlEncodeTest.cpp"
+	"UrlPathTest.cpp"
+	"PaginationTest.cpp"
 	"ParsedUrlTest.cpp"
 	"ModelTest.cpp"
 	"AuthExportTest.cpp"

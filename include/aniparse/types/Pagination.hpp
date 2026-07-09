@@ -27,6 +27,20 @@ struct PageResults {
 	Container results;
 	pageoff next_offset = pageoff(0);
 	size_t total_count  = 0;
+
+	/**
+	 * @brief Append @p item numbered at its absolute offset and advance next_offset.
+	 * Centralizes the `from + size()` bookkeeping every page builder repeats: the
+	 * first item lands at @p from, each subsequent one one past the last, and
+	 * next_offset is left pointing just beyond the page.
+	 * @param from  Absolute item offset of the first item on this page (GetFilters::from).
+	 * @param item  The item to append.
+	 */
+	void append(pageoff from, T item) {
+		const pageoff offset = from + static_cast<pageoff>(results.size());
+		results.push_back(PageItem<T>{ .item = std::move(item), .offset = offset });
+		next_offset = from + static_cast<pageoff>(results.size());
+	}
 };
 
 /**
@@ -64,6 +78,46 @@ struct GetFilters {
 	/// No value = the source's default order
 	std::optional<SortOrder> sort;
 };
+
+/**
+ * @brief Item-offset paging arithmetic shared by page-number and offset APIs.
+ *
+ * Maps a GetFilters item window onto whatever an endpoint speaks:
+ *  - offset APIs send @ref from and @ref want directly (skip stays 0);
+ *  - page-number APIs send @ref page and drop @ref skip items from the page head.
+ * @ref stride is the API's page size — equal to @ref want when the API lets the
+ * caller choose it, or a fixed constant when it does not (e.g. a hardcoded perPage).
+ */
+struct OffsetPaging {
+	/// Absolute 0-based item offset to start from (GetFilters::from).
+	pageoff from = 0;
+	/// Number of items the caller wants back (already clamped).
+	pageoff want = 0;
+	/// The API's page size in items.
+	pageoff stride = 0;
+
+	/// The @p base-indexed (1-based by default) page number containing @ref from.
+	[[nodiscard]] pageoff page(pageoff base = 1) const noexcept {
+		return stride > 0 ? from / stride + base : base;
+	}
+	/// Items to skip at the head of @ref page to land exactly on @ref from.
+	[[nodiscard]] pageoff skip() const noexcept {
+		return stride > 0 ? from % stride : 0;
+	}
+};
+
+/**
+ * @brief Resolve GetFilters::limit into a concrete item count.
+ * @return @p fallback when the caller left the limit unset (page_no_limit),
+ *         otherwise the requested limit clamped to @p cap. All in item units.
+ */
+[[nodiscard]] inline pageoff clamp_limit(const GetFilters& filters, pageoff cap,
+                                         pageoff fallback) noexcept {
+	const pageoff want = filters.limit == page_no_limit
+	                         ? fallback
+	                         : static_cast<pageoff>(filters.limit);
+	return want < cap ? want : cap;
+}
 } // namespace aniparse
 
 /**
