@@ -5,6 +5,7 @@
 option(ANIPARSE_BUILD_TESTS "build tests, Default=OFF" OFF)
 option(ANIPARSE_BUILD_EXAMPLES "build examples, Default=OFF" OFF)
 option(ANIPARSE_BUILD_TOOLS "build tools, Default=OFF" OFF)
+option(ANIPARSE_ANALYZE "MSVC /analyze lifetime gate (slow; CI leg)" OFF)
 
 # HTTP backends. The parse core is backend-neutral (talks only to ClientContext);
 # each backend is an optional concrete implementation. libasyncnet (hence curl) is
@@ -109,6 +110,24 @@ target_compile_options(aniparse PRIVATE
 target_compile_options(aniparse PUBLIC
 	$<$<CXX_COMPILER_ID:MSVC>:/utf-8>
 )
+
+# Opt-in MSVC static lifetime analysis (a separate, slow CI leg — not per-build).
+# The C++ Core Guidelines lifetime rules catch dangling views/pointers at compile
+# time (e.g. `std::string_view v = json::str(...)` -> C26815/C26449). Scoped to our
+# sources only (PRIVATE), system headers excluded, the lifetime rules promoted to
+# errors so a regression fails the build; the noisier style rules stay non-fatal.
+if (ANIPARSE_ANALYZE AND MSVC)
+	target_compile_options(aniparse PRIVATE
+		/analyze /analyze:external- /analyze:plugin EspXEngine.dll
+		/external:env:INCLUDE /external:W0
+		# Lifetime rules -> errors: a dangling view/pointer/use-after-move fails.
+		/we26815 /we26816 /we26449 /we26800 /we26811
+		# Silence the gsl-everywhere style profile (noexcept/const/gsl::at/span/
+		# narrow_cast/bounds/switch) — opinionated, not correctness; keeps the gate
+		# signal-only. 26818 (switch coverage) also fires inside vendored lexbor.
+		/wd26440 /wd26446 /wd26447 /wd26455 /wd26439 /wd26432 /wd26818
+		/wd26472 /wd26481 /wd26482 /wd26821 /wd26496 /wd26497 /wd26475 /wd26459)
+endif()
 
 target_include_directories(aniparse PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
