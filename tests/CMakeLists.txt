@@ -23,6 +23,7 @@ add_executable(aniparse-tests
 	"JsonAccessTest.cpp"
 	"ResourceCacheTest.cpp"
 	"FileCachingClientTest.cpp"
+	"ImagesDefaultsTest.cpp"
 )
 
 set_property(TARGET aniparse-tests PROPERTY CXX_STANDARD 23)

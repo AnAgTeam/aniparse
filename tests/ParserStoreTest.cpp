@@ -32,6 +32,36 @@ struct TestParser : aniparse::Parser {
 	}
 };
 
+// A parser whose identifier is set at construction, so a test can register several
+// distinct ones (add_parser rejects a duplicate identifier).
+struct NamedParser : aniparse::Parser {
+	explicit NamedParser(std::string id) : id_(std::move(id)) {}
+	std::string name() const override { return id_; }
+	std::string identifier() const override { return id_; }
+	aniparse::ParserCompatibilities compatibilities() const override { return {}; }
+	void emplace_domains(aniparse::EmplaceDomainsContext&) const override {}
+	std::string id_;
+};
+
+TEST_CASE("ParserStore parsers() is empty for a fresh store") {
+	aniparse::ParserStore parser_store;
+	CHECK(parser_store.parsers().empty());
+}
+
+TEST_CASE("ParserStore parsers() enumerates every registered parser in identifier order") {
+	aniparse::ParserStore parser_store;
+	parser_store.add_parser(std::make_unique<NamedParser>("Kitsu"));
+	parser_store.add_parser(std::make_unique<NamedParser>("AniList"));
+	parser_store.add_parser(std::make_unique<NamedParser>("Danbooru"));
+
+	auto all = parser_store.parsers();
+	REQUIRE(all.size() == 3);
+	// parsers_ is a std::map keyed by identifier -> enumeration is id-sorted.
+	CHECK(all[0]->identifier() == "AniList");
+	CHECK(all[1]->identifier() == "Danbooru");
+	CHECK(all[2]->identifier() == "Kitsu");
+}
+
 TEST_CASE("ParserStore add") {
 	aniparse::ParserStore parser_store;
 
