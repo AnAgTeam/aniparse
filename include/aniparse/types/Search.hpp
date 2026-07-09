@@ -267,28 +267,32 @@ struct SearchSuggestion {
  * @see SearchRequestQuery
  */
 namespace aniparse::search_keys {
-/// Filter by @see Series. Usually TextQuery
+/// Filter by Series. Usually TextQuery. @see Series
 inline constexpr std::string_view series          = "series";
-/// Filter by pages/episodes count. Usually DirectionalInterval/BidirectionalInterval
+/// Filter by item count (chapters/pages, or episodes). Usually IntInterval.
 inline constexpr std::string_view pages           = "icount";
-inline constexpr std::string_view episodes        = "icount";
+/// Alias of @ref pages for anime sources: same "item count" axis, same key.
+inline constexpr std::string_view episodes        = pages;
 /// Filter by Tag. TextQuery for free-text sources; ItemSelection where the
 /// source enumerates its tags, keyed by the opaque token that equals Tag::ref
 /// so a tag from MangaInfo searches directly. @see ItemSelection
 inline constexpr std::string_view tag             = "tag";
-/// Filter by upload time (last time when item was updated on specific page). Usually DirectionalInterval/BidirectionalInterval
+/// Filter by upload time (when the item was last updated). Usually TimeInterval
+/// or RelativeTimeInterval.
 inline constexpr std::string_view upload_time     = "upd_time";
-/// Filter by release time (actual time when item was released). Usually DirectionalInterval/BidirectionalInterval
+/// Filter by release time (when the item was actually released). Usually
+/// TimeInterval or RelativeTimeInterval.
 inline constexpr std::string_view release_time    = "rel_time";
-/// Filter by title, the text must be contained in title, but maybe not fully. Usually TextQuery
+/// Filter by title (substring match, not necessarily full). Usually TextQuery.
 inline constexpr std::string_view title           = "title";
-/// Filter by status like "Announced", "Released" (Aired state of item). Usually ? (TextQuery)
+/// Filter by status (aired state, e.g. "Announced"/"Released"). Usually
+/// ItemSelection, or TextQuery.
 inline constexpr std::string_view status          = "status";
-/// Filter by Rating. ? (DirectionalInterval/BidirectionalInterval)
+/// Filter by Rating. Usually IntInterval (a score range) or ItemSelection.
 inline constexpr std::string_view rating          = "rating";
-/// Filter by year. ? (DirectionalInterval/BidirectionalInterval)
+/// Filter by year. Usually IntInterval.
 inline constexpr std::string_view year            = "year";
-/// Filter by AgeRestriction. Usually DirectionalInterval/ItemSelection
+/// Filter by AgeRestriction. Usually IntInterval or ItemSelection.
 inline constexpr std::string_view age_restriction = "age_res";
 
 // Categorical tag axes. On sources that expose them as enumerable filters (e.g.
