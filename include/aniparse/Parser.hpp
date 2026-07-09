@@ -12,6 +12,7 @@
 #include "aniparse/net/CancellingTask.hpp"
 #include <memory>
 #include <map>
+#include <optional>
 #include <span>
 
 namespace aniparse {
@@ -37,8 +38,31 @@ struct ParseQueryResult {
 };
 
 struct ParserCompatibilities {
-	std::string primary_language;
 	CompatibilitiesFlags flags = compatibilities_flags::default_flags;
+};
+
+/**
+ * @brief Display metadata for a parser — everything a UI needs to render it in a
+ * source list, none of it load-bearing. Distinct from @ref identifier (the stable
+ * routing/config key) and from @ref ParserCompatibilities (capability flags): this
+ * is the витрина, returned by value so an enumeration over ParserStore::parsers()
+ * can build a source picker with one call per parser and no capability payload.
+ *
+ * Icon/banner reuse @ref Image (the one media model bridged outward) so the app
+ * has a uniform fetch descriptor; for a statically bundled parser the url is an
+ * asset reference and headers are empty. Both are optional — a parser may ship no
+ * artwork.
+ */
+struct ParserInfo {
+	/// Human-facing display name (e.g. "AniList"). May differ from @ref identifier.
+	std::string name;
+	/// Primary content language as a BCP-47 tag (e.g. "en", "ru-ru"); "multi" or
+	/// empty when the source is not tied to one language.
+	std::string primary_language;
+	/// Square logo / favicon, when the source has one.
+	std::optional<Image> icon;
+	/// Wide hero/preview artwork, when the source has one.
+	std::optional<Image> banner;
 };
 
 template <typename T>
@@ -69,9 +93,10 @@ struct Parser {
 	virtual ~Parser() = default;
 
 	/**
-	 * @return Name/display name of the parser
+	 * @see ParserInfo
+	 * @return Display metadata (name, language, artwork) for source listings.
 	 */
-	virtual std::string name() const = 0;
+	virtual ParserInfo info() const = 0;
 
 	/** 
 	 * @return Unique identifier for the parser

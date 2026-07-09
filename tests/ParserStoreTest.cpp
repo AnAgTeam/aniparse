@@ -8,8 +8,8 @@
 
 struct TestParser : aniparse::Parser {
 
-	std::string name() const override {
-		return "Test parser";
+	aniparse::ParserInfo info() const override {
+		return { .name = "Test parser" };
 	}
 
 	std::string identifier() const override {
@@ -36,7 +36,7 @@ struct TestParser : aniparse::Parser {
 // distinct ones (add_parser rejects a duplicate identifier).
 struct NamedParser : aniparse::Parser {
 	explicit NamedParser(std::string id) : id_(std::move(id)) {}
-	std::string name() const override { return id_; }
+	aniparse::ParserInfo info() const override { return { .name = id_ }; }
 	std::string identifier() const override { return id_; }
 	aniparse::ParserCompatibilities compatibilities() const override { return {}; }
 	void emplace_domains(aniparse::EmplaceDomainsContext&) const override {}

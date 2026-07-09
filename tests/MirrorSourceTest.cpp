@@ -57,7 +57,7 @@ std::shared_ptr<ParserConfig> config_for(std::string parser_id, size_t alt_link)
 // A minimal parser that declares a built-in mirror list, to exercise
 // mirror_choices() overlaying a catalog override onto it.
 struct MirrorParser : Parser {
-	std::string name() const override { return "MirrorParser"; }
+	ParserInfo info() const override { return { .name = "MirrorParser" }; }
 	std::string identifier() const override { return "MirrorParser"; }
 	ParserCompatibilities compatibilities() const override { return {}; }
 	void emplace_domains(EmplaceDomainsContext&) const override {}

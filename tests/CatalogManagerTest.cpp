@@ -28,7 +28,7 @@ struct CatalogParser : Parser {
 	std::string id;
 	explicit CatalogParser(std::string id) : id(std::move(id)) {}
 
-	std::string name() const override { return id; }
+	ParserInfo info() const override { return { .name = id }; }
 	std::string identifier() const override { return id; }
 	bool valid_for_url(const ParsedUrl&) const override { return true; }
 	ParserCompatibilities compatibilities() const override { return {}; }

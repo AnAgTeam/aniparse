@@ -116,7 +116,7 @@ struct DummyMangaRootGetter : MangaRootGetter {
 };
 
 struct DummyParser : Parser {
-	std::string name() const override { return "Dummy"; }
+	ParserInfo info() const override { return { .name = "Dummy" }; }
 	std::string identifier() const override { return "Dummy"; }
 	ParserCompatibilities compatibilities() const override { return {}; }
 	void emplace_domains(EmplaceDomainsContext&) const override {}

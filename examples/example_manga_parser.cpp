@@ -277,9 +277,14 @@ private:
 
 class ExampleParser : public Parser {
 
-	// The parser's display name, shown to the user
-	std::string name() const override {
-		return "Example";
+	// Display metadata shown to the user in a source list: name, language, and
+	// optional artwork. Distinct from identifier() (the stable routing key).
+	ParserInfo info() const override {
+		return {
+			.name             = "Example",
+			// The parser's primary language: Russian
+			.primary_language = "ru-ru",
+		};
 	}
 
 	// The parser's identifier; must be unique.
@@ -302,8 +307,6 @@ class ExampleParser : public Parser {
 	ParserCompatibilities compatibilities() const override {
 		using namespace compatibilities_flags;
 		return {
-			// The parser's primary language: Russian
-			.primary_language = "ru-ru",
 			// Flags: supports the manga store
 			.flags = supports_manga_store
 		};
@@ -451,7 +454,7 @@ int main() {
 	// from it. The store parses the URL once and hands it back in route->url.
 	if (auto route = parser_store.route_url("https://example.com/manga/123")) {
 		std::println("Routed to '{}' (manga: {})",
-			route->parser->name(),
+			route->parser->info().name,
 			route->type == GetterSuggestionType::Manga);
 
 		auto routed_getter = route->parser->mangas_getter();

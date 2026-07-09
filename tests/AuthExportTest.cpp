@@ -60,8 +60,8 @@ private:
 // Implements only the pure-virtual surface; keeps the default auth_keys()
 // (empty) and default export_auth().
 struct StubParser : Parser {
-	std::string name() const override {
-		return "stub";
+	ParserInfo info() const override {
+		return { .name = "stub" };
 	}
 	std::string identifier() const override {
 		return "stub";

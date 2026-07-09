@@ -72,7 +72,7 @@ public:
 	/**
 	 * @brief All registered parsers, in identifier order.
 	 * A snapshot copy for enumeration — e.g. a UI listing the available sources,
-	 * each parser exposing name()/identifier()/compatibilities(). Not a live view:
+	 * each parser exposing info()/identifier()/compatibilities(). Not a live view:
 	 * parsers added afterwards are not reflected until the next call.
 	 * @return The registered parsers.
 	 */
