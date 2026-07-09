@@ -8,6 +8,8 @@
 #include <string>
 #include <string_view>
 
+#include "aniparse/utility/Attributes.hpp"
+
 namespace aniparse {
 
 /**
@@ -27,15 +29,15 @@ public:
 	[[nodiscard]] static std::optional<ParsedUrl> parse(std::string_view url);
 
 	/// Scheme without the trailing colon, e.g. "https".
-	[[nodiscard]] std::string_view scheme() const noexcept { return scheme_; }
+	[[nodiscard]] std::string_view scheme() const noexcept ANIPARSE_LIFETIMEBOUND { return scheme_; }
 	/// Host (ASCII/IDNA), e.g. "api.example.com".
-	[[nodiscard]] std::string_view host() const noexcept { return host_; }
+	[[nodiscard]] std::string_view host() const noexcept ANIPARSE_LIFETIMEBOUND { return host_; }
 	/// Path with its leading slash, e.g. "/manga/12345.html". Empty if none.
-	[[nodiscard]] std::string_view path() const noexcept { return path_; }
+	[[nodiscard]] std::string_view path() const noexcept ANIPARSE_LIFETIMEBOUND { return path_; }
 	/// Query with its leading '?', e.g. "?tab=info". Empty if none.
-	[[nodiscard]] std::string_view query() const noexcept { return query_; }
+	[[nodiscard]] std::string_view query() const noexcept ANIPARSE_LIFETIMEBOUND { return query_; }
 	/// Fragment with its leading '#', e.g. "#top". Empty if none.
-	[[nodiscard]] std::string_view fragment() const noexcept { return fragment_; }
+	[[nodiscard]] std::string_view fragment() const noexcept ANIPARSE_LIFETIMEBOUND { return fragment_; }
 
 private:
 	std::string scheme_;
