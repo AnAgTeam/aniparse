@@ -52,4 +52,11 @@ NetworkRequestTask<std::unique_ptr<ImageContainerGetter>> ImagesGetter::parse_ur
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot parse image urls");
 }
 
+NetworkRequestTask<std::vector<SearchSuggestion>> ImagesGetter::suggest(
+    RequestorContext,
+    std::string,
+    std::optional<std::string>) {
+	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot suggest search tokens");
+}
+
 } // namespace aniparse

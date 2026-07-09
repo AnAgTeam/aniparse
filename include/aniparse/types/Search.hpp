@@ -224,6 +224,29 @@ struct SearchCompatibilities {
 	SearchItems supported_filters;
 	SupportedSorts supported_sorts;
 	CompatibilitiesFlags compatibilities = compatibilities_flags::default_flags;
+	/// When compatibilities carries supports_suggestions, the token kinds the
+	/// suggest() @c kind hint accepts — search keys (@see search_keys), the same
+	/// vocabulary as supported_filters, with which they typically overlap. Empty
+	/// means the source has a single default kind and takes no hint. @see suggest
+	std::vector<std::string> supported_suggestion_kinds;
+};
+
+/**
+ * @brief One autocomplete suggestion for a search token (a tag, a title, ...).
+ * @c value is the token to insert into the query — the same search-token identity
+ * as Tag::ref, so a chosen suggestion drops straight back into search(). @c category
+ * names which search axis the token belongs to, from the same search-key vocabulary
+ * as the suggest() @c kind hint and supported_filters. @see search_keys, suggest
+ */
+struct SearchSuggestion {
+	/// The token to insert into the query (equals a Tag::ref search token).
+	std::string value;
+	/// Display label for the UI (e.g. "cirno"); may differ from @c value.
+	std::string label;
+	/// Popularity of the token when the source reports it (e.g. post count).
+	std::optional<long> count;
+	/// Which search axis this token is (a search key); empty when untyped.
+	std::optional<std::string> category;
 };
 
 /**
@@ -267,4 +290,19 @@ inline constexpr std::string_view rating          = "rating";
 inline constexpr std::string_view year            = "year";
 /// Filter by AgeRestriction. Usually DirectionalInterval/ItemSelection
 inline constexpr std::string_view age_restriction = "age_res";
+
+// Categorical tag axes. On sources that expose them as enumerable filters (e.g.
+// a booru/doujin catalog: character:, artist:, group:, ...) these are both filter
+// keys in supported_filters AND the token kinds suggest() completes — one vocabulary
+// for search and autocomplete. A source uses whichever apply. @see suggest
+/// Filter/suggest by artist or author tag. Usually ItemSelection or TextQuery.
+inline constexpr std::string_view artist          = "artist";
+/// Filter/suggest by character tag.
+inline constexpr std::string_view character       = "character";
+/// Filter/suggest by circle/group (doujin publisher).
+inline constexpr std::string_view group           = "group";
+/// Filter/suggest by work type (manga/doujinshi/artist CG/...).
+inline constexpr std::string_view type            = "type";
+/// Filter/suggest by language.
+inline constexpr std::string_view language        = "language";
 } // namespace aniparse::search_keys

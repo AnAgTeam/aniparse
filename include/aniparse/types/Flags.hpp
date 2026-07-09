@@ -25,6 +25,10 @@ inline constexpr auto supports_voting        = CompatibilitiesFlags::make_bit(9)
 inline constexpr auto supports_commenting    = CompatibilitiesFlags::make_bit(10);
 inline constexpr auto supports_online_lists  = CompatibilitiesFlags::make_bit(11);
 
+/// The source can suggest search tokens for a partial input (autocomplete). A
+/// getter advertises it in SearchCompatibilities::compatibilities. @see suggest
+inline constexpr auto supports_suggestions   = CompatibilitiesFlags::make_bit(14);
+
 /**
  * All the Paginator<T>::next items will be unique over time if true.
  * Otherwise, the items can duplicate. For example, when you get 10
