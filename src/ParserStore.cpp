@@ -139,6 +139,15 @@ std::shared_ptr<Parser> ParserStore::find_by_key(std::string_view key) {
 	return iter != parsers_.end() ? iter->second : nullptr;
 }
 
+std::vector<std::shared_ptr<Parser>> ParserStore::parsers() const {
+	std::vector<std::shared_ptr<Parser>> result;
+	result.reserve(parsers_.size());
+	for (const auto& [key, parser] : parsers_) {
+		result.push_back(parser);
+	}
+	return result;
+}
+
 bool ParserStore::check_is_conflicting(const std::shared_ptr<Parser>& parser) const {
 	auto iter = parsers_.find(parser->identifier());
 	return iter != parsers_.end();

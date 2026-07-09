@@ -70,6 +70,15 @@ public:
 	std::shared_ptr<Parser> find_by_key(std::string_view key);
 
 	/**
+	 * @brief All registered parsers, in identifier order.
+	 * A snapshot copy for enumeration — e.g. a UI listing the available sources,
+	 * each parser exposing name()/identifier()/compatibilities(). Not a live view:
+	 * parsers added afterwards are not reflected until the next call.
+	 * @return The registered parsers.
+	 */
+	[[nodiscard]] std::vector<std::shared_ptr<Parser>> parsers() const;
+
+	/**
 	 * @brief Route a URL to its parser and getter category in one step.
 	 * Parses the URL once, finds the owning parser (domain match + valid_for_url),
 	 * and asks it which getter category the URL is (suggest_getter). The caller
