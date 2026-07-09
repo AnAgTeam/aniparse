@@ -138,8 +138,14 @@ public:
 		return std::move(right) ^ left;
 	}
 
+	/**
+	 * @brief Whether every bit of @p values is set in this bitset — i.e. this
+	 * contains @p values. For a single-bit flag, "is the flag set".
+	 * @param values The bit(s) to look for.
+	 * @return true iff (*this & values) == values.
+	 */
 	bool test(const StrongBitset& values) const noexcept {
-		return (*this | values) == values;
+		return (*this & values) == values;
 	}
 
 	constexpr StrongBitset& set() & noexcept(noexcept(std::declval<Container>().set())) {
