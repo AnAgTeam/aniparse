@@ -73,7 +73,7 @@ TEST_CASE("ImagesGetter default support declarations are empty; suggestions off"
 	CHECK(support->supported_filters.empty());
 	CHECK(support->supported_sorts.empty());
 	CHECK(support->supported_suggestion_kinds.empty());
-	CHECK_FALSE(support->compatibilities.test(compatibilities_flags::supports_suggestions));
+	CHECK_FALSE(support->compatibilities.has(compatibilities_flags::supports_suggestions));
 
 	ImagesGetterRootCompatibilities latest = getter.latest_support();
 	CHECK(latest.supported_sorts.empty());

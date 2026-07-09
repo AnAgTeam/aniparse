@@ -140,11 +140,13 @@ public:
 
 	/**
 	 * @brief Whether every bit of @p values is set in this bitset — i.e. this
-	 * contains @p values. For a single-bit flag, "is the flag set".
-	 * @param values The bit(s) to look for.
+	 * has @p values. For a single-bit flag, "is the flag set"; for a multi-bit
+	 * mask, "are all of these flags set". Named has() rather than test() to avoid
+	 * the std::bitset::test(pos) reading: this takes a mask, not a bit position.
+	 * @param values The flag bit(s) to look for.
 	 * @return true iff (*this & values) == values.
 	 */
-	bool test(const StrongBitset& values) const noexcept {
+	bool has(const StrongBitset& values) const noexcept {
 		return (*this & values) == values;
 	}
 

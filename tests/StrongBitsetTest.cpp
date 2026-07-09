@@ -46,25 +46,25 @@ constexpr bool can_get_with_arbitrary = requires (T a) {
 	{ a[1ULL] };
 };
 
-TEST_CASE("StrongBitset::test is true iff this contains every bit of the argument") {
+TEST_CASE("StrongBitset::has is true iff this contains every bit of the argument") {
 	const TestBitset sugg  = TestBitset::make_bit(0);
 	const TestBitset adult = TestBitset::make_bit(1);
 	const TestBitset both  = sugg | adult;
 	const TestBitset none;
 
 	// {sugg} does not contain {sugg, adult}; the fuller set contains the subset.
-	CHECK_FALSE(sugg.test(both));
-	CHECK(both.test(both));
-	CHECK(both.test(sugg));
+	CHECK_FALSE(sugg.has(both));
+	CHECK(both.has(both));
+	CHECK(both.has(sugg));
 
 	// Single-bit membership: "is the flag set".
-	CHECK(both.test(adult));
-	CHECK_FALSE(sugg.test(adult));
+	CHECK(both.has(adult));
+	CHECK_FALSE(sugg.has(adult));
 
 	// The empty set contains no flag, but every set contains the empty set.
-	CHECK_FALSE(none.test(sugg));
-	CHECK(both.test(none));
-	CHECK(none.test(none));
+	CHECK_FALSE(none.has(sugg));
+	CHECK(both.has(none));
+	CHECK(none.has(none));
 }
 
 TEST_CASE("Unable to use StrongBitset with arbitrary") {

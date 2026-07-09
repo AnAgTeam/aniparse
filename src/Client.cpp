@@ -440,8 +440,8 @@ void AsyncClient::set_config(ClientConfig new_config) {
 		new_session->set_option<curlpp::options::ProxyUserPwd>(user_passwd);
 	}
 
-	new_session->set_option<curlpp::options::SslVerifyHost>(new_config.flags.test(client_config_flags::verify_ssl));
-	new_session->set_option<curlpp::options::SslVerifyPeer>(new_config.flags.test(client_config_flags::verify_ssl));
+	new_session->set_option<curlpp::options::SslVerifyHost>(new_config.flags.has(client_config_flags::verify_ssl));
+	new_session->set_option<curlpp::options::SslVerifyPeer>(new_config.flags.has(client_config_flags::verify_ssl));
 
 	session_.store(new_session);
 	max_retries_ = new_config.max_retries.value_or(default_max_retries);
