@@ -55,6 +55,13 @@ bool value_invalid(const Checkmark&, const Checkmark&) {
 }
 
 bool value_invalid(const ItemSelection& descriptor, const ItemSelection& value) {
+	// An empty descriptor is an open-vocabulary axis: the source declares the axis but
+	// does not enumerate its tokens (e.g. a source with millions of tags), so any
+	// token is valid. A non-empty descriptor is a closed set — every token must be one
+	// of the declared options.
+	if (descriptor.empty()) {
+		return false;
+	}
 	return std::any_of(value.begin(), value.end(), [&](const auto& item) {
 		return descriptor.find(item.first) == descriptor.end();
 	});

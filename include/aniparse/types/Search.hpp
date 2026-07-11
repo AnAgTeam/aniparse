@@ -115,6 +115,13 @@ struct ItemSelectionValue {
  * a matching model object (tags), the key equals that object's handle
  * (Tag::ref), so a discovered item round-trips into a query. Each option's
  * human-readable label lives in ItemSelectionValue.
+ *
+ * @note **Empty in a support table = open vocabulary.** A source may declare an
+ *       axis this way (selection semantics — multiple tokens, per-token exclusion,
+ *       Tag::ref round-trip) without enumerating its tokens (e.g. millions of tags).
+ *       Then any token is accepted: @ref validate_search_query checks membership
+ *       only against a non-empty (closed) option set. Use TextQuery instead when the
+ *       axis is genuine free-text/substring search, not a token identity.
  * @see ItemSelectionValue
  */
 using ItemSelection = std::map<std::string, ItemSelectionValue, std::less<>>;
