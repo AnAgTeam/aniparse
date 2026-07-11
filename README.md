@@ -51,6 +51,8 @@ It is built on an asynchronous network layer ([libasyncnet](https://github.com/A
 - Backend-neutral HTTP client: curl today, but the request/response contract is not tied to it (the backend can be swapped, e.g. for NSURLSession)
 - Typed `request_html` / `request_json` requests with exception-free error handling (`tl::expected`)
 - Built-in HTML/DOM parser, CSS selectors and a JS parser powered by `lexbor`
+- URL routing: hand the library a link and it resolves the owning parser and the content type
+- Data-driven catalog: domains, mirrors and selectors refresh at runtime from a signed catalog — a broken source is fixed without shipping a new binary
 - Parser cookies and authentication, `multipart/form-data`, arbitrary HTTP methods
 - No code from the network: only data ever crosses the wire, never executable code — parsers are compiled in, so there's no downloadable-extension attack surface
 
@@ -61,9 +63,9 @@ It is built on an asynchronous network layer ([libasyncnet](https://github.com/A
 - [x] Backend-neutral HTTP contract (curl today, swappable backend)
 - [x] Typed `request_html` / `request_json` with exception-free errors
 - [x] CSS selectors and JS variable extraction
-- [ ] First full-featured manga source
-- [ ] URL routing: hand the library a link, get the right parser and content
-- [ ] Data-driven source catalog: domain mirrors and volatile selectors refresh at runtime — broken sources get fixed without an app release
+- [x] First full-featured manga source
+- [x] URL routing: hand the library a link, get the right parser and content type
+- [x] Data-driven source catalog: domain mirrors and volatile selectors refresh at runtime from a signed catalog — broken sources get fixed without an app release
 - [ ] Configurable request retries
 - [ ] HTTP caching (ETag)
 - [ ] Streaming downloads for large media
