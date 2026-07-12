@@ -4,7 +4,6 @@
 
 option(ANIPARSE_BUILD_TESTS "build tests, Default=OFF" OFF)
 option(ANIPARSE_BUILD_EXAMPLES "build examples, Default=OFF" OFF)
-option(ANIPARSE_BUILD_TOOLS "build tools, Default=OFF" OFF)
 option(ANIPARSE_ANALYZE "MSVC /analyze lifetime gate (slow; CI leg)" OFF)
 
 # HTTP backends. The parse core is backend-neutral (talks only to ClientContext);
@@ -53,7 +52,7 @@ if (ANIPARSE_SHARED)
 	# PIC. Set before the add_subdirectory() calls in the find modules below.
 	set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 	# Windows has no rpath — the loader looks for a DLL next to the .exe. Put the
-	# library and every in-tree consumer (tests, examples, tools) in one directory,
+	# library and every in-tree consumer (tests, examples) in one directory,
 	# so libaniparse.dll AND the third-party DLLs vcpkg's applocal step copies
 	# beside it (libcurl, zlib — needed by the library, not by the exe, so an exe's
 	# own applocal pass never fetches them) are all found without a copy step.
@@ -239,10 +238,6 @@ endif()
 
 if (ANIPARSE_BUILD_EXAMPLES)
 	add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/examples")
-endif()
-
-if (ANIPARSE_BUILD_TOOLS)
-	add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/tools")
 endif()
 
 # ---- CONFIGURE PACKAGE

@@ -26,7 +26,6 @@ ignore:
   - "out/**"
   - "tests/**"
   - "examples/**"
-  - "tools/**"
 
 comment:
   layout: "reach, diff, files"
