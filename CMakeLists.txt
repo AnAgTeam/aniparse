@@ -97,6 +97,16 @@ add_library(aniparse STATIC
 	"src/images/Image.cpp" "include/aniparse/images/Image.hpp"
 
 	"src/manga/Manga.cpp" "include/aniparse/manga/Manga.hpp"
+
+	# Reusable booru engine toolkit: a dialect interface + generic getters and a
+	# generic parser bound to a data-only site descriptor. Neutral machinery (names
+	# no source); concrete engines/descriptors live in the parsers layer above.
+	"include/aniparse/engines/BooruEngine.hpp"
+	"include/aniparse/engines/BooruSite.hpp"
+	"src/engines/BooruParser.cpp" "include/aniparse/engines/BooruParser.hpp"
+	"src/engines/BooruImagesGetter.cpp" "include/aniparse/engines/BooruImagesGetter.hpp"
+	"src/engines/BooruContainerGetter.cpp" "include/aniparse/engines/BooruContainerGetter.hpp"
+	"src/engines/BooruPoolGetter.cpp" "include/aniparse/engines/BooruPoolGetter.hpp"
 )
 
 set_property(TARGET aniparse PROPERTY CXX_STANDARD 20)
