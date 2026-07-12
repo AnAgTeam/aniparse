@@ -257,7 +257,7 @@ public:
 	 * @brief compare two elements
 	 * @return true if elements are the same, false otherwise
 	 */
-	[[nodiscard]] friend bool operator==(const DOMElementView& left, const DOMElementView& right) noexcept;
+	friend bool operator==(const DOMElementView& left, const DOMElementView& right) noexcept;
 
 private:
 	lxb_dom_element_t* element_ = nullptr;
@@ -358,7 +358,7 @@ public:
 	 * @return true if iterators are at the same element
 	 *         or both invalid, false otherwise
 	 */
-	[[nodiscard]] friend bool operator==(const DOMElementIterator& left, const DOMElementIterator& right);
+	friend bool operator==(const DOMElementIterator& left, const DOMElementIterator& right);
 
 private:
 	/**
@@ -462,7 +462,7 @@ public:
 	 * @return true if iterators are at the same element
 	 *         or both invalid, false otherwise
 	 */
-	[[nodiscard]] friend bool operator==(const DOMElementWalkIterator& left, const DOMElementWalkIterator& right) noexcept;
+	friend bool operator==(const DOMElementWalkIterator& left, const DOMElementWalkIterator& right) noexcept;
 
 private:
 	/**

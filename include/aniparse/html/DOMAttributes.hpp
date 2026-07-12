@@ -11,6 +11,9 @@ typedef struct lxb_dom_attr lxb_dom_attr_t;
 typedef struct lxb_dom_element lxb_dom_element_t;
 
 namespace aniparse::html {
+class DOMElementView;
+class DOMAttrsIterator;
+
 /**
  * @brief Class for accessing the DOM element attribute
  * @note The class is non owning, so it must be alive with not "View" class
@@ -141,7 +144,7 @@ public:
 	DOMAttrsIterator& operator++();
 	DOMAttrsIterator operator++(int);
 
-	[[nodiscard]] friend bool operator==(const DOMAttrsIterator& left, const DOMAttrsIterator& right);
+	friend bool operator==(const DOMAttrsIterator& left, const DOMAttrsIterator& right);
 
 private:
 	DOMAttrView attr_ = nullptr;

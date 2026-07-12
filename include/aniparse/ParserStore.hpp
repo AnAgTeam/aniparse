@@ -8,7 +8,7 @@
 #include "aniparse/Parser.hpp"
 #include "aniparse/ParsedUrl.hpp"
 
-#include <atomic>
+#include "aniparse/detail/AtomicSharedPtr.hpp"
 #include <string>
 #include <map>
 #include <numeric>
@@ -122,6 +122,6 @@ private:
 
 	std::map<std::string, std::shared_ptr<Parser>, std::less<>> parsers_;
 	std::map<std::string, std::vector<std::string>, std::less<>> volatile_domains_;
-	std::atomic<std::shared_ptr<Scanner>> scanner_;
+	detail::AtomicSharedPtr<Scanner> scanner_;
 };
 } // namespace aniparse

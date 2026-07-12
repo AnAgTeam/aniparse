@@ -4,7 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include <atomic>
+#include "aniparse/detail/AtomicSharedPtr.hpp"
 #include <cstddef>
 #include <functional>
 #include <map>
@@ -126,7 +126,7 @@ public:
 	}
 
 private:
-	std::atomic<std::shared_ptr<const MirrorSource>> source_;
+	detail::AtomicSharedPtr<const MirrorSource> source_;
 };
 
 } // namespace aniparse

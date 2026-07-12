@@ -6,7 +6,7 @@
 #pragma once
 #include "aniparse/html/CompiledSelector.hpp"
 
-#include <atomic>
+#include "aniparse/detail/AtomicSharedPtr.hpp"
 #include <functional>
 #include <map>
 #include <memory>
@@ -98,7 +98,7 @@ public:
 	}
 
 private:
-	std::atomic<std::shared_ptr<const SelectorSource>> source_;
+	detail::AtomicSharedPtr<const SelectorSource> source_;
 };
 
 } // namespace aniparse::html

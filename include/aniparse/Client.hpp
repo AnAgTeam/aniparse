@@ -15,6 +15,8 @@
 #include <asyncnet/AsyncSession.hpp>
 #include <asyncnet/Requestor.hpp>
 
+#include "aniparse/detail/AtomicSharedPtr.hpp"
+
 namespace aniparse {
 
 class CurlCookieJar : public CookieJar {
@@ -82,7 +84,7 @@ public:
 
 private:
 	std::shared_ptr<asyncnet::Requestor> core_;
-	std::atomic<std::shared_ptr<asyncnet::AsyncSession>> session_;
+	detail::AtomicSharedPtr<asyncnet::AsyncSession> session_;
 
 	uint32_t max_retries_;
 };

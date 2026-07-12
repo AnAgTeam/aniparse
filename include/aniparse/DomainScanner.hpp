@@ -29,7 +29,7 @@ public:
 	using NodesContainer  = std::map<DomainString, Node, std::less<>>;
 	using ParserContainer = std::vector<DomainParser>;
 
-	static constexpr Node null_node;
+	static inline const Node null_node;
 
 	DomainNode(PrivateConstructor) {}
 
@@ -234,12 +234,12 @@ private:
 	}
 
 	auto get_node_ptr(Node& node)
-	    requires !node_is_ptr
+	    requires (!node_is_ptr)
 	{
 		return std::addressof(node);
 	}
 	auto get_node_ptr(Node&& node)
-	    requires !node_is_ptr
+	    requires (!node_is_ptr)
 	= delete;
 
 	auto get_node_ptr(Node& node)

@@ -11,6 +11,8 @@ typedef struct lxb_dom_node lxb_dom_node_t;
 namespace aniparse::html {
 
 class DOMElementView;
+class DOMNodeIterator;
+class DOMNodeWalkIterator;
 
 /**
  * @brief Class for accessing DOM node like element and text
@@ -104,7 +106,7 @@ public:
 
 	DOMNodeView next() const noexcept;
 
-	[[nodiscard]] friend bool operator==(const DOMNodeView& left, const DOMNodeView& right) noexcept;
+	friend bool operator==(const DOMNodeView& left, const DOMNodeView& right) noexcept;
 
 private:
 	lxb_dom_node_t* node_ = nullptr;
@@ -200,7 +202,7 @@ public:
 	 * @return true if iterators are at the same element
 	 *         or both invalid, false otherwise
 	 */
-	[[nodiscard]] friend bool operator==(const DOMNodeWalkIterator& left, const DOMNodeWalkIterator& right) noexcept;
+	friend bool operator==(const DOMNodeWalkIterator& left, const DOMNodeWalkIterator& right) noexcept;
 
 private:
 	/**

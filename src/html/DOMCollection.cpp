@@ -5,6 +5,7 @@
  */
 #include "aniparse/html/DOMCollection.hpp"
 
+#include <memory>
 #include <utility>
 #include <lexbor/dom/collection.h>
 
