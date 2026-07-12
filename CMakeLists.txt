@@ -32,6 +32,44 @@ project(aniparse VERSION 0.1 LANGUAGES CXX)
 # below; without it a fresh configure fails with "install ... no DESTINATION".
 include(GNUInstallDirs)
 
+# ---- SHARED VS STATIC
+#
+#     cmake --preset x64-debug -D ANIPARSE_SHARED=ON      (or -D BUILD_SHARED_LIBS=ON)
+#
+# Deliberately NOT driven by BUILD_SHARED_LIBS at build time, only seeded from it.
+# That variable is global and the vendored subprojects own it: libcoro does
+# `set(BUILD_SHARED_LIBS ... CACHE INTERNAL "")`, which hijacks it into the cache
+# (and, being pre-3.21, wipes any normal variable shadowing it). It would then
+# build itself as a DLL while forcing CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS off —
+# i.e. a DLL exporting nothing, an empty import lib, and every coro:: symbol
+# unresolved when linking us. So: consume the value into our own option, then
+# clear BUILD_SHARED_LIBS so every dep stays static and gets absorbed into us.
+option(ANIPARSE_SHARED "build libaniparse as a shared library, Default=OFF" ${BUILD_SHARED_LIBS})
+set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "vendored deps are always static" FORCE)
+
+if (ANIPARSE_SHARED)
+	set(aniparse_library_type SHARED)
+	# The deps are static libraries absorbed into the .so/.dylib, so they must be
+	# PIC. Set before the add_subdirectory() calls in the find modules below.
+	set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+	# Windows has no rpath — the loader looks for a DLL next to the .exe. Put the
+	# library and every in-tree consumer (tests, examples, tools) in one directory,
+	# so libaniparse.dll AND the third-party DLLs vcpkg's applocal step copies
+	# beside it (libcurl, zlib — needed by the library, not by the exe, so an exe's
+	# own applocal pass never fetches them) are all found without a copy step.
+	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+else()
+	set(aniparse_library_type STATIC)
+endif()
+
+# Windows exports come from the WINDOWS_EXPORT_ALL_SYMBOLS target property below:
+# CMake scans the target's own objects and generates a .def, so there is no
+# __declspec and no annotation in the headers. That is only sound because nothing
+# here exports DATA (which the .def route cannot carry) — every constant in the
+# public headers is `inline constexpr`, i.e. compiled into the consumer's TU and
+# never fetched from the library. Adding a non-inline global to a public header
+# would silently break a shared consumer at link time; keep them inline.
+
 # ---- FIND DEPENDENCIES
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
@@ -45,7 +83,7 @@ find_package(Boost REQUIRED COMPONENTS json regex)
 
 # ---- ADD LIBRARY
 
-add_library(aniparse STATIC
+add_library(aniparse ${aniparse_library_type}
 	"src/AniParse.cpp" "include/aniparse/AniParse.hpp"
 	"include/aniparse/FlagsBitfield.hpp"
 	"include/aniparse/detail/BitsetLite.hpp"
@@ -111,6 +149,14 @@ add_library(aniparse STATIC
 
 set_property(TARGET aniparse PROPERTY CXX_STANDARD 20)
 set_property(TARGET aniparse PROPERTY CXX_STANDARD_REQUIRED ON)
+
+set_target_properties(aniparse PROPERTIES
+	# Ignored for a static build; drives the .def generation for a shared one.
+	WINDOWS_EXPORT_ALL_SYMBOLS ON
+	# libaniparse.so.0.1 with an SONAME of libaniparse.so.0 (no-op when static).
+	VERSION "${PROJECT_VERSION}"
+	SOVERSION "${PROJECT_VERSION_MAJOR}"
+)
 
 target_compile_options(aniparse PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/W4>

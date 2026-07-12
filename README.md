@@ -168,6 +168,13 @@ cmake --build build
 | `ANIPARSE_BUILD_TESTS` | `OFF` | Build tests |
 | `ANIPARSE_BUILD_EXAMPLES` | `OFF` | Build examples |
 | `ANIPARSE_BUILD_TOOLS` | `OFF` | Build tools |
+| `ANIPARSE_SHARED` | `OFF` | Build a shared library (`.dll` / `.so` / `.dylib`) instead of a static one. Seeded from `BUILD_SHARED_LIBS` if you set that instead. |
+
+A shared build exports every symbol (no annotation in the headers) and absorbs the
+vendored dependencies. Note that the public API is C++ — `std::string`, templates,
+exceptions cross the boundary — so a consumer must be built with the same compiler
+and the same runtime configuration as the library. Static remains the default, and
+the right choice for iOS.
 
 ---
 
