@@ -134,11 +134,15 @@ target_include_directories(aniparse PUBLIC
 	$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
+# fmt / Boost are find_package'd imported targets a consumer recreates via
+# find_dependency (see aniparse-config.cmake.in), so they belong on the install
+# interface too — not only BUILD_INTERFACE. lexbor is a vendored static lib the
+# install does not ship, so it stays build-only.
 target_link_libraries(aniparse PUBLIC
-	$<BUILD_INTERFACE:${LEXBOR_LIBRARIES}
-		fmt::fmt
-		Boost::json
-		Boost::regex>
+	fmt::fmt
+	Boost::json
+	Boost::regex
+	$<BUILD_INTERFACE:${LEXBOR_LIBRARIES}>
 )
 
 # ---- HTTP BACKENDS (optional, concrete ClientContext implementations)
@@ -193,9 +197,15 @@ configure_package_config_file(
 	"${CMAKE_CURRENT_LIST_DIR}/aniparse-config.cmake.in"
 	"${CMAKE_CURRENT_BINARY_DIR}/aniparse-config.cmake"
 	INSTALL_DESTINATION
-		"{CMAKE_INSTALL_LIBDIR}/cmake/aniparse"
+		"${CMAKE_INSTALL_LIBDIR}/cmake/aniparse"
 	NO_SET_AND_CHECK_MACRO
 	NO_CHECK_REQUIRED_COMPONENTS_MACRO
+)
+
+write_basic_package_version_file(
+	"${CMAKE_CURRENT_BINARY_DIR}/aniparse-config-version.cmake"
+	VERSION "${PROJECT_VERSION}"
+	COMPATIBILITY SameMajorVersion
 )
 
 configure_file("aniparse.pc.in" "aniparse.pc" @ONLY)
@@ -218,4 +228,12 @@ install(EXPORT aniparse-targets
 	NAMESPACE aniparse::
 	DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/aniparse"
 	EXPORT_LINK_INTERFACE_LIBRARIES
+)
+
+# The package config + version file themselves — without this find_package(aniparse)
+# finds no config and imports nothing.
+install(FILES
+	"${CMAKE_CURRENT_BINARY_DIR}/aniparse-config.cmake"
+	"${CMAKE_CURRENT_BINARY_DIR}/aniparse-config-version.cmake"
+	DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/aniparse"
 )

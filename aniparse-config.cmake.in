@@ -1,1 +1,19 @@
 @PACKAGE_INIT@
+
+# find_package(aniparse) must recreate the imported dependency targets that the
+# exported aniparse target references on its INTERFACE, then pull in the target
+# definitions themselves. Without this the config only ran @PACKAGE_INIT@ and
+# defined no aniparse::aniparse target at all.
+include(CMakeFindDependencyMacro)
+
+# CONFIG mode explicitly: these come from vcpkg (or any BoostConfig/fmtConfig
+# provider) and sidesteps the removed FindBoost module (CMP0167) in the
+# consumer's project.
+find_dependency(fmt CONFIG)
+find_dependency(Boost CONFIG COMPONENTS json regex)
+
+include("${CMAKE_CURRENT_LIST_DIR}/aniparse-targets.cmake")
+
+# NOTE: the curl backend also needs the vendored static libs (asyncnet, curlpp,
+# libcoro) and lexbor, which this build does not install. A consumer linking
+# aniparse::aniparse must still provide those until they are installed/exported.
