@@ -128,6 +128,7 @@ struct LoggerContext {
 	 * @brief Output text with prefix and message
 	 * @param message_type Prefix to message. ("INFO", "ERROR", etc.)
 	 * @param message Message text to output
+	 * @param loc Call site the message originates from, for diagnostics
 	 */
 	virtual void log(LogLevel message_type,
 	                 std::string_view message,
@@ -258,7 +259,7 @@ public:
 	/**
 	 * @brief Output INFO to logger
 	 * @tparam Args Format arguments types
-	 * @param fmt Format string
+	 * @param sourced_fmt Format string, with the call site captured implicitly
 	 * @param args Format arguments
 	 */
 	template <typename... Args>
@@ -273,7 +274,7 @@ public:
 	/**
 	 * @brief Output DEBUG to logger
 	 * @tparam Args Format arguments types
-	 * @param fmt Format string
+	 * @param sourced_fmt Format string, with the call site captured implicitly
 	 * @param args Format arguments
 	 */
 	template <typename... Args>
@@ -288,7 +289,7 @@ public:
 	/**
 	 * @brief Output WARNING to logger
 	 * @tparam Args Format arguments types
-	 * @param fmt Format string
+	 * @param sourced_fmt Format string, with the call site captured implicitly
 	 * @param args Format arguments
 	 */
 	template <typename... Args>
@@ -303,7 +304,7 @@ public:
 	/**
 	 * @brief Output ERROR to logger
 	 * @tparam Args Format arguments types
-	 * @param fmt Format string
+	 * @param sourced_fmt Format string, with the call site captured implicitly
 	 * @param args Format arguments
 	 */
 	template <typename... Args>
@@ -318,7 +319,7 @@ public:
 	/**
 	 * @brief Output FATAL to logger
 	 * @tparam Args Format arguments types
-	 * @param fmt Format string
+	 * @param sourced_fmt Format string, with the call site captured implicitly
 	 * @param args Format arguments
 	 */
 	template <typename... Args>

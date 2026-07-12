@@ -12,6 +12,14 @@
 #include <utility>
 #include <vector>
 
+/**
+ * @file
+ * HTTP headers, and the two conversions the transport needs (to wire lines and
+ * back). The container is insertion-ordered rather than a sorted map on purpose:
+ * a map would collapse repeated names, and several Set-Cookie lines must survive
+ * for the cookie layer to read them.
+ */
+
 namespace aniparse {
 
 /**
@@ -154,7 +162,7 @@ std::list<std::string> to_header_lines(const Headers& headers);
 
 /**
  * @brief Parse a raw response header block into Headers.
- * Inverse of @ref to_header_lines. Accepts a block of CRLF- or LF-delimited
+ * Inverse of @ref aniparse::to_header_lines. Accepts a block of CRLF- or LF-delimited
  * "Name: Value" lines (a trailing CR is tolerated). Lines with no colon (a
  * status line, a blank separator, an obsolete fold continuation) are skipped;
  * optional whitespace around the value is trimmed. Duplicate names are kept in

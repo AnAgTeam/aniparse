@@ -27,9 +27,11 @@ struct ImageResolution {
 
 struct Image {
 	ImageID id{0};
+	/// Absolute URL the image is fetched from.
 	std::string url;
+	/// Pixel dimensions, when the source reports them.
 	std::optional<ImageResolution> size;
-	/// Extra request headers the consumer must send when fetching @ref url — e.g.
+	/// Extra request headers the consumer must send when fetching @ref Image::url — e.g.
 	/// a Referer that some sources require to serve their images (a bare GET 403s
 	/// otherwise). Empty when the plain URL suffices; set by the producing parser.
 	Headers headers;

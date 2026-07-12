@@ -13,13 +13,16 @@
  * it to nothing and compiles identically.
  */
 
-/**
- * @def ANIPARSE_LIFETIMEBOUND
- * @brief Mark a function parameter (or an implicit object parameter) whose
- * lifetime the return value borrows into. A compiler that understands it warns
- * when the returned reference/pointer/view would outlive a temporary argument
- * (e.g. object_field(parse(body).as_object(), ...)). Not yet standard, so this
- * selects the vendor spelling and no-ops where unavailable.
+/*
+ * ANIPARSE_LIFETIMEBOUND
+ * Mark a function parameter (or an implicit object parameter) whose lifetime the
+ * return value borrows into. A compiler that understands it warns when the
+ * returned reference/pointer/view would outlive a temporary argument (e.g.
+ * object_field(parse(body).as_object(), ...)). Not yet standard, so this selects
+ * the vendor spelling and no-ops where unavailable.
+ *
+ * Deliberately not a doxygen block: Doxyfile strips this macro from signatures
+ * (PREDEFINED), so a @def here would document a symbol absent from the output.
  */
 #if defined(__has_cpp_attribute)
 #  if __has_cpp_attribute(msvc::lifetimebound)

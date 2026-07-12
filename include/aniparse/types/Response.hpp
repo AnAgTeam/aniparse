@@ -51,13 +51,16 @@ enum class RequestErrorCode {
 };
 
 struct RequestError {
+	/// Which kind of failure this is — the consumer-facing part of the error,
+	/// and what the app switches on.
 	RequestErrorCode code;
+	/// Human-readable detail for logs and diagnostics; not for switching on.
 	std::string message;
 	/// Exact HTTP status when the error is status-based; nullopt otherwise.
 	std::optional<long> http_status;
 	/// Diagnostic only: full response body (moved in) for logging or reading a
 	/// server-sent error payload (e.g. an API's {"error": ...} on a 4xx). Not
-	/// part of the consumer-facing contract — the app switches on @ref code, not
+	/// part of the consumer-facing contract — the app switches on @ref RequestError::code, not
 	/// on this. Candidate for removal from the public error if it proves unused.
 	std::string body;
 };

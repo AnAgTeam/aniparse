@@ -110,7 +110,7 @@ public:
 	/**
 	 * @pre The view must be valid (@see operator bool); otherwise UB.
 	 * @note Tag name always in upper case ("HTML", "DIV", etc.)
-	 * @return DOM element tag/name, e.g. <html> => HTML
+	 * @return DOM element tag/name, e.g. \<html\> => HTML
 	 */
 	[[nodiscard]] std::string_view tag_name() const;
 
@@ -152,7 +152,7 @@ public:
 	 * @brief Find first element with attribute and value
 	 * @param attr DOM attribute name
 	 * @param value DOM Attrubute value
-	 * @param ignore_class_whitespace Only for "attr" == "class".
+	 * @param ignore_class_whitespaces Only for "attr" == "class".
 	 *        If true, then it checks if element contains "value" class,
 	 *        Otherwise, checks if element class exactly the same
 	 * @return DOM element view if found, nullopt otherwise
@@ -192,7 +192,7 @@ public:
 	 * @brief Find all elements with attribute and value
 	 * @param attr DOM attribute name
 	 * @param value DOM Attrubute value
-	 * @param ignore_class_whitespace Only for "attr" == "class".
+	 * @param ignore_class_whitespaces Only for "attr" == "class".
 	 *        If true, then it checks if element contains "value" class,
 	 *        Otherwise, checks if element class exactly the same
 	 * @return All found DOM element views
@@ -402,7 +402,6 @@ public:
 	/**
 	 * @brief Construct invalid interator.
 	 * Represents end of a normal iterator
-	 * @param element DOM element
 	 */
 	DOMElementWalkIterator() noexcept = default;
 

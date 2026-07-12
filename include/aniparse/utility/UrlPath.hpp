@@ -9,6 +9,13 @@
 #include <string>
 #include <string_view>
 
+/**
+ * @file
+ * Small scanners for pulling an id or a slug out of a URL path or query, so
+ * parse_url does not become a hand-rolled character loop in every parser:
+ * is this ref numeric, what follows this marker, what number follows it.
+ */
+
 namespace aniparse {
 
 /**

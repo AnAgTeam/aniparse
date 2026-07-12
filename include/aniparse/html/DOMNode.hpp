@@ -37,7 +37,7 @@ public:
 
 	/**
 	 * @brief Make view of DOM element node
-	 * @param node DOM node
+	 * @param element DOM element
 	 */
 	DOMNodeView(const DOMElementView& element) noexcept;
 

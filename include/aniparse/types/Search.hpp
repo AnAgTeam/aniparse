@@ -18,6 +18,15 @@
 #include <variant>
 #include <vector>
 
+/**
+ * @file
+ * The search vocabulary shared by every domain: the query and filter types a
+ * getter accepts, the support table it advertises (SearchCompatibilities), and
+ * the free functions that check one against the other — validate_query and its
+ * parts — so a caller can pre-flight a query synchronously, before spending a
+ * request on a filter the source would reject.
+ */
+
 namespace aniparse {
 /**
  * @brief One text input
@@ -119,7 +128,7 @@ struct ItemSelectionValue {
  * @note **Empty in a support table = open vocabulary.** A source may declare an
  *       axis this way (selection semantics — multiple tokens, per-token exclusion,
  *       Tag::ref round-trip) without enumerating its tokens (e.g. millions of tags).
- *       Then any token is accepted: @ref validate_search_query checks membership
+ *       Then any token is accepted: @ref aniparse::validate_search_query checks membership
  *       only against a non-empty (closed) option set. Use TextQuery instead when the
  *       axis is genuine free-text/substring search, not a token identity.
  * @see ItemSelectionValue

@@ -219,7 +219,7 @@ struct MangaRootGetter {
 	 * Cache-first and async: returns the cached table, fetching it from the source
 	 * (and caching it, e.g. in RequestorContext::resources()) on a cold cache. A
 	 * static-catalog parser just returns its table. Read it once and validate
-	 * synchronously via the free @ref validate_query for UI pre-flight.
+	 * synchronously via the free @ref validate_query() for UI pre-flight.
 	 */
 	virtual NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext context);
 	virtual MangaGetterRootCompatibilities latest_support() const noexcept;
@@ -267,6 +267,7 @@ struct MangaRootGetter {
 	 * as SearchSuggestion::category — best-effort, the source may ignore it. The
 	 * returned SearchSuggestion::value is a search token that drops straight back
 	 * into search (as that filter's value or a query token).
+	 * @param context Client to perform HTTP requests
 	 * @param partial The token being typed.
 	 * @param kind Optional search axis to complete; nullopt = across the default axis.
 	 * @return Suggestions, most relevant first.

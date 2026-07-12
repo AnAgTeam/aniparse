@@ -7,6 +7,14 @@
 #include <string>
 #include <string_view>
 
+/**
+ * @file
+ * Percent-encoding (RFC 3986) for the places a parser builds a URL or a form
+ * body by hand. Note the asymmetry: query parameters set through UrlParameters
+ * are encoded by the transport on send, so they must be left raw — this is for
+ * everything the transport does not encode for you.
+ */
+
 namespace aniparse {
 
 /**
@@ -15,7 +23,7 @@ namespace aniparse {
  * becomes %XX with uppercase hex (space -> %20, not '+'). Use it to build
  * application/x-www-form-urlencoded bodies or to escape a value placed into a
  * URL by hand.
- * @note URL query parameters set via @ref UrlParameters are encoded by the
+ * @note URL query parameters set via @ref aniparse::UrlParameters are encoded by the
  *       transport on send and must NOT be pre-encoded with this (double-encoding).
  * @param value Raw value
  * @return Percent-encoded value

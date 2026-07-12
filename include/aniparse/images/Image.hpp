@@ -171,6 +171,7 @@ struct ImagesGetter {
 	 * as SearchSuggestion::category — best-effort, the source may ignore it. The
 	 * returned SearchSuggestion::value is a search token that drops straight back
 	 * into search (as that filter's value or a query token).
+	 * @param context Client to perform HTTP requests
 	 * @param partial The token being typed.
 	 * @param kind Optional search axis to complete; nullopt = across the default axis.
 	 * @return Suggestions, most relevant first.

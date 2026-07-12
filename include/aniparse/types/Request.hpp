@@ -18,6 +18,15 @@
 #include <variant>
 #include <vector>
 
+/**
+ * @file
+ * What a parser hands to the network layer: the request shapes (GET, POST,
+ * multipart), editable query parameters, and the ConfiguredRequest that pairs a
+ * request with the parser config it runs under. All of it is backend-neutral —
+ * nothing here names curl — which is what lets the HTTP backend be swapped
+ * without touching a single parser.
+ */
+
 namespace aniparse {
 using GetterContextFlags = FlagsBitfield<64, struct GetterContextFlagsTag>;
 
@@ -101,7 +110,7 @@ private:
 /**
  * @brief Serialize parameters into an application/x-www-form-urlencoded body
  * ("k=v&k=v"), percent-encoding every key and value.
- * Build the form by pushing raw (unencoded) pairs into a @ref UrlParameters,
+ * Build the form by pushing raw (unencoded) pairs into a @ref aniparse::UrlParameters,
  * then hand the result to a POST body — the encoding happens here, so callers
  * never escape by hand. @see url_encode
  * @param params Raw key/value pairs

@@ -13,6 +13,15 @@
 #include <variant>
 #include <vector>
 
+/**
+ * @file
+ * Credentials as data: what a source needs to identify a user (a token, or a
+ * username/password) and the AuthState that carries the result of signing in.
+ * A parser declares which config entries hold its credentials (AuthKeys) instead
+ * of hiding them in bespoke fields, so an authenticated session can be exported
+ * and restored without the caller knowing how a given source authenticates.
+ */
+
 namespace aniparse {
 
 struct ParserConfig;

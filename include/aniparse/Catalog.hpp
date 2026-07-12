@@ -12,6 +12,18 @@
 #include <string_view>
 #include <vector>
 
+/**
+ * @file
+ * The volatile half of a source definition — domains, mirrors and selectors —
+ * as signed data that can be refreshed without shipping a new binary. Sites
+ * break; when they do, the fix should be a catalog push, not a release.
+ *
+ * The catalog arrives over the network, so it is treated as hostile input: it is
+ * verified against a pinned key before anything in it is believed, and a bad one
+ * is a recoverable CatalogError, not an exception. Only data ever crosses the
+ * wire — never code.
+ */
+
 namespace aniparse {
 
 /**
@@ -66,6 +78,8 @@ struct CatalogData {
 };
 
 /// The catalog schema version this build understands.
+/// The catalog schema this build reads; a payload declaring anything else is
+/// rejected as UnsupportedVersion rather than parsed on a guess.
 inline constexpr std::int64_t catalog_schema_version = 1;
 
 /**
@@ -74,7 +88,7 @@ inline constexpr std::int64_t catalog_schema_version = 1;
  *
  * Verify-then-parse over the raw bytes (never a re-serialization), so JSON
  * non-canonicality can never break the signature. Rejects a payload whose
- * schema_version is not @ref catalog_schema_version, or whose revision is not
+ * schema_version is not @ref aniparse::catalog_schema_version, or whose revision is not
  * strictly greater than @p min_revision (anti-rollback). Never throws — a bad
  * or hostile catalog travels through the CatalogError channel.
  * @param payload      The exact catalog bytes that were signed.

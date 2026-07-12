@@ -61,20 +61,20 @@ public:
 	[[nodiscard]] std::string_view title() const;
 
 	/**
-	 * @brief Get root HTML element <HTML>
+	 * @brief Get root HTML element \<HTML\>
 	 * @return Root HTML element
 	 */
 	[[nodiscard]] DOMElementView as_element() const;
 
 	/**
-	 * @brief <HEAD> element inside root <HTML>
-	 * @return <HEAD> element view
+	 * @brief \<HEAD\> element inside root \<HTML\>
+	 * @return \<HEAD\> element view
 	 */
 	[[nodiscard]] DOMElementView head() const;
 
 	/**
-	 * @brief <BODY> element inside root <HTML>
-	 * @return <BODY> element view
+	 * @brief \<BODY\> element inside root \<HTML\>
+	 * @return \<BODY\> element view
 	 */
 	[[nodiscard]] DOMElementView body() const;
 

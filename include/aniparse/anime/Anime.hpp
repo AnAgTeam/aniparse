@@ -112,9 +112,10 @@ struct AnimeTrackInfo {
  * Mirrors MangaChapterRef (minus the volume — anime episodes are flat).
  */
 struct AnimeEpisodeRef {
+	/// Episode number; the episode's identity for simply-numbered sources.
 	long episode = 0;
 	/// Opaque handle from the getter that produced the info.
-	/// Empty = the getter identifies the episode by @ref episode.
+	/// Empty = the getter identifies the episode by @ref AnimeEpisodeRef::episode.
 	std::string id;
 };
 

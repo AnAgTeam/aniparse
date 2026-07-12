@@ -55,6 +55,7 @@ public:
 	/**
 	 * @brief Parse HTML document from string
 	 * @param text Full HTML text to parse
+	 * @param remove_bom Strip a leading UTF-8 BOM from @p text before parsing
 	 * @note Returns valid HTMLDocument even if some tags
 	 *       are invalid.
 	 * @throw HTMLParseError if parsing failed: invalid DOCTYPE
@@ -68,6 +69,7 @@ public:
 	 * error value instead of an exception, so callers can stay in the expected
 	 * channel (e.g. map it to RequestErrorCode::UnexpectedResponse).
 	 * @param text Full HTML text to parse
+	 * @param remove_bom Strip a leading UTF-8 BOM from @p text before parsing
 	 * @return Parsed document, or HTMLParseError if parsing failed
 	 */
 	[[nodiscard]] expected<HTMLDocument, HTMLParseError> try_parse(std::string_view text, bool remove_bom = true);

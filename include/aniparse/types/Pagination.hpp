@@ -12,6 +12,15 @@
 #include <string_view>
 #include <vector>
 
+/**
+ * @file
+ * Paging and sort ordering, in ITEM offsets rather than page numbers: the caller
+ * asks for a window of items, and OffsetPaging does the arithmetic that maps it
+ * onto whatever the endpoint actually speaks — an offset API, or a page-number
+ * API where the head of the first page has to be dropped. Sources disagree on
+ * page size and on whether pages exist at all; the caller should not have to care.
+ */
+
 namespace aniparse {
 using pageoff = std::ptrdiff_t;
 inline constexpr size_t page_no_limit = static_cast<size_t>(-1);

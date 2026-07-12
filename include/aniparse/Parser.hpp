@@ -44,7 +44,7 @@ struct ParserCompatibilities {
 
 /**
  * @brief Display metadata for a parser — everything a UI needs to render it in a
- * source list, none of it load-bearing. Distinct from @ref identifier (the stable
+ * source list, none of it load-bearing. Distinct from @ref Parser::identifier (the stable
  * routing/config key) and from @ref ParserCompatibilities (capability flags): this
  * is the витрина, returned by value so an enumeration over ParserStore::parsers()
  * can build a source picker with one call per parser and no capability payload.
@@ -55,7 +55,7 @@ struct ParserCompatibilities {
  * artwork.
  */
 struct ParserInfo {
-	/// Human-facing display name (e.g. "AniList"). May differ from @ref identifier.
+	/// Human-facing display name (e.g. "AniList"). May differ from @ref Parser::identifier.
 	std::string name;
 	/// Primary content language as a BCP-47 tag (e.g. "en", "ru-ru"); "multi" or
 	/// empty when the source is not tied to one language.
@@ -220,7 +220,7 @@ struct Parser {
 	/**
 	 * @brief The source's built-in mirrors (full base URLs), in selection order.
 	 *
-	 * A source-level declaration, like @ref emplace_domains: one mirror set serves
+	 * A source-level declaration, like @ref emplace_domains(): one mirror set serves
 	 * all of a parser's getters. The single source of truth a getter's fetch path
 	 * (RequestorContext::base_url) and the UI picker (@ref mirror_choices) both read;
 	 * a live catalog override, keyed by @ref identifier, supersedes it at request
