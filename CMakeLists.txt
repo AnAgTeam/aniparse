@@ -92,7 +92,7 @@ add_library(aniparse STATIC
 	"src/CatalogManager.cpp" "include/aniparse/CatalogManager.hpp"
 	"src/Parser.cpp" "include/aniparse/Parser.hpp"
 
-	"src/anime/Release.cpp" "include/aniparse/anime/Release.hpp"
+	"src/anime/Anime.cpp" "include/aniparse/anime/Anime.hpp"
 
 	"src/images/Image.cpp" "include/aniparse/images/Image.hpp"
 

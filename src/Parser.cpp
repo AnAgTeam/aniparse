@@ -4,6 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #include "aniparse/Parser.hpp"
+#include "aniparse/anime/Anime.hpp"
 #include "aniparse/Exceptions.hpp"
 
 #include <algorithm>
@@ -105,6 +106,10 @@ std::unique_ptr<ImagesGetter> Parser::images_getter() const {
 }
 
 std::unique_ptr<MangaRootGetter> Parser::mangas_getter() const {
+	return nullptr;
+}
+
+std::unique_ptr<AnimeRootGetter> Parser::animes_getter() const {
 	return nullptr;
 }
 } // namespace aniparse

@@ -17,6 +17,7 @@
 
 namespace aniparse {
 struct ImagesGetter;
+struct AnimeRootGetter;
 
 using ParseFlags = FlagsBitfield<64, struct ParseFlagsTag>;
 
@@ -243,6 +244,8 @@ struct Parser {
 	virtual std::unique_ptr<ImagesGetter> images_getter() const;
 
 	virtual std::unique_ptr<MangaRootGetter> mangas_getter() const;
+
+	virtual std::unique_ptr<AnimeRootGetter> animes_getter() const;
 };
 
 //using ParserProvider = std::function<

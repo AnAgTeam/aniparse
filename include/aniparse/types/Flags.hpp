@@ -29,6 +29,12 @@ inline constexpr auto supports_online_lists  = CompatibilitiesFlags::make_bit(11
 /// getter advertises it in SearchCompatibilities::compatibilities. @see suggest
 inline constexpr auto supports_suggestions   = CompatibilitiesFlags::make_bit(14);
 
+/// The anime source exposes a (team x player) track axis to browse before
+/// episodes: pick a track, then its episode set. An AnimeGetter advertises it in
+/// its compatibilities() so a consumer shows a track picker without a
+/// speculative request; episode-first sources leave it unset. @see tracks
+inline constexpr auto supports_tracks        = CompatibilitiesFlags::make_bit(15);
+
 /**
  * All the Paginator<T>::next items will be unique over time if true.
  * Otherwise, the items can duplicate. For example, when you get 10
