@@ -260,6 +260,23 @@ struct MangaRootGetter {
 	    GetFilters filters);
 
 	/**
+	 * @brief Autocomplete: suggest search tokens for a partial input.
+	 * Advertised via SearchCompatibilities::compatibilities (supports_suggestions);
+	 * NotImplemented by default. @p kind optionally narrows to one search axis — a
+	 * search key (@see search_keys), the same vocabulary as the source's filters and
+	 * as SearchSuggestion::category — best-effort, the source may ignore it. The
+	 * returned SearchSuggestion::value is a search token that drops straight back
+	 * into search (as that filter's value or a query token).
+	 * @param partial The token being typed.
+	 * @param kind Optional search axis to complete; nullopt = across the default axis.
+	 * @return Suggestions, most relevant first.
+	 */
+	virtual NetworkRequestTask<std::vector<SearchSuggestion>> suggest(
+	    RequestorContext context,
+	    std::string partial,
+	    std::optional<std::string> kind = std::nullopt);
+
+	/**
 	 * @see MangaGetter
 	 * Parse the url and return corresponding getter
 	 * By default throws NotImplementedError
