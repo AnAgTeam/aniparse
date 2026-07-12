@@ -30,13 +30,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # The distro doxygen lags; the config uses tags whose behaviour settled in
-      # 1.9.x+ (FULL_SIDEBAR, HTML_COLORSTYLE), so pin a known-good release.
+      # Pin the version, and pin it to the one docs/theme/header.html was generated
+      # with: a header template carries version-specific replacement markers
+      # (HTML_CODE_FOLDING, HTML_DYNAMIC_SECTIONS), and an older doxygen fails on
+      # the ones it does not know. Regenerating the header (doxygen -w html) means
+      # bumping this in lockstep.
       - name: Install Doxygen + Graphviz
         run: |
           sudo apt-get update
           sudo apt-get install -y graphviz
-          DOXYGEN_VERSION=1.13.2
+          DOXYGEN_VERSION=1.17.0
           wget -q "https://github.com/doxygen/doxygen/releases/download/Release_${DOXYGEN_VERSION//./_}/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz"
           tar -xzf "doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz"
           sudo cp "doxygen-${DOXYGEN_VERSION}/bin/doxygen" /usr/local/bin/
