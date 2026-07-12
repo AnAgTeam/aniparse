@@ -5,3 +5,7 @@
 *.pch
 /CoverageReport/
 *.log
+
+# Generated doxygen output. The config (Doxyfile), the theme (docs/theme) and the
+# entry page (docs/mainpage.md) are tracked; what doxygen builds from them is not.
+/docs/doxygen/

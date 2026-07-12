@@ -1,0 +1,81 @@
+# Doxygen config for libaniparse — curated, not the full `doxygen -g` dump.
+# Generate with:  doxygen Doxyfile   ->   docs/doxygen/html/index.html
+# CI runs the same file with WARN_AS_ERROR overridden (see .github/workflows/docs.yml).
+
+PROJECT_NAME           = "aniparse"
+PROJECT_NUMBER         = 0.1
+# Keep this to ONE rendered line: the search box is absolutely positioned in the
+# title area, so a brief that wraps pushes the box past the header and clips it.
+PROJECT_BRIEF          = "Native manga/anime source parsing"
+PROJECT_LOGO           = assets/logo-light.svg
+OUTPUT_DIRECTORY       = docs/doxygen
+
+# --- what to read ------------------------------------------------------------
+# Public API only. Add `src` here if you also want internal docs.
+# README.md is deliberately NOT input: it is written for GitHub (<picture> for the
+# dark-mode logo, relative repo links) which doxygen cannot resolve. docs/mainpage.md
+# is the doxygen-side entry page instead.
+INPUT                  = include docs/mainpage.md
+USE_MDFILE_AS_MAINPAGE = docs/mainpage.md
+FILE_PATTERNS          = *.hpp *.h
+RECURSIVE              = YES
+# Without these the "#include" line on a class page shows the bare filename
+# (<Manga.hpp>) instead of the path a caller actually writes.
+STRIP_FROM_INC_PATH    = include
+STRIP_FROM_PATH        = .
+# Keep the build tree and vendored deps out of the docs.
+EXCLUDE_PATTERNS       = */out/* */vcpkg_installed/* */lexbor/* */libasyncnet/* */net/vendor/*
+
+# --- how to read it ----------------------------------------------------------
+EXTRACT_ALL            = NO      # only document what actually has /** */ comments
+EXTRACT_STATIC         = YES
+JAVADOC_AUTOBRIEF      = YES     # first line of /** ... */ becomes the brief
+BUILTIN_STL_SUPPORT    = YES     # teach doxygen std:: types (hash/tuple_size specializations)
+QUIET                  = YES
+
+# Strip annotation macros, otherwise doxygen reads them as parameter names
+# (e.g. `const json::object& object ANIPARSE_LIFETIMEBOUND` -> param 'ANIPARSE_LIFETIMEBOUND').
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+PREDEFINED             = ANIPARSE_LIFETIMEBOUND= \
+                         ANIPARSE_EXPORT=
+# Stripped above, so their own doc comments have no target to attach to.
+EXCLUDE_SYMBOLS        = ANIPARSE_LIFETIMEBOUND ANIPARSE_EXPORT
+
+# --- warnings as a doc lint ---------------------------------------------------
+# A @param that no longer matches the signature is a stale doc; these catch it.
+# CI passes -D WARN_AS_ERROR=FAIL_ON_WARNINGS to make that a red build.
+WARN_IF_UNDOCUMENTED   = NO      # flip to YES to hunt down missing docs
+WARN_NO_PARAMDOC       = YES
+WARN_AS_ERROR          = NO
+
+# --- output ------------------------------------------------------------------
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+SORT_MEMBER_DOCS       = NO
+
+# --- theme: doxygen-awesome-css (vendored in docs/theme, MIT) -----------------
+# The sidebar-only layout and the dark-mode toggle require exactly these three
+# settings; HTML_COLORSTYLE must stay LIGHT because the toggle drives the theme.
+GENERATE_TREEVIEW      = YES
+DISABLE_INDEX          = NO
+FULL_SIDEBAR           = NO
+HTML_COLORSTYLE        = LIGHT
+HTML_HEADER            = docs/theme/header.html
+HTML_EXTRA_STYLESHEET  = docs/theme/doxygen-awesome.css \
+                         docs/theme/doxygen-awesome-sidebar-only.css \
+                         docs/theme/doxygen-awesome-sidebar-only-darkmode-toggle.css \
+                         docs/theme/custom.css
+# Copied next to the html: the toggle/copy-button scripts the header pulls in, and
+# the dark-mode logo custom.css swaps to.
+HTML_EXTRA_FILES       = docs/theme/doxygen-awesome-darkmode-toggle.js \
+                         docs/theme/doxygen-awesome-fragment-copy-button.js \
+                         assets/logo-dark.svg
+
+# --- diagrams (needs Graphviz `dot` on PATH; set to NO to skip them) ----------
+HAVE_DOT               = YES
+CALL_GRAPH             = NO
+CLASS_GRAPH            = YES
+COLLABORATION_GRAPH    = NO
+DOT_IMAGE_FORMAT       = svg

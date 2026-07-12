@@ -1,0 +1,42 @@
+/*
+ * Brand layer on top of doxygen-awesome: the ani::parse palette — vermilion
+ * accent (#E34234), ink (#161B33), paper (#F2EDE3). Loaded last, so it only
+ * overrides the theme's colour variables and leaves its layout alone.
+ */
+
+html {
+	--primary-color: #E34234;
+	--primary-dark-color: #B32E22;
+	--primary-light-color: #EC7A6F;
+	--primary-lighter-color: #F7D5D0;
+	--primary-lightest-color: #FDF0EE;
+
+	--page-background-color: #FFFDFA;
+	--page-foreground-color: #161B33;
+
+	--fragment-background: #FAF6EE;
+	--fragment-foreground: #161B33;
+}
+
+html.dark-mode {
+	/* Vermilion is lifted on ink: the light-mode value fails contrast on a dark
+	   background, so the accent shifts toward its tint. */
+	--primary-color: #F2705F;
+	--primary-dark-color: #E34234;
+	--primary-light-color: #C9564A;
+	--primary-lighter-color: #4A211C;
+	--primary-lightest-color: #2A1613;
+
+	--page-background-color: #161B33;
+	--page-foreground-color: #F2EDE3;
+
+	--fragment-background: #10142A;
+	--fragment-foreground: #F2EDE3;
+}
+
+/* PROJECT_LOGO ships the light-background lockup; swap the artwork in dark mode.
+   The mono logo is not usable here — it paints with currentColor, which inside an
+   <img> resolves against the SVG's own root (black), not the page. */
+html.dark-mode #projectlogo img {
+	content: url("logo-dark.svg");
+}

@@ -1,0 +1,74 @@
+name: docs
+
+# Doxygen as a doc linter, plus the published API reference.
+#
+# The gate is the point: a @param renamed in the signature but not in the comment,
+# a \ref to something that no longer exists, an undocumented parameter — doxygen
+# reports all of these, and WARN_AS_ERROR turns them into a red build before the
+# drift accumulates (it had accumulated to ~50 before this job existed).
+#
+# No compilation here — doxygen only reads the headers. So: ubuntu, no vcpkg, no
+# MSVC, no submodules. Seconds, not the minutes the analyze/asan legs take.
+on:
+  push:
+    branches: [nightly, master, main]
+  pull_request:
+    branches: [nightly, master, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The distro doxygen lags; the config uses tags whose behaviour settled in
+      # 1.9.x+ (FULL_SIDEBAR, HTML_COLORSTYLE), so pin a known-good release.
+      - name: Install Doxygen + Graphviz
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y graphviz
+          DOXYGEN_VERSION=1.13.2
+          wget -q "https://github.com/doxygen/doxygen/releases/download/Release_${DOXYGEN_VERSION//./_}/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz"
+          tar -xzf "doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz"
+          sudo cp "doxygen-${DOXYGEN_VERSION}/bin/doxygen" /usr/local/bin/
+          doxygen --version
+
+      # WARN_AS_ERROR is NO in the checked-in Doxyfile so a local run still produces
+      # output while you fix things; CI is where it must be fatal. FAIL_ON_WARNINGS
+      # prints every warning first, then fails — one run shows the whole list.
+      - name: Generate docs (warnings are errors)
+        run: |
+          mkdir -p docs/doxygen
+          ( cat Doxyfile ; echo "WARN_AS_ERROR = FAIL_ON_WARNINGS" ) | doxygen -
+
+      - name: Upload Pages artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/nightly'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/doxygen/html
+
+  # Publishes only from nightly (the default branch). PRs run the gate above and
+  # stop there — a fork PR must never be able to push to Pages.
+  deploy:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/nightly'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
