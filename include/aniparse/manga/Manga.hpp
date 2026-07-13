@@ -45,6 +45,17 @@ struct MangaGetterRootCompatibilities {
 
 /**
  * @brief Interface for getting one specific manga information.
+ *
+ * A getter is IMMUTABLE once constructed: its methods read the fields the constructor
+ * set and never write them. Anything a getter would otherwise want to remember — a
+ * fetched catalog, a warmed snapshot, a preview it was handed — belongs either in the
+ * constructor (data known up front, e.g. the short-card info a search result carries) or
+ * in RequestorContext::resources() (data fetched at request time, shared and keyed).
+ *
+ * That is a contract, not an observation: it is what makes concurrent calls on one getter
+ * safe without a lock. A consumer may hold a getter and call it from more than one thread,
+ * so a getter that caches into a member introduces a data race its caller has no way to
+ * see coming.
  */
 struct MangaGetter {
 	virtual ~MangaGetter() = default;
@@ -96,8 +107,6 @@ struct MangaGetter {
 	    MangaChapterRef chapter,
 	    GetFilters filters,
 	    std::optional<MangaTranslationID> translation = std::nullopt) = 0;
-
-	virtual void reset() noexcept;
 
 	virtual NetworkRequestTask<SerializedGetterData> serialize() = 0;
 };

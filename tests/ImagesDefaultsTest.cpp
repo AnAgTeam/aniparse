@@ -116,6 +116,4 @@ CORO_TEST_CASE("ImageContainerGetter comments default to NotImplemented; preview
 	auto preview = co_await getter.preview_info(context);
 	REQUIRE(preview.has_value());
 	CHECK(preview->title == "stub");
-
-	getter.reset(); // default no-op must be callable without effect
 }

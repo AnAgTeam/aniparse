@@ -89,6 +89,12 @@ struct ImagesGetterRootCompatibilities {
 /**
  * @brief One container of media: a single booru post or a whole gallery.
  * The images counterpart of MangaGetter.
+ *
+ * A getter is IMMUTABLE once constructed: its methods read what the constructor set and
+ * never write it. Data known up front goes in the constructor; data fetched at request
+ * time goes in RequestorContext::resources(), never into a member. This is what makes
+ * concurrent calls on one getter safe without a lock, and callers rely on it.
+ * @see MangaGetter for the full statement of the rule.
  */
 struct ImageContainerGetter {
 	virtual ~ImageContainerGetter() = default;
@@ -119,8 +125,6 @@ struct ImageContainerGetter {
 	virtual NetworkRequestTask<PageResults<Comment>> comments(
 	    RequestorContext context,
 	    GetFilters filters);
-
-	virtual void reset() noexcept;
 
 	virtual NetworkRequestTask<SerializedGetterData> serialize() = 0;
 };

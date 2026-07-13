@@ -50,8 +50,6 @@ NetworkRequestTask<VideoSource> AnimeGetter::resolve_video(
 	co_return source;
 }
 
-void AnimeGetter::reset() noexcept {
-}
 
 NetworkRequestTask<SearchCompatibilities> AnimeRootGetter::search_support(RequestorContext) {
 	co_return SearchCompatibilities{};

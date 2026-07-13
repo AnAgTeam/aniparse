@@ -18,8 +18,6 @@ NetworkRequestTask<PageResults<Comment>> ImageContainerGetter::comments(
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's ImageContainerGetter cannot get comments");
 }
 
-void ImageContainerGetter::reset() noexcept {
-}
 
 NetworkRequestTask<SearchCompatibilities> ImagesGetter::search_support(RequestorContext) {
 	co_return SearchCompatibilities{};

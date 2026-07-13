@@ -55,8 +55,6 @@ NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaGetter::simil
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get similar info");
 }
 
-void MangaGetter::reset() noexcept {
-}
 
 NetworkRequestTask<SearchCompatibilities> MangaRootGetter::search_support(RequestorContext) {
 	co_return SearchCompatibilities{};

@@ -126,6 +126,4 @@ CORO_TEST_CASE("MangaGetter preview_info delegates to info, and reset is a safe 
 	auto preview = co_await getter.preview_info(context);
 	REQUIRE(preview.has_value());
 	CHECK(preview->title == "stub");
-
-	getter.reset(); // default no-op must be callable without effect
 }
