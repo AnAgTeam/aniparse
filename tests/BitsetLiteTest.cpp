@@ -25,10 +25,19 @@ TEST_CASE("Bitset initialization from value") {
 
 	CHECK(bitset3.to_ullong() == 0x9876553221ULL);
 	CHECK(bitset4.to_ullong() == 0x1236137890ULL);
+}
 
-	CHECK(bitset3.to_ulong() == 0x76553221UL);
-	CHECK(bitset4.to_ulong() == 0x36137890UL);
+TEST_CASE("Bitset to_ulong drops what does not fit") {
+	// unsigned long is 32 bits on Windows and 64 on LP64: the cut-off comes from the type.
+	constexpr size_t ulong_bits = sizeof(unsigned long) * CHAR_BIT;
 
+	BitsetLite<200> bitset = 0b1001;
+	CHECK(bitset.to_ulong() == 0b1001UL);
+
+	bitset.set(ulong_bits);
+
+	CHECK(bitset.test(ulong_bits));
+	CHECK(bitset.to_ulong() == 0b1001UL);
 }
 
 TEST_CASE("Bitset initialization from copy/move") {
