@@ -4,8 +4,8 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/FlagsBitfield.hpp"
-#include "aniparse/Headers.hpp"
+#include "aniparse/utility/FlagsBitfield.hpp"
+#include "aniparse/types/Headers.hpp"
 #include "aniparse/utility/UrlEncode.hpp"
 
 #include <algorithm>

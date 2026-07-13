@@ -5,7 +5,7 @@
  */
 #include "catch_amalgamated.hpp"
 
-#include <aniparse/ParsedUrl.hpp>
+#include <aniparse/types/ParsedUrl.hpp>
 
 using namespace aniparse;
 

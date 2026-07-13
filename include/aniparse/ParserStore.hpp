@@ -6,9 +6,9 @@
 #pragma once
 #include "aniparse/DomainScanner.hpp"
 #include "aniparse/Parser.hpp"
-#include "aniparse/ParsedUrl.hpp"
+#include "aniparse/types/ParsedUrl.hpp"
 
-#include "aniparse/detail/AtomicSharedPtr.hpp"
+#include "aniparse/utility/AtomicSharedPtr.hpp"
 #include <string>
 #include <map>
 #include <numeric>
@@ -122,6 +122,6 @@ private:
 
 	std::map<std::string, std::shared_ptr<Parser>, std::less<>> parsers_;
 	std::map<std::string, std::vector<std::string>, std::less<>> volatile_domains_;
-	detail::AtomicSharedPtr<Scanner> scanner_;
+	AtomicSharedPtr<Scanner> scanner_;
 };
 } // namespace aniparse

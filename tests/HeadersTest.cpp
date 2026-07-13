@@ -5,7 +5,7 @@
  */
 #include "catch_amalgamated.hpp"
 
-#include <aniparse/Headers.hpp>
+#include <aniparse/types/Headers.hpp>
 
 using namespace aniparse;
 

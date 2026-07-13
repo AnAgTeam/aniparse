@@ -3,7 +3,7 @@
  *
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
-#include "aniparse/Headers.hpp"
+#include "aniparse/types/Headers.hpp"
 
 #include <stdexcept>
 

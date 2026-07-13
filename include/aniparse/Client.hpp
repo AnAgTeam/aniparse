@@ -15,7 +15,7 @@
 #include <asyncnet/AsyncSession.hpp>
 #include <asyncnet/Requestor.hpp>
 
-#include "aniparse/detail/AtomicSharedPtr.hpp"
+#include "aniparse/utility/AtomicSharedPtr.hpp"
 
 namespace aniparse {
 
@@ -84,7 +84,7 @@ public:
 
 private:
 	std::shared_ptr<asyncnet::Requestor> core_;
-	detail::AtomicSharedPtr<asyncnet::AsyncSession> session_;
+	AtomicSharedPtr<asyncnet::AsyncSession> session_;
 
 	uint32_t max_retries_;
 };

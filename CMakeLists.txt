@@ -84,7 +84,7 @@ find_package(Boost REQUIRED COMPONENTS json regex)
 
 add_library(aniparse ${aniparse_library_type}
 	"src/AniParse.cpp" "include/aniparse/AniParse.hpp"
-	"include/aniparse/FlagsBitfield.hpp"
+	"include/aniparse/utility/FlagsBitfield.hpp"
 	"include/aniparse/detail/BitsetLite.hpp"
 	"include/aniparse/detail/StrongBitset.hpp"
 	# src/Client.cpp (the curl backend) is added conditionally below.
@@ -93,10 +93,7 @@ add_library(aniparse ${aniparse_library_type}
 	"include/aniparse/net/vendor/CancellingTask.hpp"
 	"include/aniparse/net/vendor/Concepts.hpp"
 	"src/ClientContext.cpp" "include/aniparse/ClientContext.hpp"
-	"src/Headers.cpp" "include/aniparse/Headers.hpp"
-	"src/ParsedUrl.cpp" "include/aniparse/ParsedUrl.hpp"
-	"include/aniparse/Common.hpp"
-	"include/aniparse/CookieJar.hpp"
+	"include/aniparse/net/CookieJar.hpp"
 	"include/aniparse/utility/Format.hpp"
 	"include/aniparse/utility/Coroutines.hpp"
 	"include/aniparse/utility/Expected.hpp"
@@ -107,6 +104,10 @@ add_library(aniparse ${aniparse_library_type}
 	"include/aniparse/types/Flags.hpp"
 	"include/aniparse/types/Text.hpp"
 	"src/types/Model.cpp" "include/aniparse/types/Model.hpp"
+	"src/types/Headers.cpp" "include/aniparse/types/Headers.hpp"
+	"src/types/ParsedUrl.cpp" "include/aniparse/types/ParsedUrl.hpp"
+	"include/aniparse/types/ParserInfo.hpp"
+	"include/aniparse/types/ParseResult.hpp"
 	"include/aniparse/types/Request.hpp"
 	"include/aniparse/types/Pagination.hpp"
 	"include/aniparse/types/Response.hpp"
@@ -130,8 +131,10 @@ add_library(aniparse ${aniparse_library_type}
 	"src/Parser.cpp" "include/aniparse/Parser.hpp"
 
 	"src/anime/Anime.cpp" "include/aniparse/anime/Anime.hpp"
+	"include/aniparse/anime/AnimeModel.hpp"
 
 	"src/images/Image.cpp" "include/aniparse/images/Image.hpp"
+	"include/aniparse/images/ImageModel.hpp"
 
 	"src/manga/Manga.cpp" "include/aniparse/manga/Manga.hpp"
 

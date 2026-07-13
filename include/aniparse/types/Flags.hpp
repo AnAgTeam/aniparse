@@ -4,7 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/FlagsBitfield.hpp"
+#include "aniparse/utility/FlagsBitfield.hpp"
 
 namespace aniparse {
 using CompatibilitiesFlags = FlagsBitfield<64, struct CompatibilitiesFlagsTag>;
@@ -47,3 +47,12 @@ inline constexpr auto unsupported_feature = CompatibilitiesFlags::make_bit(13);
 
 inline constexpr CompatibilitiesFlags default_flags;
 } // namespace aniparse::compatibilities_flags
+
+namespace aniparse {
+/// A parser's declared capabilities, returned by Parser::compatibilities(). The
+/// parser-level (cross-domain) capability descriptor; distinct from the per-getter
+/// *GetterCompatibilities structs.
+struct ParserCompatibilities {
+	CompatibilitiesFlags flags = compatibilities_flags::default_flags;
+};
+} // namespace aniparse

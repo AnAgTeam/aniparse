@@ -4,10 +4,17 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/Common.hpp"
-#include "aniparse/ParsedUrl.hpp"
 // The data model half; this header adds the getter interfaces on top of it.
 #include "aniparse/manga/MangaModel.hpp"
+#include "aniparse/types/ParsedUrl.hpp"
+
+#include "aniparse/types/Flags.hpp"
+#include "aniparse/types/Pagination.hpp"
+#include "aniparse/types/Response.hpp"
+#include "aniparse/types/Search.hpp"
+#include "aniparse/types/Serialization.hpp"
+#include "aniparse/types/Authentication.hpp"
+#include "aniparse/ClientContext.hpp"
 
 namespace aniparse {
 

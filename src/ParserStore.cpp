@@ -4,7 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #include "aniparse/ParserStore.hpp"
-#include "aniparse/ParsedUrl.hpp"
+#include "aniparse/types/ParsedUrl.hpp"
 
 #include <ranges>
 

@@ -4,8 +4,8 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/CookieJar.hpp"
-#include "aniparse/Headers.hpp"
+#include "aniparse/net/CookieJar.hpp"
+#include "aniparse/types/Headers.hpp"
 
 #include <cstddef>
 #include <map>

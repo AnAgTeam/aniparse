@@ -6,7 +6,7 @@
 #pragma once
 #include "aniparse/types/Request.hpp"
 #include "aniparse/types/Response.hpp"
-#include "aniparse/CookieJar.hpp"
+#include "aniparse/net/CookieJar.hpp"
 #include "aniparse/MirrorSource.hpp"
 #include "aniparse/ResourceCache.hpp"
 #include "aniparse/html/SelectorSource.hpp"

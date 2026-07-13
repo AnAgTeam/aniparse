@@ -3,7 +3,7 @@
  *
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
-#include "aniparse/ParsedUrl.hpp"
+#include "aniparse/types/ParsedUrl.hpp"
 
 #include <lexbor/url/url.h>
 

@@ -7,7 +7,7 @@
 #include <memory>
 #include <mutex>
 
-namespace aniparse::detail {
+namespace aniparse {
 
 /**
  * @brief Portable stand-in for std::atomic<std::shared_ptr<T>> (P0718).
@@ -19,6 +19,11 @@ namespace aniparse::detail {
  * returns a ref-counted snapshot that outlives a concurrent store(); readers
  * already holding a handle keep their snapshot alive. The swaps here are rare
  * (catalog/session/selector refresh), so the mutex is not a hot path.
+ *
+ * The implementation is pinned to this mutex-guarded form on every platform
+ * (never std::conditional-switched to the native atomic<shared_ptr> where it
+ * exists), so the mangled type stays identical across targets and can appear in
+ * the public interface of parsers without an ABI split.
  */
 template <typename T>
 class AtomicSharedPtr {
@@ -44,4 +49,4 @@ private:
 	std::shared_ptr<T> ptr_;
 };
 
-} // namespace aniparse::detail
+} // namespace aniparse

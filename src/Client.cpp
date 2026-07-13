@@ -9,7 +9,7 @@
 #if defined(ANIPARSE_CURL_BACKEND) && ANIPARSE_CURL_BACKEND
 
 #include "aniparse/Client.hpp"
-#include "aniparse/Headers.hpp"
+#include "aniparse/types/Headers.hpp"
 #include "aniparse/utility/UrlEncode.hpp"
 
 #include <asyncnet/Exceptions.hpp>
