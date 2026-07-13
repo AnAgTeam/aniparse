@@ -4,7 +4,6 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #include "aniparse/manga/Manga.hpp"
-#include "aniparse/Exceptions.hpp"
 
 namespace aniparse {
 std::vector<AltLink> resolve_alt_links(std::span<const std::string_view> builtin,

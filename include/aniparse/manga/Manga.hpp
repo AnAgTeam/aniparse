@@ -144,11 +144,11 @@ struct MangaRootGetter {
 	/**
 	 * @todo
 	 * Search mangas with query and/or filters (advanced query may come as filters)
-	 * By default throws NotImplementedError
+	 * By default reports RequestErrorCode::NotImplemented
 	 * @param context Client to perform HTTP requests
 	 * @param query Query string, plain text
 	 * @param filters Filters to apply to results (e.g. sort ...)
-	 * @throw NotImplementedError If the method isn't implemented by the parser
+	 * @note Reports RequestErrorCode::NotImplemented if the parser does not implement it
 	 * @return ...
 	 */
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> search(
@@ -159,10 +159,10 @@ struct MangaRootGetter {
 	/**
 	 * @todo
 	 * Get latest parser source released mangas
-	 * By default throws NotImplementedError
+	 * By default reports RequestErrorCode::NotImplemented
 	 * @param context Client to perform HTTP requests
 	 * @param filters Filters to apply to results (e.g. sort ...)
-	 * @throw NotImplementedError If the method isn't implemented by the parser
+	 * @note Reports RequestErrorCode::NotImplemented if the parser does not implement it
 	 * @return ...
 	 */
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> latest(
@@ -190,10 +190,10 @@ struct MangaRootGetter {
 	/**
 	 * @see MangaGetter
 	 * Parse the url and return corresponding getter
-	 * By default throws NotImplementedError
+	 * By default reports RequestErrorCode::NotImplemented
 	 * @param context Client to perform HTTP requests
 	 * @param url The url to parse
-	 * @throw NotImplementedError If the method isn't implemented by the parser
+	 * @note Reports RequestErrorCode::NotImplemented if the parser does not implement it
 	 * @return Task to get MangaGetter
 	 */
 	virtual NetworkRequestTask<std::unique_ptr<MangaGetter>> parse_url(

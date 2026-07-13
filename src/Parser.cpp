@@ -5,7 +5,6 @@
  */
 #include "aniparse/Parser.hpp"
 #include "aniparse/anime/Anime.hpp"
-#include "aniparse/Exceptions.hpp"
 
 #include <algorithm>
 

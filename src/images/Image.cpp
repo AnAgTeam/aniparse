@@ -4,7 +4,6 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #include "aniparse/images/Image.hpp"
-#include "aniparse/Exceptions.hpp"
 
 namespace aniparse {
 
