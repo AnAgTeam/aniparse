@@ -31,7 +31,7 @@ namespace aniparse {
  *
  * @param text The timestamp, with no surrounding whitespace.
  * @return The instant, or nullopt if @p text is not a timestamp. Note that nullopt is
- *         NOT @ref unknown_time: a caller that models "unknown" as the epoch maps it
+ *         NOT @ref aniparse::unknown_time — a caller that models "unknown" as the epoch maps it
  *         over itself, so that a source sending "1970-01-01" is not mistaken for a
  *         source sending nothing.
  */
