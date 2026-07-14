@@ -32,6 +32,22 @@ class DOMElementIterator;
  * - Search and iteration methods (find, find_all, query, query_all, get_attr,
  *   find_attr, attributes, begin/end) are total: on an invalid view they simply
  *   return an empty result (nullopt / empty container / an empty range).
+ * - Exception to the above, as the code stands: the attribute lookups (find_attr,
+ *   get_attr) and iterating the range returned by attributes() do dereference the
+ *   element, so on an invalid view they are undefined behavior rather than an
+ *   empty result. Check operator bool() before asking an element for attributes.
+ *
+ * Lifetime (the contract to get right, because breaking it is a use-after-free):
+ * a DOMElementView owns nothing. It points into the HTMLDocument that parsed the
+ * markup, and so does everything reached through it — the views returned by find,
+ * query, attributes and the iterators, and every std::string_view handed back by
+ * tag_name, class_name, id, content_text, DOMAttrView::value. Those bytes live in
+ * the document's arena. The document must therefore outlive every view and every
+ * string_view taken from it: keep it alive for the whole parse, and copy anything
+ * that has to survive it into a std::string (which is what text() already returns,
+ * being the one accessor that hands back owned data) before letting it die.
+ * Storing a view or a string_view in the parsed model and dropping the document is
+ * the mistake this note exists to prevent.
  */
 class DOMElementView {
 	friend class DOMNodeView;
@@ -39,6 +55,7 @@ class DOMElementView {
 	friend class DOMElementIterator;
 
 public:
+	/// Iterator over this element's direct child elements (@see begin, end).
 	using iterator_type = DOMElementIterator;
 
 	/**
@@ -75,12 +92,14 @@ public:
 	/**
 	 * @brief Copy view of the same DOM element
 	 * @param other DOM element
+	 * @return *this
 	 */
 	DOMElementView& operator=(const DOMElementView& other) & noexcept = default;
 
 	/**
 	 * @brief Move view of the same DOM element
 	 * @param other DOM element
+	 * @return *this
 	 */
 	DOMElementView& operator=(DOMElementView&& other) & noexcept = default;
 
@@ -90,13 +109,25 @@ public:
 	[[nodiscard]] operator bool() const;
 
 	/**
+	 * @brief Range over the element's attributes, in the order the parser stored
+	 *        them.
+	 * @note The range and the DOMAttrView it yields borrow into the owning
+	 *       HTMLDocument, which must outlive them.
+	 * @pre Iterating the result requires a valid view: on an invalid one, the
+	 *      returned range must not be iterated (it would dereference no element).
 	 * @return View of the DOM element attributes
 	 */
 	[[nodiscard]] DOMElementAttrsView attributes() const;
 
 	/**
 	 * @brief Iterator to the start (first) of DOM element children
-	 * @return DOM elements iterator
+	 * Direct child *elements* only — text nodes between them are skipped; use
+	 * DOMNodeWalkIterator when the text matters, and DOMElementWalkIterator to
+	 * descend below the direct children.
+	 * @note The iterator and the views it yields borrow into the owning
+	 *       HTMLDocument, which must outlive them.
+	 * @return DOM elements iterator; equal to @ref end when the element has no
+	 *         child elements, or when the view is invalid
 	 */
 	[[nodiscard]] DOMElementIterator begin();
 
@@ -110,6 +141,8 @@ public:
 	/**
 	 * @pre The view must be valid (@see operator bool); otherwise UB.
 	 * @note Tag name always in upper case ("HTML", "DIV", etc.)
+	 * @note The result borrows into the owning HTMLDocument and dangles once that
+	 *       document dies; copy it into a std::string to keep it.
 	 * @return DOM element tag/name, e.g. \<html\> => HTML
 	 */
 	[[nodiscard]] std::string_view tag_name() const;
@@ -119,7 +152,9 @@ public:
 	 * This is just efficient shortcut to "class" attr, get_attr("class")
 	 * The classes may be separated by whitespace characters
 	 * @pre The view must be valid (@see operator bool); otherwise UB.
-	 * @return DOM element class
+	 * @note The result borrows into the owning HTMLDocument and dangles once that
+	 *       document dies; copy it into a std::string to keep it.
+	 * @return DOM element class, empty if the element carries no class attribute
 	 */
 	[[nodiscard]] std::string_view class_name() const;
 
@@ -127,7 +162,9 @@ public:
 	 * @brief Get the id name of the element.
 	 * This is just efficient shortcut to "id" attr, get_attr("id")
 	 * @pre The view must be valid (@see operator bool); otherwise UB.
-	 * @return DOM element id
+	 * @note The result borrows into the owning HTMLDocument and dangles once that
+	 *       document dies; copy it into a std::string to keep it.
+	 * @return DOM element id, empty if the element carries no id attribute
 	 */
 	[[nodiscard]] std::string_view id() const;
 
@@ -142,20 +179,31 @@ public:
 
 	/**
 	 * @brief Find first element with tag
+	 * Searches the descendants depth first, in document order; the element itself
+	 * is not matched.
 	 * @note Tag matching is case insensitive, so "div", "DIV" and "Div" are equivalent.
+	 * @note The returned view borrows into the owning HTMLDocument, which must
+	 *       outlive it.
 	 * @param tag DOM element tag name
-	 * @return DOM element view if found, nullopt otherwise
+	 * @return DOM element view if found, nullopt otherwise (including on an invalid
+	 *         view and for a tag no element carries)
 	 */
 	[[nodiscard]] std::optional<DOMElementView> find(std::string_view tag) const;
 
 	/**
 	 * @brief Find first element with attribute and value
+	 * Searches the descendants depth first, in document order; the element itself
+	 * is not matched. The value must match in full — this is equality, not a
+	 * substring test (the sole exception being the class rule below).
+	 * @note The returned view borrows into the owning HTMLDocument, which must
+	 *       outlive it.
 	 * @param attr DOM attribute name
 	 * @param value DOM Attrubute value
 	 * @param ignore_class_whitespaces Only for "attr" == "class".
 	 *        If true, then it checks if element contains "value" class,
 	 *        Otherwise, checks if element class exactly the same
-	 * @return DOM element view if found, nullopt otherwise
+	 * @return DOM element view if found, nullopt otherwise (including on an invalid
+	 *         view)
 	 */
 	[[nodiscard]] std::optional<DOMElementView> find(
 	    std::string_view attr,
@@ -165,8 +213,12 @@ public:
 	/**
 	 * @brief Find the first descendant matching a CSS selector.
 	 * @note The element itself is not matched, only its descendants.
+	 * @note The returned view borrows into the owning HTMLDocument, which must
+	 *       outlive it.
 	 * @param selector Compiled CSS selector
-	 * @return DOM element view if found, nullopt otherwise
+	 * @return DOM element view if found, nullopt otherwise — also when the view is
+	 *         invalid, when the selector failed to compile, or when the search
+	 *         engine could not be created
 	 */
 	[[nodiscard]] std::optional<DOMElementView> query(const CompiledSelector& selector) const;
 
@@ -175,27 +227,40 @@ public:
 	 * @note The element itself is not matched, only its descendants.
 	 *       Each matching element appears once even if it matches several
 	 *       selectors of a comma separated list.
+	 * @note The returned views borrow into the owning HTMLDocument, which must
+	 *       outlive them and the vector alike.
 	 * @param selector Compiled CSS selector
-	 * @return All found DOM element views
+	 * @return All found DOM element views; empty when nothing matches, when the
+	 *         view is invalid, or when the selector failed to compile
 	 */
 	[[nodiscard]] std::vector<DOMElementView> query_all(const CompiledSelector& selector) const;
 
 	/**
 	 * @brief Find all elements with tag
+	 * Searches the descendants depth first, in document order; the element itself
+	 * is not matched.
 	 * @note Tag matching is case insensitive, so "div", "DIV" and "Div" are equivalent.
+	 * @note The returned views borrow into the owning HTMLDocument, which must
+	 *       outlive them.
 	 * @param tag DOM element tag name
-	 * @return All found DOM element views
+	 * @return All found DOM element views; empty when nothing matches or the view
+	 *         is invalid
 	 */
 	[[nodiscard]] std::vector<DOMElementView> find_all(std::string_view tag) const;
 
 	/**
 	 * @brief Find all elements with attribute and value
+	 * Searches the descendants depth first, in document order; the element itself
+	 * is not matched.
+	 * @note The returned views borrow into the owning HTMLDocument, which must
+	 *       outlive them.
 	 * @param attr DOM attribute name
 	 * @param value DOM Attrubute value
 	 * @param ignore_class_whitespaces Only for "attr" == "class".
 	 *        If true, then it checks if element contains "value" class,
 	 *        Otherwise, checks if element class exactly the same
-	 * @return All found DOM element views
+	 * @return All found DOM element views; empty when nothing matches or the view
+	 *         is invalid
 	 */
 	[[nodiscard]] std::vector<DOMElementView> find_all(
 	    std::string_view attr,
@@ -204,7 +269,13 @@ public:
 
 	/**
 	 * @brief Find DOM element attribute with name.
+	 * Looks at this element's own attributes only, never at its descendants; the
+	 * name must match exactly (HTML parsing lowercases attribute names).
+	 * @pre The view must be valid; this walks the element's attribute list, so on
+	 *      an invalid view it is UB rather than an empty result.
 	 * @note to access "class" or "id" it is better to use @ref class_name() and @ref id()
+	 * @note The returned view borrows into the owning HTMLDocument, which must
+	 *       outlive it.
 	 * @param name DOM attribute name
 	 * @return DOM attribute view if found, nullopt otherwise
 	 */
@@ -212,7 +283,13 @@ public:
 
 	/**
 	 * @brief Get DOM element attribute value with name.
+	 * Distinguishes an absent attribute (nullopt) from a present but valueless one
+	 * (an engaged optional holding an empty string_view), which is what makes it
+	 * usable for boolean attributes.
+	 * @pre The view must be valid (@see find_attr); otherwise UB.
 	 * @note to access "class" or "id" it is better to use @ref class_name() and @ref id()
+	 * @note The returned string_view borrows into the owning HTMLDocument and
+	 *       dangles once that document dies; copy it into a std::string to keep it.
 	 * @param name DOM attribute name
 	 * @return Value of the element or empty string
 	 *         if attribute found, std::nullopt otherwise
@@ -225,6 +302,10 @@ public:
 	 * Ignores all element tags and print all it's contents.
 	 * Also preserves all whitespace characters
 	 * @pre The view must be valid (@see operator bool); otherwise UB.
+	 * @note The result borrows into the owning HTMLDocument and dangles once that
+	 *       document dies; copy it into a std::string to keep it. Reading it also
+	 *       makes the document cache the concatenated text, so the document is
+	 *       mutated even though the view is const.
 	 * @return Text of the element or empty string
 	 */
 	[[nodiscard]] std::string_view content_text() const;
@@ -238,6 +319,9 @@ public:
 	 * last trailing spaces.
 	 * Interprets <BR> element as new line ('\n').
 	 * @pre The view must be valid (@see operator bool); otherwise UB.
+	 * @note Unlike every other accessor here, the result is owned: a std::string
+	 *       that outlives the document. This is the accessor to reach for when the
+	 *       text goes into a parsed model rather than being consumed on the spot.
 	 * @return Text of the element or empty string
 	 */
 	[[nodiscard]] std::string text() const;
@@ -249,7 +333,9 @@ public:
 	 *        implementation defined struct.
 	 * @note Use it only if you *have to*. This
 	 *       pointer should be implementation defined
-	 * @return Raw pointer to the DOM element
+	 * @note Non-owning, like the view itself: the pointer is only valid while the
+	 *       owning HTMLDocument lives.
+	 * @return Raw pointer to the DOM element, nullptr for an invalid view
 	 */
 	[[nodiscard]] lxb_dom_element_t* get() const;
 
@@ -267,13 +353,27 @@ private:
  * @brief Class for iterating through all element children.
  * Supports bidirectional iterating
  * @note Becomes invalid when reaches start or end
+ *
+ * Direct child *elements* only: the text nodes between them are skipped, and the
+ * children of those children are not descended into (DOMElementWalkIterator does
+ * that). It borrows into the HTMLDocument, which must outlive both the iterator
+ * and the views it yields.
  */
 class DOMElementIterator {
 public:
+	/// What the iteration yields: a view of one child element.
 	using value_type        = DOMElementView;
+	/// Signed difference type, as the iterator concepts require.
 	using difference_type   = std::ptrdiff_t;
+	/// @note Names DOMAttrView, while the dereference operators actually yield a
+	///       DOMElementView. Do not build on pointer/reference here; use
+	///       @ref value_type.
 	using pointer           = const DOMAttrView*;
+	/// @note Names DOMAttrView, while the dereference operators actually yield a
+	///       DOMElementView. Do not build on pointer/reference here; use
+	///       @ref value_type.
 	using reference         = const DOMAttrView&;
+	/// Children form a doubly-linked list, so the walk goes both ways.
 	using iterator_category = std::bidirectional_iterator_tag;
 
 	/**
@@ -310,16 +410,21 @@ public:
 	/**
 	 * @brief Copy state of other iterator
 	 * @param other Iterator to copy
+	 * @return *this
 	 */
 	DOMElementIterator& operator=(const DOMElementIterator& other) & = default;
 
 	/**
 	 * @brief Move state of other iterator
 	 * @param other Iterator to move
+	 * @return *this
 	 */
 	DOMElementIterator& operator=(DOMElementIterator&& other) & noexcept = default;
 
 	/**
+	 * @note The reference is into the iterator itself and is invalidated by the
+	 *       next increment; copy the DOMElementView out to keep it (the view in
+	 *       turn borrows into the HTMLDocument).
 	 * @return DOM element view of the current element
 	 */
 	[[nodiscard]] const DOMElementView& operator*() const;
@@ -376,13 +481,24 @@ private:
  *        through all the DOM element children.
  * @note Becomes invalid when reaches end
  *       or element is destroyed
+ *
+ * Yields every descendant *element* in document order, depth first, skipping text
+ * nodes; the element it was built from is not yielded, only what it contains. This
+ * is what find/find_all are built on. Together with the free begin()/end()
+ * overloads it works directly in a range-for. It borrows into the HTMLDocument,
+ * which must outlive both the iterator and the views it yields.
  */
 class DOMElementWalkIterator {
 public:
+	/// What the walk yields: a view of one descendant element.
 	using value_type        = DOMElementView;
+	/// Signed difference type, as the iterator concepts require.
 	using difference_type   = std::ptrdiff_t;
+	/// Pointer type the dereference operator yields.
 	using pointer           = const DOMElementView*;
+	/// Reference type the dereference operator yields.
 	using reference         = const DOMElementView&;
+	/// The walk only moves forward: a tree is descended, never rewound.
 	using iterator_category = std::forward_iterator_tag;
 
 	/**
@@ -425,16 +541,21 @@ public:
 	/**
 	 * @brief Copy state of other iterator
 	 * @param other Iterator to copy
+	 * @return *this
 	 */
 	DOMElementWalkIterator& operator=(const DOMElementWalkIterator& other) & = default;
 
 	/**
 	 * @brief Move state of other iterator
 	 * @param other Iterator to move
+	 * @return *this
 	 */
 	DOMElementWalkIterator& operator=(DOMElementWalkIterator&& other) & noexcept = default;
 
 	/**
+	 * @note The reference is into the iterator itself and is invalidated by the
+	 *       next increment; copy the DOMElementView out to keep it (the view in
+	 *       turn borrows into the HTMLDocument).
 	 * @return DOM element view of the current element
 	 */
 	[[nodiscard]] const DOMElementView& operator*() const;
@@ -480,10 +601,21 @@ private:
 	DOMElementView node_view_;
 };
 
+/**
+ * @brief Make a walk iterator usable as a range, so it can be fed to a range-for
+ *        directly instead of spelling out a begin/end pair.
+ * @param iter The iterator, already positioned at the start of the walk
+ * @return @p iter unchanged
+ */
 [[nodiscard]] inline DOMElementWalkIterator begin(DOMElementWalkIterator iter) noexcept {
 	return iter;
 }
 
+/**
+ * @brief End of the range formed by a walk iterator.
+ * @return A default-constructed (invalid) iterator, which the walk compares equal
+ *         to once the whole subtree has been visited
+ */
 [[nodiscard]] inline DOMElementWalkIterator end(const DOMElementWalkIterator&) noexcept {
 	return {};
 }
@@ -493,22 +625,62 @@ private:
  * Can be used to get element attributes, name, etc.
  * Supports iterating child elements. For walking @see DOMElementWalkIterator
  * @todo
+ *
+ * @warning Unfinished, and not usable as it stands: of the members below only the
+ *          raw-pointer constructor has a definition in the library, so anything
+ *          else — default-constructing, moving, destroying, converting to a view,
+ *          get() — fails to link. The owning element type it is meant to be does
+ *          not exist yet; parsers work with DOMElementView into an HTMLDocument,
+ *          which is what the whole html/ API is built around.
  */
 class DOMElement {
 public:
+	/**
+	 * @brief Take ownership of a raw DOM element
+	 * @param element Lexbor element raw pointer
+	 */
 	DOMElement(lxb_dom_element_t* element);
 
+	/// @brief Construct an empty element. Declared, not defined.
 	DOMElement();
+	/// @brief Non-copyable: the element is owned, not shared.
 	DOMElement(const DOMElement& other) = delete;
+	/**
+	 * @brief Transfer ownership from another element. Declared, not defined.
+	 * @param other The element to take ownership of
+	 */
 	DOMElement(DOMElement&& other) noexcept;
+	/// @brief Destroy the owned element. Declared, not defined.
 	~DOMElement();
 
+	/// @brief Non-copyable: the element is owned, not shared.
 	DOMElement& operator=(const DOMElement& other) = delete;
+	/**
+	 * @brief Transfer ownership from another element. Declared, not defined.
+	 * @param other The element to take ownership of
+	 * @return *this
+	 */
 	DOMElement& operator=(DOMElement&& other) noexcept;
 
+	/**
+	 * @brief View the owned element without giving up ownership. Declared, not
+	 *        defined.
+	 * @note The resulting view would borrow into this element and must not outlive
+	 *       it.
+	 * @return Non-owning view of the element
+	 */
 	operator DOMElementView();
 
+	/**
+	 * @brief Raw pointer to the owned element. Declared, not defined.
+	 * @return Raw pointer to the DOM element
+	 */
 	lxb_dom_element_t* get();
+
+	/**
+	 * @brief Raw pointer to the owned element. Declared, not defined.
+	 * @return Raw const pointer to the DOM element
+	 */
 	const lxb_dom_element_t* get() const;
 
 private:
@@ -518,6 +690,16 @@ private:
 /**
  * @brief Helper class to find DOM elements in chain
  * Used when you want to find an element in another elements
+ *
+ * Each find() step searches inside whatever the previous step landed on, so a
+ * descent reads as one expression instead of a staircase of optionals. A step
+ * that finds nothing empties the finder, and every later step is then a no-op:
+ * the whole chain fails as a unit and is checked once, at the end, with
+ * operator bool() or value().
+ *
+ * It holds a DOMElementView, so it borrows into the HTMLDocument like everything
+ * else here — the document must outlive the finder and whatever is pulled out of
+ * it.
  */
 class DOMElementFinder {
 public:
@@ -530,18 +712,30 @@ public:
 	/**
 	 * @brief Find element with tag
 	 * @see DOMElementView::find
+	 * @param tag DOM element tag name
+	 * @return *this, holding the found element, or emptied if nothing matched (or
+	 *         if the chain had already failed)
 	 */
 	DOMElementFinder& find(std::string_view tag) &;
 
 	/**
 	 * @brief Find element with tag
 	 * @see DOMElementView::find
+	 * @param tag DOM element tag name
+	 * @return This finder, for chaining another step onto a temporary
 	 */
 	DOMElementFinder&& find(std::string_view tag) &&;
 
 	/**
 	 * @brief Find element with attribute and value
 	 * @see DOMElementView::find
+	 * @param attr DOM attribute name
+	 * @param value DOM attribute value
+	 * @param ignore_class_whitespaces Only for "attr" == "class". If true, checks
+	 *        whether the element contains the "value" class; otherwise the class
+	 *        must match exactly
+	 * @return *this, holding the found element, or emptied if nothing matched (or
+	 *         if the chain had already failed)
 	 */
 	DOMElementFinder& find(
 	    std::string_view attr,
@@ -551,6 +745,12 @@ public:
 	/**
 	 * @brief Find element with attribute and value
 	 * @see DOMElementView::find
+	 * @param attr DOM attribute name
+	 * @param value DOM attribute value
+	 * @param ignore_class_whitespaces Only for "attr" == "class". If true, checks
+	 *        whether the element contains the "value" class; otherwise the class
+	 *        must match exactly
+	 * @return This finder, for chaining another step onto a temporary
 	 */
 	DOMElementFinder&& find(
 	    std::string_view attr,
@@ -558,7 +758,8 @@ public:
 	    bool ignore_class_whitespaces = true) &&;
 
 	/**
-	 * @return true if current or previous element is not found, false otherwise
+	 * @return true if the chain is still standing on an element, false if any step
+	 *         of it found nothing
 	 */
 	operator bool() const noexcept;
 

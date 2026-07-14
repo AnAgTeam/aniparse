@@ -24,23 +24,65 @@
  * bridge imports it directly), and a header that reaches NetworkRequestTask cannot
  * be imported by Swift's clang importer at all. @see MangaModel.hpp
  */
+
+/**
+ * @file
+ * The anime data model: an anime, its (team × player) tracks, its episodes, and the
+ * playable sources of an episode — the values an AnimeGetter returns.
+ *
+ * It parallels the manga model deliberately (episodes for chapters, playable sources
+ * for pages) and follows the same two rules: an absent value (an empty string, a
+ * nullopt, @ref aniparse::unknown_time) means the source did not state it in that
+ * response, not that the anime lacks it; and identity is the opaque handle
+ * (AnimeEpisodeInfo::ref()), not the episode number, which is for display.
+ *
+ * What has no counterpart in manga is the pre-episode axis: a source may offer the
+ * same episode from several teams on several players. Where it does, that axis is
+ * @ref aniparse::AnimeTrackInfo; where it does not, each @ref aniparse::VideoSource
+ * describes itself instead.
+ */
+
 namespace aniparse {
 
+/**
+ * The source's own numeric id for an anime. Meaningful only within the one source
+ * that issued it — never compare ids across parsers (that is what ExternalId is
+ * for), and never treat it as this library's handle on the anime (that is the
+ * getter). Wider than MangaID because some catalogs mint ids past 32 bits.
+ * @see AnimeInfo::id
+ */
 using AnimeID      = int64_t;
+/**
+ * The source's handle for one (team × player) track of an anime, as advertised by
+ * @ref aniparse::AnimeTrackInfo::id. Meaningful only within that source and that anime; it is
+ * what an episode listing or a source fetch is narrowed by. @see AnimeTrackInfo
+ */
 using AnimeTrackID = int;
+/// A number of episodes. Counts only, never an index: the first episode is 1.
 using EpisodeCount = int;
 
 struct AnimeGetter;
 
+/// The AnimeID that addresses nothing: the value @ref aniparse::AnimeInfo::id carries when the
+/// source has no numeric id for the anime (it addresses works by slug, say). Not an
+/// error marker — the anime is still fully usable through its getter.
 inline constexpr AnimeID invalid_anime_id     = AnimeID{ 0 };
+/// The AnimeTrackID that addresses no particular track — the default of
+/// @ref aniparse::AnimeTrackInfo::id, and what an episode-first source (which has no track
+/// axis at all) leaves it at. Getters express the same "no track chosen" by passing
+/// nullopt, which selects the source's default.
 inline constexpr AnimeTrackID any_anime_track = -1;
 
+/**
+ * @brief The broadcast season an anime premiered in — the industry's coarse release
+ * slot, paired with @ref aniparse::AnimeInfo::year (a season alone does not date anything).
+ */
 enum class AnimeSeason {
-	Unknown,
-	Spring,
-	Summer,
-	Fall,
-	Winter,
+	Unknown, ///< The source states no season. Distinct from an absent season field: it means the source has the axis but no value for this anime.
+	Spring,  ///< Roughly April-June.
+	Summer,  ///< Roughly July-September.
+	Fall,    ///< Roughly October-December.
+	Winter,  ///< Roughly January-March.
 };
 
 /**
@@ -48,8 +90,16 @@ enum class AnimeSeason {
  * ImageContainerInfo: a plain data model returned by AnimeGetter::info, not a
  * bag of getter methods. Dub/fansub teams are not fields here — they are a
  * separate axis, @see AnimeGetter::translation_info.
+ *
+ * The same struct serves two fetch depths: a listing card (AnimeGetter::preview_info)
+ * fills only what a cheap listing endpoint carries, a full fetch fills what the
+ * detail endpoint carries. An empty string or a nullopt therefore means "not stated
+ * in this response", not "the anime does not have it".
  */
 struct AnimeInfo {
+	/// The source's own numeric id, when it has one. @ref aniparse::invalid_anime_id (0) = it
+	/// does not, which is not an error. Neither a cross-source identity
+	/// (@ref external_ids) nor the handle to fetch with (@see AnimeGetter::serialize).
 	AnimeID id = invalid_anime_id;
 
 	/// Ids this anime carries on other sites, as the source reports them — the
@@ -59,26 +109,59 @@ struct AnimeInfo {
 	/// anime here, use the getter (@see AnimeGetter::serialize). @see ExternalId
 	std::vector<ExternalId> external_ids;
 
+	/// The title to show, in whichever language the source leads with (there is no
+	/// promise it is English or romanized). Empty only when the source does not name
+	/// the anime at all.
 	std::string title;
+	/// The title in the work's original language/script, when the source carries one
+	/// AND it differs from @ref title. nullopt = no separate original title, or it is
+	/// the same string — so a consumer never renders the title twice.
 	std::optional<std::string> original_title;
+	/// Synopsis, plain text plus any links the source marked up (not HTML). Empty =
+	/// the source gives none in this response. @see AttributedText
 	AttributedText description;
 
+	/// The broadcast season it premiered in. nullopt = the source has no season axis
+	/// at all; AnimeSeason::Unknown = it has one but states no value for this anime.
+	/// Only meaningful together with @ref year. @see AnimeSeason
 	std::optional<AnimeSeason> season;
+	/// The year it premiered. A default-constructed year (year 0) = the source states
+	/// none — compare against `std::chrono::year{}`, since year 0 is otherwise a
+	/// well-formed value.
 	std::chrono::year year{};
+	/// Airing state (ongoing / released / announced / source-specific). A
+	/// default-constructed status (empty name) = the source states none, and reads as
+	/// DefaultAiredStatuses::Other rather than as "released". @see AiredStatus
 	AiredStatus status;
 
+	/// When the anime was last touched on the source (a new episode, an edit).
+	/// @ref aniparse::unknown_time = not stated. Orders items within one source only, since
+	/// sources differ on what counts as an update.
 	std::chrono::system_clock::time_point update_time  = unknown_time;
+	/// When it first aired. @ref aniparse::unknown_time = the source states no exact date —
+	/// common, since many sources give only @ref season and @ref year.
 	std::chrono::system_clock::time_point release_time = unknown_time;
 
 	/// Opaque change marker for the whole anime; @see MangaInfo::revision.
 	std::string revision;
 
+	/// The franchise/parent work, when the source places the anime in one. nullopt =
+	/// it does not — either the anime stands alone or the source has no such axis.
 	std::optional<Series> series;
 
+	/// Poster art and thumbnails, best first (a consumer showing one shows previews
+	/// front()). Empty = the source offers no artwork. Fetch descriptors, not bytes.
+	/// @see Image
 	std::vector<Image> previews;
+	/// The source's labels for this anime — genres, themes, whatever axes it tags by,
+	/// flattened into one list. A tag whose @ref Tag::ref is non-empty can be fed back
+	/// into a search; empty = the source lists none in this response.
 	std::vector<Tag> tags;
 
+	/// Community score, normalized to a 0-10 axis (@see Rating). nullopt = the source
+	/// publishes no score for this anime, which is not a score of zero.
 	std::optional<Rating> rating;
+	/// View/popularity counters. nullopt = the source publishes none. @see ViewStats
 	std::optional<ViewStats> views;
 
 	/// Episodes actually available now (a running airing exposes fewer than
@@ -86,12 +169,23 @@ struct AnimeInfo {
 	std::optional<EpisodeCount> released_episodes;
 	/// Planned episode total when the source states it up front; absent otherwise.
 	std::optional<long> total_episodes;
+	/// Nominal runtime of one episode, as the source states it — a typical value for
+	/// the series, not a per-episode measurement, so it is an estimate for a UI and
+	/// not a seek/progress bound. nullopt = the source does not state it.
 	std::optional<std::chrono::minutes> episode_duration;
 
+	/// Minimum age the source requires to view the anime, in years. 0 = unrestricted
+	/// or unstated — an adult work is more reliably detected via @ref is_hentai.
+	/// @see AgeRestriction
 	AgeRestriction age_restriction = 0;
 
+	/// The account that posted the anime, on sources where content is user-submitted.
+	/// nullopt = the source has no notion of an uploader (a publisher-side catalog).
 	std::optional<RelatedUser> uploader;
 
+	/// The source marks this anime as adult/pornographic. False = it does not mark it,
+	/// which is weaker than "safe": sources differ on where the line sits, and one
+	/// with no adult flag at all leaves this false throughout.
 	bool is_hentai = false;
 };
 
@@ -111,6 +205,9 @@ struct AnimeTrackInfo {
 	/// episodes_info() / episode_sources().
 	AnimeTrackID id = any_anime_track;
 	RelatedUser team;                    ///< The dub/fansub group.
+	/// Whether this track is a spoken translation or timed text — the other half of
+	/// the user-facing choice next to the team. Defaults to Voiceover, so a source
+	/// that carries subtitles must set it. @see TranslationType
 	TranslationType type = TranslationType::Voiceover;
 	std::string player;                  ///< Host/player label; opaque routing token.
 	/// Episodes available under THIS track; absent when the source does not
@@ -133,8 +230,17 @@ struct AnimeEpisodeRef {
 	std::string id;
 };
 
+/**
+ * @brief Everything an episode listing states about one episode. The item type of
+ * AnimeGetter::episodes_info; its @ref ref() is what fetches the episode's playable
+ * sources. The anime counterpart of MangaChapterInfo.
+ *
+ * An episode's identity is the ref, never the number: the numeric field is for
+ * grouping and display, and specials or recaps may share or lack one.
+ */
 struct AnimeEpisodeInfo {
 	/// Numeric hint for grouping/ordering in UI; not the episode's identity.
+	/// Whole part only, 0 = unnumbered (a special), so not a usable sort key alone.
 	long episode = 0;
 	/// Episode number exactly as the source spells it: "7.5", "Special".
 	/// Empty = render from @ref episode.
@@ -142,13 +248,27 @@ struct AnimeEpisodeInfo {
 	/// Opaque episode handle, understood only by the getter that produced this
 	/// info; round-trips into episode_sources() via ref().
 	std::string id;
+	/// The episode's own title, when it has one. Empty = untitled (or not carried in
+	/// a cheap listing); it does not repeat the episode number, so a UI shows both.
 	std::string name;
+	/// Synopsis for the episode. Empty = none, the usual case.
 	std::string description;
+	/// Thumbnails/stills for the episode. Empty = the source offers none. Fetch
+	/// descriptors, not the video — that comes from episode_sources(). @see Image
 	std::vector<Image> previews;
+	/// When the episode entry was last edited/re-uploaded on the source;
+	/// @ref aniparse::unknown_time = not stated.
 	std::chrono::system_clock::time_point update_time  = unknown_time;
+	/// When the episode aired or was posted; @ref aniparse::unknown_time = not stated. Sources
+	/// differ on which of the two they report, so it dates the entry, not the broadcast.
 	std::chrono::system_clock::time_point release_time = unknown_time;
 
-	/// Identity for the episode_sources() round-trip.
+	/**
+	 * @brief Identity for the episode_sources() round-trip.
+	 * @return The ref built from this info's number and opaque id. Pass it back
+	 *         unchanged — the number alone identifies an episode only on sources that
+	 *         leave @ref id empty. Cheap: nothing is fetched, the id is copied.
+	 */
 	[[nodiscard]] AnimeEpisodeRef ref() const { return { episode, id }; }
 };
 
@@ -166,6 +286,10 @@ struct VideoSource {
 	/// Player/host that serves the media, e.g. a site's own player or an
 	/// external embed. Routes native-passthrough vs resolve. Opaque to consumers.
 	std::string player;
+	/// Whether this option is a spoken translation or timed text. Defaults to
+	/// Voiceover, so a source offering subtitles must set it; on a track-first source
+	/// it repeats the track's AnimeTrackInfo::type, so the option is readable on its
+	/// own. @see TranslationType
 	TranslationType translation_type = TranslationType::Voiceover;
 	/// The dub/fansub group behind this source — self-describing, so an
 	/// episode-first source (no track axis) still names its team here.

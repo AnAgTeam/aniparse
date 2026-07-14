@@ -23,6 +23,8 @@ namespace aniparse {
 /// RequestorContext::alt_link(). Kept as a struct so per-mirror metadata can be
 /// added later without changing the collection type.
 struct AltLink {
+	/// Base URL of this mirror — the host requests are actually sent to when the
+	/// mirror is selected. What a mirror picker shows and selects by.
 	std::string url;
 };
 
@@ -41,12 +43,41 @@ struct AltLink {
 [[nodiscard]] std::vector<AltLink> resolve_alt_links(std::span<const std::string_view> builtin,
                                                      const RequestorContext& context);
 
+/**
+ * @brief How one manga getter advertises what it can do.
+ *
+ * Most MangaGetter methods are optional: a parser that does not override one
+ * inherits a default that reports RequestErrorCode::NotImplemented. The flags
+ * here are how a parser declares, up front and without a request, which of those
+ * it actually implements — so a consumer consults MangaGetter::compatibilities()
+ * before offering the corresponding action, instead of discovering the gap by
+ * spending a failed request. The NotImplemented default remains the backstop for
+ * a caller that skips the check.
+ * @see compatibilities_flags
+ */
 struct MangaGetterCompatibilities {
+	/// The capability bits this getter claims, drawn from the
+	/// aniparse::compatibilities_flags vocabulary (e.g. supports_commenting gates
+	/// MangaGetter::comments). Default = nothing optional claimed.
 	CompatibilitiesFlags flags = compatibilities_flags::default_flags;
 };
 
+/**
+ * @brief How a manga root getter advertises what MangaRootGetter::latest()
+ * accepts. The latest() counterpart of SearchCompatibilities: latest() takes no
+ * query and no filter items, only an ordering, so the sort channel is all there
+ * is to declare. Available synchronously (no fetch, unlike
+ * MangaRootGetter::search_support), and checked against a request by
+ * MangaRootGetter::validate_latest_filters.
+ */
 struct MangaGetterRootCompatibilities {
+	/// The orderings latest() accepts on GetFilters::sort, as key -> allowed
+	/// directions. Empty (the default) = latest() offers no selectable ordering:
+	/// requesting any sort is a SearchQueryError, and the source's own order applies.
 	SupportedSorts supported_sorts;
+	/// Capability bits that apply to latest(), from the
+	/// aniparse::compatibilities_flags vocabulary (e.g. supports_pagination_uniqueness,
+	/// which tells a consumer whether paging the list can repeat items). Default = none.
 	CompatibilitiesFlags compatibilities = compatibilities_flags::default_flags;
 };
 
@@ -67,16 +98,65 @@ struct MangaGetterRootCompatibilities {
 struct MangaGetter {
 	virtual ~MangaGetter() = default;
 
+	/**
+	 * @brief The optional operations this getter implements.
+	 * Every getter must declare them; the answer is fixed at construction, so the
+	 * call is synchronous and performs no request. A consumer reads it before
+	 * calling any optional method.
+	 * @return The capability flags of this getter.
+	 */
 	virtual MangaGetterCompatibilities compatibilities() const noexcept = 0;
 
+	/**
+	 * @brief Cheap, possibly-partial info for a list card.
+	 * A getter produced by a listing (search or latest) is usually handed the
+	 * short-card info that listing already returned, and answers from it without a
+	 * request. A getter built from a URL or from serialized identity has nothing
+	 * cached: the default implementation forwards to info(), paying the full detail
+	 * request. Either way the result may leave fields empty that info() fills, so a
+	 * detail view must still call info().
+	 * @param context Client to perform HTTP requests
+	 * @return The preview info, or a RequestError
+	 */
 	virtual NetworkRequestTask<MangaInfo> preview_info(RequestorContext context);
 
+	/**
+	 * @brief Full metadata of this manga. Every getter must implement it — it is
+	 * the one operation no source can omit.
+	 * @param context Client to perform HTTP requests
+	 * @return The complete MangaInfo, or a RequestError (NotFound when the item is
+	 *         gone, UnexpectedResponse when the source's shape changed, ...)
+	 */
 	virtual NetworkRequestTask<MangaInfo> info(RequestorContext context) = 0;
 
+	/**
+	 * @brief The translations this manga is available in, paginated via @p filters.
+	 * The pre-chapter selection axis for sources that carry the same manga in
+	 * several languages or from several translator teams: a MangaTranslationInfo::id
+	 * from here goes back into chapters_info() and chapter_pages(). By default
+	 * reports RequestErrorCode::NotImplemented, which is what a source with no
+	 * translation axis leaves in place.
+	 * @param context Client to perform HTTP requests
+	 * @param filters Pagination (and any supported ordering) for the list
+	 * @return A page of translations, or a RequestError
+	 */
 	virtual NetworkRequestTask<PageResults<MangaTranslationInfo>> translation_info(
 	    RequestorContext context,
 	    GetFilters filters);
 
+	/**
+	 * @brief The chapters of this manga, paginated via @p filters and optionally
+	 * narrowed to one @p translation. By default reports
+	 * RequestErrorCode::NotImplemented: a metadata source that catalogs manga
+	 * without hosting them has no chapter list to give.
+	 * @param context Client to perform HTTP requests
+	 * @param filters Pagination (and any supported ordering) for the chapter list
+	 * @param translation Restrict the list to one translation, identified by a
+	 *        MangaTranslationInfo::id from translation_info(); nullopt = the
+	 *        source's own default. Sources with no translation axis ignore it.
+	 * @return A page of chapter descriptors — each carrying the handle that opens
+	 *         it (@see MangaChapterInfo::ref) — or a RequestError
+	 */
 	virtual NetworkRequestTask<PageResults<MangaChapterInfo>> chapters_info(
 	    RequestorContext context,
 	    GetFilters filters,
@@ -95,19 +175,50 @@ struct MangaGetter {
 	    RequestorContext context,
 	    GetFilters filters);
 
+	/**
+	 * @brief The manga the source itself declares as related to this one (a sequel,
+	 * a spin-off, another entry of the same franchise — whichever relation the
+	 * source states), paginated via @p filters. Each result is a ready-to-use getter,
+	 * so a consumer can open one without routing a URL first. Distinct from similar():
+	 * a relation asserted by the source, not a recommendation computed from it.
+	 * By default reports RequestErrorCode::NotImplemented.
+	 * @param context Client to perform HTTP requests
+	 * @param filters Pagination (and any supported ordering) for the list
+	 * @return A page of getters for the related manga, or a RequestError
+	 */
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> related(
 	    RequestorContext context,
 	    GetFilters filters);
 
+	/**
+	 * @brief The manga the source recommends as similar to this one, paginated via
+	 * @p filters, each as a ready-to-use getter. The recommendation axis, as opposed
+	 * to the declared relations of related(). By default reports
+	 * RequestErrorCode::NotImplemented.
+	 * @param context Client to perform HTTP requests
+	 * @param filters Pagination (and any supported ordering) for the list
+	 * @return A page of getters for the similar manga, or a RequestError
+	 */
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> similar(
 	    RequestorContext context,
 	    GetFilters filters);
 
 	/**
-	 * Get the pages of one chapter.
-	 * The chapter is identified by round-trip: pass MangaChapterInfo::ref()
-	 * of an item from chapters_info() (its id may carry a source-specific
-	 * handle). @see MangaChapterRef
+	 * @brief The pages of one chapter — the read path of the manga domain.
+	 * The chapter is identified by round-trip: pass the MangaChapterInfo::ref() of
+	 * an item from chapters_info(), whose id may carry a source-specific handle.
+	 * @see MangaChapterRef
+	 *
+	 * Every getter must implement it, but implementing it does not mean hosting
+	 * pages: a metadata source that catalogs manga without serving them overrides
+	 * this to report RequestErrorCode::NotImplemented explicitly.
+	 * @param context Client to perform HTTP requests
+	 * @param filters Pagination (and any supported ordering) over the page list
+	 * @param chapter Identity of the chapter to open, from MangaChapterInfo::ref()
+	 * @param translation The translation the chapter belongs to, from
+	 *        translation_info(); nullopt = the source's own default. Ignored by
+	 *        sources with no translation axis.
+	 * @return A page of MangaPage fetch descriptors, or a RequestError
 	 */
 	virtual NetworkRequestTask<PageResults<MangaPage>> chapter_pages(
 	    RequestorContext context,
@@ -115,6 +226,20 @@ struct MangaGetter {
 	    GetFilters filters,
 	    std::optional<MangaTranslationID> translation = std::nullopt) = 0;
 
+	/**
+	 * @brief This getter's identity in a form that survives the process, so a
+	 * consumer can store the manga in a library and rebuild the getter later with
+	 * MangaRootGetter::from_serialized(). Every getter must implement it.
+	 *
+	 * Encodes identity only, never the fetched info — a restored getter refetches.
+	 * The blob is opaque to the consumer and means nothing away from the parser that
+	 * produced it. @see SerializedGetterData for the durability contract it carries.
+	 *
+	 * Coroutine-returning for uniformity with the rest of the interface; an
+	 * implementation answers from what its constructor was given and normally
+	 * performs no request.
+	 * @return The serialized identity, or a RequestError
+	 */
 	virtual NetworkRequestTask<SerializedGetterData> serialize() = 0;
 };
 
@@ -130,26 +255,49 @@ struct MangaRootGetter {
 	 * (and caching it, e.g. in RequestorContext::resources()) on a cold cache. A
 	 * static-catalog parser just returns its table. Read it once and validate
 	 * synchronously via the free @ref validate_query() for UI pre-flight.
+	 *
+	 * By default returns an empty table: no filter, no sort and no flag declared, so
+	 * validate_query() rejects every filter and every sort. A parser that searches
+	 * overrides it.
+	 * @param context Client to perform HTTP requests
+	 * @return The support table, or a RequestError when it had to be fetched and the
+	 *         fetch failed
 	 */
 	virtual NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext context);
+
+	/**
+	 * @brief What latest() accepts: its sort declaration and capability flags.
+	 * Synchronous, unlike search_support() — the table is fixed, not fetched. By
+	 * default returns an empty table, i.e. latest() takes no selectable ordering.
+	 * @return The declaration to check a latest() request against.
+	 * @see validate_latest_filters
+	 */
 	virtual MangaGetterRootCompatibilities latest_support() const noexcept;
 
 	/**
 	 * @brief Check the requested sort against this getter's own
 	 * latest_support(). Same contract as validate_query, for latest().
+	 * @param filters The filters about to be passed to latest(); only the sort
+	 *        channel is checked, as that is all latest() takes.
 	 * @return Empty if the filters are valid; otherwise the violation
 	 */
 	[[nodiscard]] std::vector<SearchQueryError> validate_latest_filters(const GetFilters& filters) const;
 
 	/**
-	 * @todo
-	 * Search mangas with query and/or filters (advanced query may come as filters)
-	 * By default reports RequestErrorCode::NotImplemented
+	 * @brief Search the source's manga catalog by free text and/or structured filters.
+	 * Each result is a ready-to-use getter, typically already carrying its short-card
+	 * info so preview_info() costs no extra request. What @p query and @p filters may
+	 * hold is declared by search_support(); a caller pre-flights them with
+	 * validate_query() rather than spending a request on a filter the source rejects,
+	 * and an implementation that is handed an invalid query reports
+	 * RequestErrorCode::InvalidArguments.
+	 *
+	 * By default reports RequestErrorCode::NotImplemented — a source with no search
+	 * endpoint leaves it alone.
 	 * @param context Client to perform HTTP requests
-	 * @param query Query string, plain text
-	 * @param filters Filters to apply to results (e.g. sort ...)
-	 * @note Reports RequestErrorCode::NotImplemented if the parser does not implement it
-	 * @return ...
+	 * @param query Free text plus the structured filter items (@see SearchRequestQuery)
+	 * @param filters Pagination and ordering of the result list
+	 * @return A page of manga getters, or a RequestError
 	 */
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> search(
 	    RequestorContext context,
@@ -157,13 +305,16 @@ struct MangaRootGetter {
 	    GetFilters filters);
 
 	/**
-	 * @todo
-	 * Get latest parser source released mangas
-	 * By default reports RequestErrorCode::NotImplemented
+	 * @brief The source's recently added or recently updated manga — its front page,
+	 * as opposed to an answer to a query. Each result is a ready-to-use getter, as in
+	 * search(). Which orderings @p filters may request is declared by latest_support()
+	 * and checked by validate_latest_filters(); with an empty declaration the source's
+	 * own recency order applies.
+	 *
+	 * By default reports RequestErrorCode::NotImplemented.
 	 * @param context Client to perform HTTP requests
-	 * @param filters Filters to apply to results (e.g. sort ...)
-	 * @note Reports RequestErrorCode::NotImplemented if the parser does not implement it
-	 * @return ...
+	 * @param filters Pagination and (where declared) ordering of the list
+	 * @return A page of manga getters, or a RequestError
 	 */
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> latest(
 	    RequestorContext context,
@@ -201,7 +352,18 @@ struct MangaRootGetter {
 	    ParsedUrl url);
 
 	/**
-	 * @brief Getter for serialized data from one of serialize() methods
+	 * @brief Rebuild a manga getter from the identity MangaGetter::serialize() emitted
+	 * — how a stored library entry becomes usable again after a restart. Every root
+	 * getter must implement it, and it must keep accepting every form this parser has
+	 * ever emitted (@see SerializedGetterData).
+	 *
+	 * The restored getter carries identity only, no cached info: its first
+	 * preview_info() therefore costs the full detail request. @p data is only
+	 * meaningful to the parser that produced it, so a consumer stores the parser's
+	 * identifier beside the blob and hands the blob back to that same parser.
+	 * @param data The blob a previous serialize() returned, verbatim
+	 * @return A getter addressing the same manga, or a RequestError
+	 *         (RequestErrorCode::InvalidArguments when the blob does not decode)
 	 */
 	virtual NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData data) = 0;
 };

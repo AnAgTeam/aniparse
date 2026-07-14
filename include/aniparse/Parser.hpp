@@ -22,24 +22,96 @@ namespace aniparse {
 struct ImagesGetter;
 struct AnimeRootGetter;
 
+/**
+ * @brief The sink a parser declares its domains into.
+ *
+ * A collecting seam, not a container the parser owns: @ref Parser::emplace_domains
+ * is handed one and calls @ref add_domain once per host it answers for, without
+ * knowing what the caller does with them (ParserStore builds its URL-routing index
+ * out of them; another consumer could just list them). The reference is valid only
+ * for the duration of the emplace_domains call — a parser must not retain it.
+ */
 struct EmplaceDomainsContext {
 	virtual ~EmplaceDomainsContext() = default;
 
+	/**
+	 * @brief Declare one host the parser answers for.
+	 *
+	 * A bare registrable host, without scheme or path (e.g. "example.com").
+	 * Subdomains of it match too, so a source needs one entry per registrable
+	 * domain, not per host; a source with several domains (an alternate TLD, a
+	 * short link domain) calls this once for each.
+	 * @param domain The domain to declare; borrowed, copied by the sink if kept.
+	 */
 	virtual void add_domain(std::string_view domain) = 0;
 };
 
+/**
+ * @brief Which kind of content a URL points at — the getter category a URL routes
+ * to. @see Parser::suggest_getter, ParserStore::route_url
+ */
 enum class GetterSuggestionType {
-	Unknown,
-	Anime,
-	Images,
-	Manga,
-	Video
+	Unknown, ///< The parser does not recognize the URL (its default answer), so no getter can take it.
+	Anime,   ///< An anime entry: route to Parser::animes_getter.
+	Images,  ///< An image container (a post, a pool, a gallery): route to Parser::images_getter.
+	Manga,   ///< A manga entry: route to Parser::mangas_getter.
+	Video    ///< A standalone video, outside an anime catalog.
 };
 
+/**
+ * @brief The classification of one URL.
+ * @note Reserved: @ref Parser::suggest_getter returns the bare
+ * GetterSuggestionType today. This wrapper exists so a classification can later
+ * carry more than the category without changing that signature's shape.
+ */
 struct GetterSuggestionResult {
+	/// The getter category the URL belongs to; Unknown when it belongs to none.
 	GetterSuggestionType type;
 };
 
+/**
+ * @brief One content source: the object a consumer starts from, and the object a
+ * new source is written as.
+ *
+ * A parser is the declarative half of a source. It does no fetching itself —
+ * instead it states what the source *is* and hands out the objects that do the
+ * work:
+ *
+ * - **Identity and presentation** — @ref identifier (the stable key everything
+ *   else is keyed by: registration, config, catalog overrides) and @ref info
+ *   (name and artwork for a source list).
+ * - **Reach** — @ref emplace_domains declares the hosts the source answers for,
+ *   and @ref suggest_getter classifies a URL under them, which together let
+ *   ParserStore route an arbitrary URL to this parser and to the right kind of
+ *   getter. @ref mirrors declares the base URLs its requests actually go to.
+ * - **Capability** — @ref compatibilities, the up-front answer to "does this
+ *   source have a manga library / comments / adult content?", so a consumer can
+ *   decide what to offer before spending a request.
+ * - **Configuration** — @ref make_config derives the config a getter runs on
+ *   (fresh session, parser identity, plus whatever @ref configure seeds), and
+ *   @ref authenticate_context logs the source in. Login is per source, not per
+ *   category: one config authorizes every getter of this parser.
+ * - **Getters** — @ref mangas_getter, @ref animes_getter and @ref images_getter —
+ *   the root objects that search, list and fetch. A parser implements only the
+ *   categories its source has; the rest stay null.
+ *
+ * A parser instance is registered once (ParserStore holds it by shared_ptr) and
+ * used from anywhere afterwards: every method is const and must stay so in an
+ * override. A parser therefore holds no mutable state — the per-run state lives in
+ * the ParserConfig / RequestorContext the caller passes to a getter, which is what
+ * makes one parser instance safe to use concurrently and safe to reconfigure
+ * (different mirror, different login) without cloning it.
+ *
+ * ### Implementing a source
+ *
+ * Derive and implement the four pure virtuals — @ref info, @ref identifier,
+ * @ref compatibilities, @ref emplace_domains — then override the getter factory
+ * for each category the source offers, returning a root getter that performs the
+ * requests. Everything else has a working default: URL entry is opt-in
+ * (@ref suggest_getter), as are per-request defaults (@ref configure), mirrors
+ * (@ref mirrors) and login (@ref authenticate_context). Registering the finished
+ * parser with a ParserStore is what makes it routable.
+ */
 struct Parser {
 	virtual ~Parser() = default;
 
@@ -123,6 +195,7 @@ struct Parser {
 	 * everything else (volatile session/anti-bot data) is left behind. Default:
 	 * empty (nothing distinguished). Only cookie-/header-/param-based logins need
 	 * to override this.
+	 * @return The names of the durable credential entries; empty when none.
 	 */
 	virtual AuthKeys auth_keys() const noexcept;
 
@@ -191,10 +264,34 @@ struct Parser {
 	 */
 	[[nodiscard]] std::vector<AltLink> mirror_choices(const RequestorContext& context) const;
 
+	/**
+	 * @brief The root of the source's image library: image containers (posts,
+	 * pools, galleries), their search and their listings.
+	 *
+	 * A fresh getter, owned by the caller; getters are cheap and stateless, so one
+	 * may be made per use rather than cached. It carries no config — the caller
+	 * passes a RequestorContext (derived through @ref make_config) into each call.
+	 * Default: nullptr.
+	 * @return The root images getter, or nullptr if the source has no image library.
+	 */
 	virtual std::unique_ptr<ImagesGetter> images_getter() const;
 
+	/**
+	 * @brief The root of the source's manga library: search, latest listings, and a
+	 * per-title getter that yields chapters and pages.
+	 *
+	 * Same ownership contract as @ref images_getter. Default: nullptr.
+	 * @return The root manga getter, or nullptr if the source has no manga library.
+	 */
 	virtual std::unique_ptr<MangaRootGetter> mangas_getter() const;
 
+	/**
+	 * @brief The root of the source's anime library: search, latest listings, and a
+	 * per-title getter that yields episodes and their video sources.
+	 *
+	 * Same ownership contract as @ref images_getter. Default: nullptr.
+	 * @return The root anime getter, or nullptr if the source has no anime library.
+	 */
 	virtual std::unique_ptr<AnimeRootGetter> animes_getter() const;
 };
 

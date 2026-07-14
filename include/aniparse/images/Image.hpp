@@ -18,12 +18,40 @@
 
 namespace aniparse {
 
+/**
+ * @brief How one container getter advertises what it can do.
+ *
+ * The optional ImageContainerGetter methods (comments()) report
+ * RequestErrorCode::NotImplemented unless a parser overrides them. The flags here
+ * are how a parser declares, without a request, which of them it actually
+ * implements — so a consumer consults ImageContainerGetter::compatibilities()
+ * before offering the corresponding action rather than discovering the gap by
+ * spending a failed request. The NotImplemented default remains the backstop for a
+ * caller that skips the check.
+ * @see compatibilities_flags
+ */
 struct ImageContainerCompatibilities {
+	/// The capability bits this getter claims, drawn from the
+	/// aniparse::compatibilities_flags vocabulary (e.g. supports_commenting gates
+	/// ImageContainerGetter::comments). Default = nothing optional claimed.
 	CompatibilitiesFlags flags = compatibilities_flags::default_flags;
 };
 
+/**
+ * @brief How an images root getter advertises what ImagesGetter::latest() accepts.
+ * The latest() counterpart of SearchCompatibilities: latest() takes no query and no
+ * filter items, only an ordering, so the sort channel is all there is to declare.
+ * Available synchronously (no fetch, unlike ImagesGetter::search_support), and
+ * checked against a request by ImagesGetter::validate_latest_filters.
+ */
 struct ImagesGetterRootCompatibilities {
+	/// The orderings latest() accepts on GetFilters::sort, as key -> allowed
+	/// directions. Empty (the default) = latest() offers no selectable ordering:
+	/// requesting any sort is a SearchQueryError, and the source's own order applies.
 	SupportedSorts supported_sorts;
+	/// Capability bits that apply to latest(), from the
+	/// aniparse::compatibilities_flags vocabulary (e.g. supports_pagination_uniqueness,
+	/// which tells a consumer whether paging the list can repeat items). Default = none.
 	CompatibilitiesFlags compatibilities = compatibilities_flags::default_flags;
 };
 
@@ -40,19 +68,43 @@ struct ImagesGetterRootCompatibilities {
 struct ImageContainerGetter {
 	virtual ~ImageContainerGetter() = default;
 
+	/**
+	 * @brief The optional operations this getter implements.
+	 * Every getter must declare them; the answer is fixed at construction, so the
+	 * call is synchronous and performs no request. A consumer reads it before
+	 * calling any optional method.
+	 * @return The capability flags of this getter.
+	 */
 	virtual ImageContainerCompatibilities compatibilities() const noexcept = 0;
 
-	/// Cheap, possibly-partial info for a list card; may skip fields info()
-	/// fills. Defaults to info().
+	/**
+	 * @brief Cheap, possibly-partial info for a list card; may skip fields info()
+	 * fills. A getter produced by a listing usually answers from the short-card info
+	 * that listing already returned; one built from a URL or serialized identity has
+	 * nothing cached, and the default implementation forwards to info(), paying the
+	 * full detail request. A detail view must still call info().
+	 * @param context Client to perform HTTP requests
+	 * @return The preview info, or a RequestError
+	 */
 	virtual NetworkRequestTask<ImageContainerInfo> preview_info(RequestorContext context);
 
+	/**
+	 * @brief Full metadata of this container. Every getter must implement it.
+	 * @param context Client to perform HTTP requests
+	 * @return The complete ImageContainerInfo, or a RequestError (NotFound when the
+	 *         container is gone, UnexpectedResponse when the source's shape changed, ...)
+	 */
 	virtual NetworkRequestTask<ImageContainerInfo> info(RequestorContext context) = 0;
 
 	/**
 	 * @brief The media items of this container, paginated via @p filters.
 	 * A flat single-media source returns one item; a gallery pages through
 	 * many. Mirrors MangaGetter::chapter_pages, minus the chapter ref — a
-	 * container addresses its own media directly.
+	 * container addresses its own media directly. Every getter must implement it:
+	 * it is the read path of the images domain.
+	 * @param context Client to perform HTTP requests
+	 * @param filters Pagination (and any supported ordering) over the item list
+	 * @return A page of ImageItem fetch descriptors, or a RequestError
 	 */
 	virtual NetworkRequestTask<PageResults<ImageItem>> items(
 	    RequestorContext context,
@@ -62,11 +114,28 @@ struct ImageContainerGetter {
 	 * @brief User comments on the container, paginated via @p filters.
 	 * Available when the parser advertises supports_commenting; NotImplemented
 	 * by default. @see MangaGetter::comments
+	 * @param context Client to perform HTTP requests
+	 * @param filters Pagination (and any supported ordering) for the comment list
+	 * @return A page of comments, or a RequestError
 	 */
 	virtual NetworkRequestTask<PageResults<Comment>> comments(
 	    RequestorContext context,
 	    GetFilters filters);
 
+	/**
+	 * @brief This getter's identity in a form that survives the process, so a
+	 * consumer can store the container in a library and rebuild the getter later with
+	 * ImagesGetter::from_serialized(). Every getter must implement it.
+	 *
+	 * Encodes identity only, never the fetched info — a restored getter refetches.
+	 * The blob is opaque to the consumer and means nothing away from the parser that
+	 * produced it. @see SerializedGetterData for the durability contract it carries.
+	 *
+	 * Coroutine-returning for uniformity with the rest of the interface; an
+	 * implementation answers from what its constructor was given and normally
+	 * performs no request.
+	 * @return The serialized identity, or a RequestError
+	 */
 	virtual NetworkRequestTask<SerializedGetterData> serialize() = 0;
 };
 
@@ -80,21 +149,43 @@ struct ImagesGetter {
 	/**
 	 * @brief The search filters and sorts this source supports.
 	 * Cache-first and async; validate a query against it with the free
-	 * validate_query. @see MangaRootGetter::search_support
+	 * validate_query. By default returns an empty table — no filter, no sort, no
+	 * flag — so validate_query rejects everything until a parser overrides it.
+	 * @see MangaRootGetter::search_support
+	 * @param context Client to perform HTTP requests
+	 * @return The support table, or a RequestError when it had to be fetched and the
+	 *         fetch failed
 	 */
 	virtual NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext context);
+
+	/**
+	 * @brief What latest() accepts: its sort declaration and capability flags.
+	 * Synchronous, unlike search_support() — the table is fixed, not fetched. By
+	 * default returns an empty table, i.e. latest() takes no selectable ordering.
+	 * @return The declaration to check a latest() request against.
+	 * @see validate_latest_filters
+	 */
 	virtual ImagesGetterRootCompatibilities latest_support() const noexcept;
 
 	/**
 	 * @brief Check the requested sort against this getter's own latest_support().
 	 * Same contract as validate_query, for latest().
+	 * @param filters The filters about to be passed to latest(); only the sort
+	 *        channel is checked, as that is all latest() takes.
 	 * @return Empty if the filters are valid; otherwise the violation.
 	 */
 	[[nodiscard]] std::vector<SearchQueryError> validate_latest_filters(const GetFilters& filters) const;
 
 	/**
-	 * @brief Search containers by query and/or filters (e.g. tags on a booru).
+	 * @brief Search containers by query and/or filters (e.g. by tag on a tagged
+	 * catalog). Each result is a ready-to-use container getter, typically already
+	 * carrying the info the listing returned. What @p query and @p filters may hold
+	 * is declared by search_support() and pre-flighted with validate_query.
 	 * NotImplemented by default.
+	 * @param context Client to perform HTTP requests
+	 * @param query Free text plus the structured filter items (@see SearchRequestQuery)
+	 * @param filters Pagination and ordering of the result list
+	 * @return A page of container getters, or a RequestError
 	 */
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> search(
 	    RequestorContext context,
@@ -102,7 +193,12 @@ struct ImagesGetter {
 	    GetFilters filters);
 
 	/**
-	 * @brief Latest containers from the source. NotImplemented by default.
+	 * @brief The source's most recent containers — its front page, as opposed to an
+	 * answer to a query. Which orderings @p filters may request is declared by
+	 * latest_support(). NotImplemented by default.
+	 * @param context Client to perform HTTP requests
+	 * @param filters Pagination and (where declared) ordering of the list
+	 * @return A page of container getters, or a RequestError
 	 */
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> latest(
 	    RequestorContext context,
@@ -129,13 +225,27 @@ struct ImagesGetter {
 	/**
 	 * @brief Parse a url into the container getter it addresses.
 	 * NotImplemented by default. @see MangaRootGetter::parse_url
+	 * @param context Client to perform HTTP requests
+	 * @param url The url to parse; already split into its parts, and expected to
+	 *        belong to this source (a caller routes it there first). A source with
+	 *        several container shapes (a single post, a whole pool) decides here
+	 *        which one the url names.
+	 * @return A getter for the container the url addresses, or a RequestError
+	 *         (RequestErrorCode::InvalidArguments when the url addresses no container here)
 	 */
 	virtual NetworkRequestTask<std::unique_ptr<ImageContainerGetter>> parse_url(
 	    RequestorContext context,
 	    ParsedUrl url);
 
 	/**
-	 * @brief Getter for serialized data from one of serialize() methods.
+	 * @brief Rebuild a container getter from the identity
+	 * ImageContainerGetter::serialize() emitted — how a stored library entry becomes
+	 * usable again after a restart. Every root getter must implement it, and it must
+	 * keep accepting every form this parser has ever emitted (@see
+	 * SerializedGetterData). The restored getter carries identity only, no cached info.
+	 * @param data The blob a previous serialize() returned, verbatim
+	 * @return A getter addressing the same container, or a RequestError
+	 *         (RequestErrorCode::InvalidArguments when the blob does not decode)
 	 */
 	virtual NetworkRequestTask<std::unique_ptr<ImageContainerGetter>> from_serialized(SerializedGetterData data) = 0;
 };
