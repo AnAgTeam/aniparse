@@ -13,7 +13,7 @@
 // place. Keeping the input on disk makes this example deterministic and offline.
 #include <aniparse/Client.hpp>
 #include <aniparse/ClientContext.hpp>
-#include <aniparse/ResourceCache.hpp>
+#include <aniparse/cache/ResourceCache.hpp>
 #include <aniparse/html/HTMLParser.hpp>
 #include <aniparse/html/DOMElement.hpp>
 #include <aniparse/html/CompiledSelector.hpp>

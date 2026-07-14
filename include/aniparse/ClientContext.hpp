@@ -8,7 +8,7 @@
 #include "aniparse/types/Response.hpp"
 #include "aniparse/net/CookieJar.hpp"
 #include "aniparse/MirrorSource.hpp"
-#include "aniparse/ResourceCache.hpp"
+#include "aniparse/cache/ResourceCache.hpp"
 #include "aniparse/html/SelectorSource.hpp"
 #include "aniparse/utility/Format.hpp"
 

@@ -5,7 +5,7 @@
  */
 #include "catch_amalgamated.hpp"
 
-#include <aniparse/ResourceCache.hpp>
+#include <aniparse/cache/ResourceCache.hpp>
 #include <aniparse/html/CompiledSelector.hpp>
 
 using namespace aniparse;

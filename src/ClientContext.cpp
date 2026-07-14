@@ -4,7 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #include "aniparse/ClientContext.hpp"
-#include "aniparse/ResourceCache.hpp"
+#include "aniparse/cache/ResourceCache.hpp"
 #include "aniparse/html/HTMLParser.hpp"
 #include "aniparse/utility/Format.hpp"
 
