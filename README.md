@@ -48,7 +48,9 @@ It is built on an asynchronous network layer ([libasyncnet](https://github.com/A
 - Parsing anime titles (releases, metadata)
 - Parsing manga
 - Fetching images and video
-- Backend-neutral HTTP client: curl today, but the request/response contract is not tied to it (the backend can be swapped, e.g. for NSURLSession)
+- One getter, many facets: search and autocomplete, chapter/page reading, translations, comments, ratings and user lists, related and similar — a source implements what it has and declares the rest through capability flags, so a consumer never spends a failed request to discover a gap
+- Cross-source identity: a work carries the ids it holds on other sites, so the same title joins across parsers — and a declared relation can point across media (a manga to its anime adaptation), without pretending one getter can open the other
+- Backend-neutral HTTP client: curl today, but the request/response contract is not tied to it — the backend is a build-time choice (`ANIPARSE_CURL_BACKEND`), with an NSURLSession backend for Apple in progress
 - Typed `request_html` / `request_json` requests with exception-free error handling (`tl::expected`)
 - Built-in HTML/DOM parser, CSS selectors and a JS parser powered by `lexbor`
 - URL routing: hand the library a link and it resolves the owning parser and the content type
@@ -167,6 +169,8 @@ cmake --build build
 |---|---|---|
 | `ANIPARSE_BUILD_TESTS` | `OFF` | Build tests |
 | `ANIPARSE_BUILD_EXAMPLES` | `OFF` | Build examples |
+| `ANIPARSE_CURL_BACKEND` | `ON` | Build the curl HTTP backend (pulls in `libasyncnet` + curl). Turn off to build a transport-free core and supply your own backend. |
+| `ANIPARSE_NSURLSESSION_BACKEND` | `OFF` | Build the NSURLSession HTTP backend (Apple platforms). |
 | `ANIPARSE_SHARED` | `OFF` | Build a shared library (`.dll` / `.so` / `.dylib`) instead of a static one. Seeded from `BUILD_SHARED_LIBS` if you set that instead. |
 
 A shared build exports every symbol (no annotation in the headers) and absorbs the
@@ -223,6 +227,7 @@ aniparse/
 │   ├── anime/              # Anime parsing (Release, etc.)
 │   ├── manga/              # Manga parsing
 │   ├── images/             # Image parsing
+│   ├── engines/            # Shared source engines (e.g. booru)
 │   ├── html/               # HTML/DOM/JS parser
 │   └── utility/            # Helper utilities
 ├── src/                    # Implementation
