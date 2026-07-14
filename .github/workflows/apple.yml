@@ -1,0 +1,66 @@
+name: apple
+
+# The clang / Apple build gate. MSVC (ci, coverage) is lenient where clang is not —
+# two-phase name lookup in template coroutines, missing includes, ADL — and Apple is a
+# first-class target (the iOS app builds here constantly), so a second compiler on the
+# actual platform keeps portability from rotting between releases. curl backend ON, so
+# this also builds the examples, which the ci job does not.
+on:
+  push:
+    branches: [nightly, master, main]
+  pull_request:
+    branches: [nightly, master, main]
+  workflow_dispatch:
+
+jobs:
+  macos-clang:
+    runs-on: macos-latest
+
+    env:
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg_cache
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install Ninja
+        run: brew install ninja
+
+      # The runner ships CMake 4.x, which removed compatibility with
+      # cmake_minimum_required(< 3.5); vendored curlpp/c-ares still declare such
+      # minimums. Pin a 3.x line, matching the other jobs.
+      - name: Pin CMake (< 4)
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.31.6'
+
+      - name: Export VCPKG_ROOT and prepare binary cache dir
+        run: |
+          echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
+          mkdir -p "$VCPKG_DEFAULT_BINARY_CACHE"
+
+      - name: Cache vcpkg binaries
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'libasyncnet/vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
+
+      # The macos-debug preset sets neither the vcpkg toolchain nor these options
+      # (only windows-base does), so pass them here. curl backend stays on by default.
+      - name: Configure (macos-debug, clang, tests + examples)
+        run: >
+          cmake --preset macos-debug
+          -D CMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+          -D ANIPARSE_BUILD_TESTS=ON
+          -D ANIPARSE_BUILD_EXAMPLES=ON
+
+      - name: Build (all targets — examples included)
+        run: cmake --build out/build/macos-debug
+
+      - name: Run logic tests
+        run: out/build/macos-debug/tests/aniparse-tests
