@@ -172,6 +172,15 @@ target_compile_options(aniparse PUBLIC
 	$<$<CXX_COMPILER_ID:MSVC>:/utf-8>
 )
 
+# windows.h arrives transitively (the curl transport pulls it in), and it defines
+# min/max as macros — which then swallow std::min/std::max at every call site that
+# sees the header, ours and a consumer's alike. PUBLIC because the poisoning is
+# transitive too: suppressing it only in this target would leave every user of the
+# library to rediscover it and reach for the (std::max)(...) parenthesis trick.
+target_compile_definitions(aniparse PUBLIC
+	$<$<PLATFORM_ID:Windows>:NOMINMAX>
+)
+
 # Opt-in MSVC static lifetime analysis (a separate, slow CI leg — not per-build).
 # The C++ Core Guidelines lifetime rules catch dangling views/pointers at compile
 # time (e.g. `std::string_view v = json::str(...)` -> C26815/C26449). Scoped to our
