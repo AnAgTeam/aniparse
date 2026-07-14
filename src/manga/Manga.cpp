@@ -45,7 +45,7 @@ NetworkRequestTask<PageResults<MangaChapterInfo>> MangaGetter::chapters_info(
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get chapters info");
 }
 
-NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaGetter::related(
+NetworkRequestTask<PageResults<RelatedWork>> MangaGetter::related(
     RequestorContext,
     GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get related info");

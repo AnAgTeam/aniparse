@@ -33,7 +33,7 @@ NetworkRequestTask<PageResults<Comment>> AnimeGetter::comments(
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot get comments");
 }
 
-NetworkRequestTask<PageResults<std::unique_ptr<AnimeGetter>>> AnimeGetter::related(
+NetworkRequestTask<PageResults<RelatedWork>> AnimeGetter::related(
     RequestorContext,
     GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot get related info");

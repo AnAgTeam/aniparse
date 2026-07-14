@@ -183,17 +183,22 @@ struct MangaGetter {
 	    GetFilters filters) const;
 
 	/**
-	 * @brief The manga the source itself declares as related to this one (a sequel,
-	 * a spin-off, another entry of the same franchise — whichever relation the
-	 * source states), paginated via @p filters. Each result is a ready-to-use getter,
-	 * so a consumer can open one without routing a URL first. Distinct from similar():
-	 * a relation asserted by the source, not a recommendation computed from it.
+	 * @brief The works the source itself declares as related to this one — a sequel, a
+	 * spin-off, another entry of the same franchise, or the story in another medium
+	 * (its anime adaptation) — paginated via @p filters. Distinct from similar(): a
+	 * relation the source asserts, not a recommendation it computes.
+	 *
+	 * Returns descriptors, not getters, because a relation may leave this medium and a
+	 * MangaGetter cannot address an anime. A RelatedWork carries whatever the source
+	 * knows: a title, a handle when this parser can open the work itself, external ids
+	 * when it cannot but knows where the work lives. @see RelatedWork
+	 *
 	 * By default reports RequestErrorCode::NotImplemented.
 	 * @param context Client to perform HTTP requests
 	 * @param filters Pagination (and any supported ordering) for the list
-	 * @return A page of getters for the related manga, or a RequestError
+	 * @return A page of related works, or a RequestError
 	 */
-	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> related(
+	virtual NetworkRequestTask<PageResults<RelatedWork>> related(
 	    RequestorContext context,
 	    GetFilters filters) const;
 
