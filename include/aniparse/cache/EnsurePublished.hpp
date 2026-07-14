@@ -26,7 +26,9 @@ namespace aniparse {
  *               co_await.
  * @param fetch  Invocable returning `NetworkRequestTask<std::shared_ptr<const T>>`;
  *               copied into the coroutine frame and called at most once, only on a
- *               cold cell.
+ *               cold cell. A lambda whose body calls non-const RequestorContext
+ *               methods (request / request_json / ...) must be declared `mutable`,
+ *               since its captured context copy is otherwise const.
  *
  * @note Cache-first is best-effort, not once-only: two callers racing a cold cell
  *       may both fetch and both publish (the last store wins). Correct, just
