@@ -108,17 +108,24 @@ struct MangaGetter {
 	virtual MangaGetterCompatibilities compatibilities() const noexcept = 0;
 
 	/**
-	 * @brief Cheap, possibly-partial info for a list card.
-	 * A getter produced by a listing (search or latest) is usually handed the
-	 * short-card info that listing already returned, and answers from it without a
-	 * request. A getter built from a URL or from serialized identity has nothing
-	 * cached: the default implementation forwards to info(), paying the full detail
-	 * request. Either way the result may leave fields empty that info() fills, so a
-	 * detail view must still call info().
-	 * @param context Client to perform HTTP requests
-	 * @return The preview info, or a RequestError
+	 * @brief The short-card info this getter was handed, if it was handed any.
+	 *
+	 * Free and synchronous: it reads what the constructor set and never requests
+	 * anything. A getter produced by a listing (search or latest) usually carries the
+	 * card the listing already returned; one built from a URL or from serialized
+	 * identity carries nothing and answers nullopt.
+	 *
+	 * Nullopt means "nothing known yet", not "no such data" — the caller decides what
+	 * that is worth: draw a placeholder card, or spend info() on the full record. That
+	 * choice is deliberately the caller's, because it is the caller that knows whether
+	 * it is drawing one detail view or fifty rows; a preview that quietly fell back to
+	 * info() would turn a list of restored library entries into fifty detail requests.
+	 *
+	 * The value may leave fields empty that info() fills, so a detail view calls info()
+	 * regardless.
+	 * @return The card info, or nullopt when this getter has none.
 	 */
-	virtual NetworkRequestTask<MangaInfo> preview_info(RequestorContext context);
+	[[nodiscard]] virtual std::optional<MangaInfo> preview_info() const noexcept;
 
 	/**
 	 * @brief Full metadata of this manga. Every getter must implement it — it is

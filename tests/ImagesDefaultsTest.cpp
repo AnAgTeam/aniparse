@@ -104,7 +104,7 @@ CORO_TEST_CASE("ImagesGetter search/latest/suggest/parse_url/from_serialized def
 	CHECK(restored.error().code == RequestErrorCode::NotImplemented);
 }
 
-CORO_TEST_CASE("ImageContainerGetter comments default to NotImplemented; preview_info delegates; reset no-op") {
+CORO_TEST_CASE("ImageContainerGetter comments default to NotImplemented; preview_info knows nothing") {
 	StubImageContainerGetter getter;
 	RequestorContext context = make_context();
 
@@ -112,8 +112,6 @@ CORO_TEST_CASE("ImageContainerGetter comments default to NotImplemented; preview
 	REQUIRE_FALSE(comments.has_value());
 	CHECK(comments.error().code == RequestErrorCode::NotImplemented);
 
-	// preview_info defaults to delegating to info().
-	auto preview = co_await getter.preview_info(context);
-	REQUIRE(preview.has_value());
-	CHECK(preview->title == "stub");
+	// A getter handed no card says so, and does NOT quietly fetch info() instead.
+	CHECK_FALSE(getter.preview_info().has_value());
 }

@@ -19,8 +19,11 @@ std::vector<AltLink> resolve_alt_links(std::span<const std::string_view> builtin
 	return resolved;
 }
 
-NetworkRequestTask<MangaInfo> MangaGetter::preview_info(RequestorContext context) {
-	return info(std::move(context));
+// A getter that was not handed a card knows nothing, and says so. It must not
+// fall back to info(): a caller drawing a list would then pay a detail request
+// per row without asking for one.
+std::optional<MangaInfo> MangaGetter::preview_info() const noexcept {
+	return std::nullopt;
 }
 
 NetworkRequestTask<PageResults<MangaTranslationInfo>> MangaGetter::translation_info(

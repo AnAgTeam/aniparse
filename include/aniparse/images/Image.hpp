@@ -78,15 +78,14 @@ struct ImageContainerGetter {
 	virtual ImageContainerCompatibilities compatibilities() const noexcept = 0;
 
 	/**
-	 * @brief Cheap, possibly-partial info for a list card; may skip fields info()
-	 * fills. A getter produced by a listing usually answers from the short-card info
-	 * that listing already returned; one built from a URL or serialized identity has
-	 * nothing cached, and the default implementation forwards to info(), paying the
-	 * full detail request. A detail view must still call info().
-	 * @param context Client to perform HTTP requests
-	 * @return The preview info, or a RequestError
+	 * @brief The short-card info this getter was handed, if it was handed any.
+	 * Free and synchronous — it reads what the constructor set and never requests
+	 * anything. Nullopt means "nothing known yet", and the caller decides what that is
+	 * worth: a placeholder card, or info() for the full record. @see MangaGetter for
+	 * the full statement of the contract.
+	 * @return The card info, or nullopt when this getter has none.
 	 */
-	virtual NetworkRequestTask<ImageContainerInfo> preview_info(RequestorContext context);
+	[[nodiscard]] virtual std::optional<ImageContainerInfo> preview_info() const noexcept;
 
 	/**
 	 * @brief Full metadata of this container. Every getter must implement it.

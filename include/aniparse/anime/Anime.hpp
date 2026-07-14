@@ -82,17 +82,14 @@ struct AnimeGetter {
 	virtual AnimeGetterCompatibilities compatibilities() const noexcept = 0;
 
 	/**
-	 * @brief Cheap, possibly-partial info for a list card.
-	 * A getter produced by a listing (search or latest) is usually handed the
-	 * short-card info that listing already returned, and answers from it without a
-	 * request. A getter built from a URL or from serialized identity has nothing
-	 * cached: the default implementation forwards to info(), paying the full detail
-	 * request. Either way the result may leave fields empty that info() fills, so a
-	 * detail view must still call info().
-	 * @param context Client to perform HTTP requests
-	 * @return The preview info, or a RequestError
+	 * @brief The short-card info this getter was handed, if it was handed any.
+	 * Free and synchronous — it reads what the constructor set and never requests
+	 * anything. Nullopt means "nothing known yet", and the caller decides what that is
+	 * worth: a placeholder card, or info() for the full record. @see MangaGetter for
+	 * the full statement of the contract.
+	 * @return The card info, or nullopt when this getter has none.
 	 */
-	virtual NetworkRequestTask<AnimeInfo> preview_info(RequestorContext context);
+	[[nodiscard]] virtual std::optional<AnimeInfo> preview_info() const noexcept;
 
 	/**
 	 * @brief Full metadata of this anime. Every getter must implement it — it is the

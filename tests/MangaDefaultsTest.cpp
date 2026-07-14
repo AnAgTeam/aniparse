@@ -119,11 +119,10 @@ CORO_TEST_CASE("MangaGetter optional overrides default to NotImplemented") {
 	CHECK(similar.error().code == RequestErrorCode::NotImplemented);
 }
 
-CORO_TEST_CASE("MangaGetter preview_info delegates to info, and reset is a safe no-op") {
+TEST_CASE("MangaGetter preview_info knows nothing until a listing hands it a card") {
 	StubMangaGetter getter;
-	RequestorContext context = make_context();
 
-	auto preview = co_await getter.preview_info(context);
-	REQUIRE(preview.has_value());
-	CHECK(preview->title == "stub");
+	// Free, synchronous, and empty by default — no fallback to info(), so a caller
+	// drawing a list of restored getters cannot accidentally pay a request per row.
+	CHECK_FALSE(getter.preview_info().has_value());
 }

@@ -18,18 +18,14 @@ namespace aniparse::engines {
 BooruContainerGetter::BooruContainerGetter(const BooruSite& site, ImageContainerID id,
                                            std::optional<ImageContainerInfo> info,
                                            std::optional<ImageItem> item)
-    : site_(site), id_(id), info_(std::move(info)), item_(std::move(item)),
-      loaded_(info_.has_value()) {}
+    : site_(site), id_(id), info_(std::move(info)), item_(std::move(item)) {}
 
 ImageContainerCompatibilities BooruContainerGetter::compatibilities() const noexcept {
 	return {};
 }
 
-NetworkRequestTask<std::monostate> BooruContainerGetter::ensure_loaded(RequestorContext& context) {
-	if (loaded_) {
-		co_return std::monostate{};
-	}
-
+NetworkRequestTask<BooruContainerGetter::Post> BooruContainerGetter::fetch_post(
+    RequestorContext& context) const {
 	const BooruEngine& engine = site_.engine();
 	std::string_view base = context.base_url(site_.api_hosts);
 	GetRequest request = engine.container_request(base, id_);
@@ -43,33 +39,50 @@ NetworkRequestTask<std::monostate> BooruContainerGetter::ensure_loaded(Requestor
 		co_return make_response_error(RequestErrorCode::NotFound, "booru post not found");
 	}
 
-	info_   = engine.post_to_container_info(*post, site_.media_referer);
-	item_   = engine.post_to_item(*post, site_.media_referer);
-	loaded_ = true;
-	co_return std::monostate{};
+	co_return Post{
+		.info = engine.post_to_container_info(*post, site_.media_referer),
+		.item = engine.post_to_item(*post, site_.media_referer),
+	};
+}
+
+std::optional<ImageContainerInfo> BooruContainerGetter::preview_info() const noexcept {
+	return info_;
 }
 
 NetworkRequestTask<ImageContainerInfo> BooruContainerGetter::info(RequestorContext context) {
-	if (auto loaded = co_await ensure_loaded(context); !loaded) {
-		co_return unexpected(std::move(loaded.error()));
+	// Always asks the source, even when a list result is in hand: info() is the fresh
+	// record, and the card this getter was built with may be minutes or days old.
+	auto post = co_await fetch_post(context);
+	if (!post) {
+		co_return unexpected(std::move(post.error()));
 	}
-	co_return *info_;
+	co_return std::move(post->info);
 }
 
 NetworkRequestTask<PageResults<ImageItem>> BooruContainerGetter::items(
     RequestorContext context, GetFilters) {
-	if (auto loaded = co_await ensure_loaded(context); !loaded) {
-		co_return unexpected(std::move(loaded.error()));
+	// A post is a container-of-one: at most a single media leaf, ignoring paging.
+	auto page_of = [](std::optional<ImageItem> item) {
+		PageResults<ImageItem> page;
+		if (item) {
+			page.results.push_back(PageItem<ImageItem>{ .item = *std::move(item), .offset = 0 });
+			page.total_count = 1;
+			page.next_offset = 1;
+		}
+		return page;
+	};
+
+	// Built from a listing: the post came with it, so answer from what the constructor
+	// set. Built from an id: fetch. Either way nothing is written back.
+	if (info_) {
+		co_return page_of(item_);
 	}
 
-	// A post is a container-of-one: at most a single media leaf, ignoring paging.
-	PageResults<ImageItem> page;
-	if (item_) {
-		page.results.push_back(PageItem<ImageItem>{ .item = *item_, .offset = 0 });
-		page.total_count = 1;
-		page.next_offset = 1;
+	auto post = co_await fetch_post(context);
+	if (!post) {
+		co_return unexpected(std::move(post.error()));
 	}
-	co_return page;
+	co_return page_of(std::move(post->item));
 }
 
 NetworkRequestTask<SerializedGetterData> BooruContainerGetter::serialize() {
