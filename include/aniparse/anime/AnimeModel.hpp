@@ -52,6 +52,13 @@ enum class AnimeSeason {
 struct AnimeInfo {
 	AnimeID id = invalid_anime_id;
 
+	/// Ids this anime carries on other sites, as the source reports them — the
+	/// consumer's handle for joining the same work across parsers, including
+	/// across domains (an anime and its manga are one work to a tracker). Empty
+	/// when the source knows none. Not this parser's own identity: to address the
+	/// anime here, use the getter (@see AnimeGetter::serialize). @see ExternalId
+	std::vector<ExternalId> external_ids;
+
 	std::string title;
 	std::optional<std::string> original_title;
 	AttributedText description;

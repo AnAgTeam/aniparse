@@ -325,4 +325,33 @@ inline constexpr std::string_view group           = "group";
 inline constexpr std::string_view type            = "type";
 /// Filter/suggest by language.
 inline constexpr std::string_view language        = "language";
+
+// Identity axes — one key per id vocabulary (@see id_namespaces). The inverse of
+// ExternalId: that field is what a source *emits* about an item, these keys are
+// what a source will *accept back* to find one. Each vocabulary gets its own key
+// rather than one generic "external id" key, so that the declared key set states
+// exactly which lookups a parser offers and the machinery that already rejects an
+// unsupported key checks it.
+//
+// The value is normally an ItemSelection with an open vocabulary — any token is a
+// candidate id, and the parser resolves a whole selection in one request where its
+// API takes a batch. A token IS the id, so an ExternalId collected off one source
+// drops straight into a query against another.
+//
+// **A parser that owns a vocabulary must accept its own ids.** Others emit them
+// (an ExternalId naming this site), and a consumer that holds one has nothing else
+// to open the item with: it cannot forge the parser's SerializedGetterData, and the
+// id often arrives with no getter attached — from a precomputed table, or off a
+// third source. Without the key, every id pointing at this parser is a dead end.
+// Accepting a *foreign* vocabulary, by contrast, is a rare bonus.
+
+/// Look up by MyAnimeList id — the cross-site hub most metadata sources carry.
+/// @see id_namespaces::mal
+inline constexpr std::string_view mal_id          = "mal_id";
+/// Look up by AniList id. @see id_namespaces::anilist
+inline constexpr std::string_view anilist_id      = "anilist_id";
+/// Look up by Kitsu id. @see id_namespaces::kitsu
+inline constexpr std::string_view kitsu_id        = "kitsu_id";
+/// Look up by Shikimori id. @see id_namespaces::shikimori
+inline constexpr std::string_view shikimori_id    = "shikimori_id";
 } // namespace aniparse::search_keys

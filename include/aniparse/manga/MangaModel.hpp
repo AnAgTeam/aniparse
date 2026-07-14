@@ -51,6 +51,13 @@ inline constexpr MangaTranslationID any_manga_translation = -1;
 struct MangaInfo {
 	MangaID id = invalid_manga_id;
 
+	/// Ids this manga carries on other sites, as the source reports them — the
+	/// consumer's handle for joining the same work across parsers. Empty when the
+	/// source knows none (most reader sites); a metadata source typically knows at
+	/// least its MyAnimeList id. Not this parser's own identity: to address the
+	/// manga here, use the getter (@see MangaGetter::serialize). @see ExternalId
+	std::vector<ExternalId> external_ids;
+
 	std::string title;
 	std::optional<std::string> original_title;
 	AttributedText description;
