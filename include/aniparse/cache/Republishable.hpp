@@ -63,7 +63,7 @@ public:
 	Republishable(Republishable&& other) noexcept
 	    : seed_(std::move(other.seed_)), cell_(other.cell_.load()) {}
 
-	/// Factory for the no-argument @ref ResourceCache::get: an empty seed. Seeded
+	/// Factory for the no-argument `ResourceCache::get`: an empty seed. Seeded
 	/// values are built through the factory overload of `get` (see the class docs).
 	static Republishable create() { return Republishable{}; }
 
