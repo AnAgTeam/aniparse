@@ -108,6 +108,7 @@ add_library(aniparse ${aniparse_library_type}
 	"src/types/ParsedUrl.cpp" "include/aniparse/types/ParsedUrl.hpp"
 	"include/aniparse/types/ParserInfo.hpp"
 	"include/aniparse/types/ParseResult.hpp"
+	"include/aniparse/types/Video.hpp"
 	"include/aniparse/types/Request.hpp"
 	"include/aniparse/types/Pagination.hpp"
 	"include/aniparse/types/Response.hpp"

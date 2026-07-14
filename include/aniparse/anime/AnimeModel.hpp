@@ -8,6 +8,7 @@
 #include "aniparse/types/Model.hpp"
 #include "aniparse/types/Text.hpp"
 #include "aniparse/types/Headers.hpp"
+#include "aniparse/types/Video.hpp"
 
 #include <chrono>
 #include <optional>
@@ -40,16 +41,6 @@ enum class AnimeSeason {
 	Summer,
 	Fall,
 	Winter,
-};
-
-/**
- * @brief Whether a video source carries a spoken translation or timed text.
- * The user-facing axis alongside the team: "the Voiceover from group X" vs
- * "Subtitles from group Y". @see VideoSource, AnimeTrackInfo
- */
-enum class TranslationType {
-	Voiceover, ///< A dub / voice-over track baked into (or muxed with) the stream.
-	Subtitles, ///< The original audio with a timed-text track (soft or burned).
 };
 
 /**
@@ -152,24 +143,6 @@ struct AnimeEpisodeInfo {
 
 	/// Identity for the episode_sources() round-trip.
 	[[nodiscard]] AnimeEpisodeRef ref() const { return { episode, id }; }
-};
-
-/**
- * @brief One technical rung of a source: a fetchable video URL at a given
- * quality. The leaf of the anime domain, the video counterpart of MangaPage —
- * but a source offers a set of these (a quality ladder), not just one.
- * The fetch headers live one level up on @ref VideoSource, shared across rungs.
- */
-struct VideoStream {
-	/// A direct media URL (progressive mp4 or an HLS playlist) ready to play,
-	/// once the containing source has been resolved. @see AnimeGetter::resolve_video
-	std::string url;
-	/// Vertical resolution in pixels (360/480/720/1080); 0 = unknown/adaptive.
-	int quality = 0;
-	/// Average bitrate for adaptive selection, when the source states it.
-	std::optional<long> bitrate;
-	/// The url is an HLS playlist rather than a single progressive file.
-	bool is_hls = false;
 };
 
 /**
