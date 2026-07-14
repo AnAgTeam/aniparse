@@ -3,11 +3,11 @@
  *
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
-#include "aniparse/engines/BooruImagesGetter.hpp"
-#include "aniparse/engines/BooruContainerGetter.hpp"
-#include "aniparse/engines/BooruEngine.hpp"
-#include "aniparse/engines/BooruPoolGetter.hpp"
-#include "aniparse/engines/BooruSite.hpp"
+#include "aniparse/engines/booru/BooruImagesGetter.hpp"
+#include "aniparse/engines/booru/BooruContainerGetter.hpp"
+#include "aniparse/engines/booru/BooruEngine.hpp"
+#include "aniparse/engines/booru/BooruPoolGetter.hpp"
+#include "aniparse/engines/booru/BooruSite.hpp"
 #include "aniparse/json/Json.hpp"
 #include "aniparse/ClientContext.hpp"
 #include "aniparse/utility/Coroutines.hpp"

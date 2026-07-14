@@ -5,7 +5,7 @@
  */
 #pragma once
 #include "aniparse/Parser.hpp"
-#include "aniparse/engines/BooruSite.hpp"
+#include "aniparse/engines/booru/BooruSite.hpp"
 
 namespace aniparse::engines {
 

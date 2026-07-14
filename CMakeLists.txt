@@ -143,12 +143,12 @@ add_library(aniparse ${aniparse_library_type}
 	# Reusable booru engine toolkit: a dialect interface + generic getters and a
 	# generic parser bound to a data-only site descriptor. Neutral machinery (names
 	# no source); concrete engines/descriptors live in the parsers layer above.
-	"include/aniparse/engines/BooruEngine.hpp"
-	"include/aniparse/engines/BooruSite.hpp"
-	"src/engines/BooruParser.cpp" "include/aniparse/engines/BooruParser.hpp"
-	"src/engines/BooruImagesGetter.cpp" "include/aniparse/engines/BooruImagesGetter.hpp"
-	"src/engines/BooruContainerGetter.cpp" "include/aniparse/engines/BooruContainerGetter.hpp"
-	"src/engines/BooruPoolGetter.cpp" "include/aniparse/engines/BooruPoolGetter.hpp"
+	"include/aniparse/engines/booru/BooruEngine.hpp"
+	"include/aniparse/engines/booru/BooruSite.hpp"
+	"src/engines/booru/BooruParser.cpp" "include/aniparse/engines/booru/BooruParser.hpp"
+	"src/engines/booru/BooruImagesGetter.cpp" "include/aniparse/engines/booru/BooruImagesGetter.hpp"
+	"src/engines/booru/BooruContainerGetter.cpp" "include/aniparse/engines/booru/BooruContainerGetter.hpp"
+	"src/engines/booru/BooruPoolGetter.cpp" "include/aniparse/engines/booru/BooruPoolGetter.hpp"
 )
 
 set_property(TARGET aniparse PROPERTY CXX_STANDARD 20)

@@ -3,9 +3,9 @@
  *
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
-#include "aniparse/engines/BooruParser.hpp"
-#include "aniparse/engines/BooruEngine.hpp"
-#include "aniparse/engines/BooruImagesGetter.hpp"
+#include "aniparse/engines/booru/BooruParser.hpp"
+#include "aniparse/engines/booru/BooruEngine.hpp"
+#include "aniparse/engines/booru/BooruImagesGetter.hpp"
 #include "aniparse/ClientContext.hpp"
 #include "aniparse/utility/Coroutines.hpp"
 
