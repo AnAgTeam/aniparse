@@ -374,12 +374,14 @@ struct ConsoleLogger : LoggerContext {
 		const std::source_location loc = std::source_location::current()) override {
 		using namespace std::chrono;
 
+		// UTC, not local time: current_zone()/zoned_time need a tzdb that libc++
+		// (Apple clang) does not ship, and a demo logger's timestamp does not warrant
+		// the dependency. A sys_time formats directly.
 		auto now = floor<seconds>(system_clock::now());
-		auto zoned_now = zoned_time{ current_zone(), now };
 
 		std::format_to(std::ostream_iterator<char>(std::cout),
 			"[{:%T} {} {}:{}] {}\n",
-			zoned_now,
+			now,
 			message_type,
 			loc.file_name(),
 			loc.line(),
