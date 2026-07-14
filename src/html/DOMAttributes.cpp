@@ -31,6 +31,13 @@ DOMElementAttrsView::DOMElementAttrsView(lxb_dom_element_t* element) : element_(
 }
 
 DOMAttrsIterator DOMElementAttrsView::begin() {
+	// An invalid view (no element) iterates as empty rather than dereferencing null:
+	// the search methods built on this — DOMElementView::find_attr / get_attr — are
+	// total, and a step that found nothing hands on an invalid view for them to
+	// query.
+	if (element_ == nullptr) {
+		return DOMAttrsIterator{};
+	}
 	return DOMAttrsIterator(element_->first_attr);
 }
 

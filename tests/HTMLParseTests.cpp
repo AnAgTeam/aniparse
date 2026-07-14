@@ -447,6 +447,24 @@ TEST_CASE("DOMElement copy/move") {
     REQUIRE(body_move == document.body());
 }
 
+TEST_CASE("Attribute lookups on an invalid view are total") {
+    HTMLParser parser;
+    HTMLDocument document = parser.parse(inner_test_html);
+
+    // Every search method stays total on an invalid view, so a chain of steps is
+    // checked once at its end. The attribute lookups used to dereference the
+    // element instead of yielding nothing.
+    DOMElementView invalid;
+    REQUIRE_FALSE(invalid);
+    REQUIRE_FALSE(invalid.find_attr("attr1"));
+    REQUIRE_FALSE(invalid.get_attr("attr1"));
+    REQUIRE(invalid.attributes().begin() == invalid.attributes().end());
+
+    // The same holds for the view a failed search hands back.
+    DOMElementView missing = document.body().find("nosuchtag").value_or(DOMElementView{});
+    REQUIRE_FALSE(missing.find_attr("attr1"));
+}
+
 TEST_CASE("DOMNode copy/move") {
     HTMLParser parser;
     HTMLDocument document = parser.parse(inner_test_html);

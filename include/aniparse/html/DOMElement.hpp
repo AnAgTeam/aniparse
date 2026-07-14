@@ -31,11 +31,9 @@ class DOMElementIterator;
  *   (asserted in debug builds). Check operator bool() first.
  * - Search and iteration methods (find, find_all, query, query_all, get_attr,
  *   find_attr, attributes, begin/end) are total: on an invalid view they simply
- *   return an empty result (nullopt / empty container / an empty range).
- * - Exception to the above, as the code stands: the attribute lookups (find_attr,
- *   get_attr) and iterating the range returned by attributes() do dereference the
- *   element, so on an invalid view they are undefined behavior rather than an
- *   empty result. Check operator bool() before asking an element for attributes.
+ *   return an empty result (nullopt / empty container / an empty range). This is
+ *   what lets a chain of steps be checked once, at its end, rather than after
+ *   every step.
  *
  * Lifetime (the contract to get right, because breaking it is a use-after-free):
  * a DOMElementView owns nothing. It points into the HTMLDocument that parsed the
@@ -271,13 +269,12 @@ public:
 	 * @brief Find DOM element attribute with name.
 	 * Looks at this element's own attributes only, never at its descendants; the
 	 * name must match exactly (HTML parsing lowercases attribute names).
-	 * @pre The view must be valid; this walks the element's attribute list, so on
-	 *      an invalid view it is UB rather than an empty result.
 	 * @note to access "class" or "id" it is better to use @ref class_name() and @ref id()
 	 * @note The returned view borrows into the owning HTMLDocument, which must
 	 *       outlive it.
 	 * @param name DOM attribute name
-	 * @return DOM attribute view if found, nullopt otherwise
+	 * @return DOM attribute view if found, nullopt otherwise (an invalid view has
+	 *         no attributes, so it yields nullopt rather than misbehaving)
 	 */
 	[[nodiscard]] std::optional<DOMAttrView> find_attr(std::string_view name) const;
 
@@ -286,7 +283,6 @@ public:
 	 * Distinguishes an absent attribute (nullopt) from a present but valueless one
 	 * (an engaged optional holding an empty string_view), which is what makes it
 	 * usable for boolean attributes.
-	 * @pre The view must be valid (@see find_attr); otherwise UB.
 	 * @note to access "class" or "id" it is better to use @ref class_name() and @ref id()
 	 * @note The returned string_view borrows into the owning HTMLDocument and
 	 *       dangles once that document dies; copy it into a std::string to keep it.
@@ -365,14 +361,10 @@ public:
 	using value_type        = DOMElementView;
 	/// Signed difference type, as the iterator concepts require.
 	using difference_type   = std::ptrdiff_t;
-	/// @note Names DOMAttrView, while the dereference operators actually yield a
-	///       DOMElementView. Do not build on pointer/reference here; use
-	///       @ref value_type.
-	using pointer           = const DOMAttrView*;
-	/// @note Names DOMAttrView, while the dereference operators actually yield a
-	///       DOMElementView. Do not build on pointer/reference here; use
-	///       @ref value_type.
-	using reference         = const DOMAttrView&;
+	/// Pointer handed back by operator->.
+	using pointer           = const DOMElementView*;
+	/// Reference handed back by operator*.
+	using reference         = const DOMElementView&;
 	/// Children form a doubly-linked list, so the walk goes both ways.
 	using iterator_category = std::bidirectional_iterator_tag;
 
@@ -619,73 +611,6 @@ private:
 [[nodiscard]] inline DOMElementWalkIterator end(const DOMElementWalkIterator&) noexcept {
 	return {};
 }
-
-/**
- * @brief Class for storing and accessing DOM element.
- * Can be used to get element attributes, name, etc.
- * Supports iterating child elements. For walking @see DOMElementWalkIterator
- * @todo
- *
- * @warning Unfinished, and not usable as it stands: of the members below only the
- *          raw-pointer constructor has a definition in the library, so anything
- *          else — default-constructing, moving, destroying, converting to a view,
- *          get() — fails to link. The owning element type it is meant to be does
- *          not exist yet; parsers work with DOMElementView into an HTMLDocument,
- *          which is what the whole html/ API is built around.
- */
-class DOMElement {
-public:
-	/**
-	 * @brief Take ownership of a raw DOM element
-	 * @param element Lexbor element raw pointer
-	 */
-	DOMElement(lxb_dom_element_t* element);
-
-	/// @brief Construct an empty element. Declared, not defined.
-	DOMElement();
-	/// @brief Non-copyable: the element is owned, not shared.
-	DOMElement(const DOMElement& other) = delete;
-	/**
-	 * @brief Transfer ownership from another element. Declared, not defined.
-	 * @param other The element to take ownership of
-	 */
-	DOMElement(DOMElement&& other) noexcept;
-	/// @brief Destroy the owned element. Declared, not defined.
-	~DOMElement();
-
-	/// @brief Non-copyable: the element is owned, not shared.
-	DOMElement& operator=(const DOMElement& other) = delete;
-	/**
-	 * @brief Transfer ownership from another element. Declared, not defined.
-	 * @param other The element to take ownership of
-	 * @return *this
-	 */
-	DOMElement& operator=(DOMElement&& other) noexcept;
-
-	/**
-	 * @brief View the owned element without giving up ownership. Declared, not
-	 *        defined.
-	 * @note The resulting view would borrow into this element and must not outlive
-	 *       it.
-	 * @return Non-owning view of the element
-	 */
-	operator DOMElementView();
-
-	/**
-	 * @brief Raw pointer to the owned element. Declared, not defined.
-	 * @return Raw pointer to the DOM element
-	 */
-	lxb_dom_element_t* get();
-
-	/**
-	 * @brief Raw pointer to the owned element. Declared, not defined.
-	 * @return Raw const pointer to the DOM element
-	 */
-	const lxb_dom_element_t* get() const;
-
-private:
-	lxb_dom_element_t* element_ = nullptr;
-};
 
 /**
  * @brief Helper class to find DOM elements in chain

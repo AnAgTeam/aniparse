@@ -119,7 +119,6 @@ add_library(aniparse ${aniparse_library_type}
 
 	"src/html/HTMLDocument.cpp" "include/aniparse/html/HTMLDocument.hpp"
 	"src/html/DOMAttributes.cpp" "include/aniparse/html/DOMAttributes.hpp"
-	"src/html/DOMCollection.cpp" "include/aniparse/html/DOMCollection.hpp"
 	"src/html/DOMElement.cpp" "include/aniparse/html/DOMElement.hpp"
 	"src/html/DOMNode.cpp" "include/aniparse/html/DOMNode.hpp"
 	"src/html/HTMLParser.cpp" "include/aniparse/html/HTMLParser.hpp"

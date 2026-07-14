@@ -504,10 +504,6 @@ bool operator==(const DOMElementIterator& left, const DOMElementIterator& right)
 	return left.node_ == right.node_;
 }
 
-DOMElement::DOMElement(lxb_dom_element_t* element)
-    : element_(element) {
-}
-
 DOMElementFinder::DOMElementFinder(DOMElementView element) noexcept
     : element_(element) {}
 

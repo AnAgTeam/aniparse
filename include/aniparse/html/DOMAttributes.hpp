@@ -110,7 +110,6 @@ private:
  */
 class DOMElementAttrsView {
 	friend class DOMElementView;
-	friend class DOMElement;
 
 public:
 	/**
@@ -145,12 +144,12 @@ public:
 
 	/**
 	 * @brief Iterator to the element's first attribute.
-	 * @pre The view must refer to an element: begin() dereferences it, so calling
-	 *      it on a default-constructed view (or one built from a nullptr element,
-	 *      as DOMElementView::attributes() returns for an invalid element view) is
-	 *      undefined behavior.
+	 * @note An invalid view (default-constructed, or built from a nullptr element as
+	 *       DOMElementView::attributes() returns for an invalid element view)
+	 *       iterates as an empty range rather than misbehaving, which is what keeps
+	 *       the attribute lookups built on it total.
 	 * @return Attributes iterator; equal to @ref end when the element carries no
-	 *         attributes
+	 *         attributes, or when the view is invalid
 	 */
 	[[nodiscard]] DOMAttrsIterator begin();
 
@@ -174,10 +173,8 @@ private:
  */
 class DOMAttrsIterator {
 public:
-	/// @note Names DOMElementView, while dereferencing the iterator actually yields
-	///       a DOMAttrView (see @ref reference and @ref pointer, which agree with
-	///       the dereference operators). Prefer those; do not build on value_type.
-	using value_type        = DOMElementView;
+	/// What the iteration yields: a view of one attribute.
+	using value_type        = DOMAttrView;
 	/// Signed difference type, as the iterator concepts require.
 	using difference_type   = std::ptrdiff_t;
 	/// Pointer type the dereference operator yields: a view of one attribute.
