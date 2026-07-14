@@ -20,11 +20,16 @@ USE_MDFILE_AS_MAINPAGE = docs/mainpage.md
 FILE_PATTERNS          = *.hpp *.h
 RECURSIVE              = YES
 # Without these the "#include" line on a class page shows the bare filename
-# (<Manga.hpp>) instead of the path a caller actually writes.
+# (<Manga.hpp>) instead of the path a caller actually writes. Both strip the same
+# prefix, so file pages and dependency graphs are labelled with the path a caller
+# writes (aniparse/ClientContext.hpp), not the on-disk one (include/aniparse/...).
 STRIP_FROM_INC_PATH    = include
-STRIP_FROM_PATH        = .
-# Keep the build tree and vendored deps out of the docs.
-EXCLUDE_PATTERNS       = */out/* */vcpkg_installed/* */lexbor/* */libasyncnet/* */net/vendor/*
+STRIP_FROM_PATH        = include
+# Keep the build tree and vendored deps out of the docs. aniparse/detail/ is
+# public by necessity, not by contract: a template a public header names in a
+# member type (DomainScanner) or a bitset a public flag type is built on. Shipping
+# it is unavoidable; documenting it as API is not, so it stays out of the reference.
+EXCLUDE_PATTERNS       = */out/* */vcpkg_installed/* */lexbor/* */libasyncnet/* */net/vendor/* */aniparse/detail/*
 
 # --- how to read it ----------------------------------------------------------
 EXTRACT_ALL            = NO      # only document what actually has /** */ comments
