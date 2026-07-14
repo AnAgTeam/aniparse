@@ -100,6 +100,7 @@ add_library(aniparse ${aniparse_library_type}
 	"include/aniparse/utility/Expected.hpp"
 	"include/aniparse/utility/Regex.hpp"
 	"include/aniparse/utility/UrlEncode.hpp"
+	"src/utility/Time.cpp" "include/aniparse/utility/Time.hpp"
 
 	"include/aniparse/types/Ids.hpp"
 	"include/aniparse/types/Flags.hpp"

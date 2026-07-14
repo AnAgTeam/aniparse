@@ -5,6 +5,7 @@ add_executable(aniparse-tests
 	"catch_amalgamated.cpp" "catch_amalgamated.hpp"
 	"CoroTest.hpp"
 	"BitsetLiteTest.cpp"
+	"TimeTest.cpp"
 	"HeadersTest.cpp"
 	"UrlEncodeTest.cpp"
 	"UrlPathTest.cpp"
