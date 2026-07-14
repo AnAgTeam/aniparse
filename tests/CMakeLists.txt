@@ -24,6 +24,7 @@ add_executable(aniparse-tests
 	"JsParserTest.cpp"
 	"JsonAccessTest.cpp"
 	"ResourceCacheTest.cpp"
+	"RepublishableTest.cpp"
 	"FileCachingClientTest.cpp"
 	"ImagesDefaultsTest.cpp"
 )
