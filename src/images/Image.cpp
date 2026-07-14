@@ -16,12 +16,12 @@ std::optional<ImageContainerInfo> ImageContainerGetter::preview_info() const noe
 
 NetworkRequestTask<PageResults<Comment>> ImageContainerGetter::comments(
     RequestorContext,
-    GetFilters) {
+    GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's ImageContainerGetter cannot get comments");
 }
 
 
-NetworkRequestTask<SearchCompatibilities> ImagesGetter::search_support(RequestorContext) {
+NetworkRequestTask<SearchCompatibilities> ImagesGetter::search_support(RequestorContext) const {
 	co_return SearchCompatibilities{};
 }
 
@@ -36,26 +36,26 @@ std::vector<SearchQueryError> ImagesGetter::validate_latest_filters(const GetFil
 NetworkRequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> ImagesGetter::search(
     RequestorContext,
     SearchRequestQuery,
-    GetFilters) {
+    GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot search images");
 }
 
 NetworkRequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> ImagesGetter::latest(
     RequestorContext,
-    GetFilters) {
+    GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot get latest images");
 }
 
 NetworkRequestTask<std::unique_ptr<ImageContainerGetter>> ImagesGetter::parse_url(
     RequestorContext,
-    ParsedUrl) {
+    ParsedUrl) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot parse image urls");
 }
 
 NetworkRequestTask<std::vector<SearchSuggestion>> ImagesGetter::suggest(
     RequestorContext,
     std::string,
-    std::optional<std::string>) {
+    std::optional<std::string>) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot suggest search tokens");
 }
 

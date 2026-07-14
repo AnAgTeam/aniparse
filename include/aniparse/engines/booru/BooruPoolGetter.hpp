@@ -32,21 +32,17 @@ public:
 
 	ImageContainerCompatibilities compatibilities() const noexcept override;
 
-	NetworkRequestTask<ImageContainerInfo> info(RequestorContext context) override;
+	NetworkRequestTask<ImageContainerInfo> info(RequestorContext context) const override;
 
 	NetworkRequestTask<PageResults<ImageItem>> items(
 	    RequestorContext context,
-	    GetFilters filters) override;
+	    GetFilters filters) const override;
 
-	NetworkRequestTask<SerializedGetterData> serialize() override;
+	NetworkRequestTask<SerializedGetterData> serialize() const override;
 
 private:
-	/// Resolve the pool metadata (once), caching info_.
-	NetworkRequestTask<std::monostate> ensure_info(RequestorContext& context);
-
 	const BooruSite& site_;
-	ImageContainerID id_;
-	std::optional<ImageContainerInfo> info_;
+	const ImageContainerID id_;
 };
 
 } // namespace aniparse::engines

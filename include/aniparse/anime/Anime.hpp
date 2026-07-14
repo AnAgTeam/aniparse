@@ -98,7 +98,7 @@ struct AnimeGetter {
 	 * @return The complete AnimeInfo, or a RequestError (NotFound when the item is
 	 *         gone, UnexpectedResponse when the source's shape changed, ...)
 	 */
-	virtual NetworkRequestTask<AnimeInfo> info(RequestorContext context) = 0;
+	virtual NetworkRequestTask<AnimeInfo> info(RequestorContext context) const = 0;
 
 	/**
 	 * @brief The (team × player) tracks available for this anime, paginated via
@@ -115,7 +115,7 @@ struct AnimeGetter {
 	 */
 	virtual NetworkRequestTask<PageResults<AnimeTrackInfo>> tracks(
 	    RequestorContext context,
-	    GetFilters filters);
+	    GetFilters filters) const;
 
 	/**
 	 * @brief The episodes of this anime, paginated via @p filters and optionally
@@ -136,7 +136,7 @@ struct AnimeGetter {
 	virtual NetworkRequestTask<PageResults<AnimeEpisodeInfo>> episodes_info(
 	    RequestorContext context,
 	    GetFilters filters,
-	    std::optional<AnimeTrackID> track = std::nullopt);
+	    std::optional<AnimeTrackID> track = std::nullopt) const;
 
 	/**
 	 * @brief User comments on the anime, paginated via @p filters.
@@ -148,7 +148,7 @@ struct AnimeGetter {
 	 */
 	virtual NetworkRequestTask<PageResults<Comment>> comments(
 	    RequestorContext context,
-	    GetFilters filters);
+	    GetFilters filters) const;
 
 	/**
 	 * @brief The anime the source itself declares as related to this one (a sequel,
@@ -162,7 +162,7 @@ struct AnimeGetter {
 	 */
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<AnimeGetter>>> related(
 	    RequestorContext context,
-	    GetFilters filters);
+	    GetFilters filters) const;
 
 	/**
 	 * @brief The anime the source recommends as similar to this one, paginated via
@@ -175,7 +175,7 @@ struct AnimeGetter {
 	 */
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<AnimeGetter>>> similar(
 	    RequestorContext context,
-	    GetFilters filters);
+	    GetFilters filters) const;
 
 	/**
 	 * @brief The playable sources for one episode, paginated via @p filters and
@@ -203,7 +203,7 @@ struct AnimeGetter {
 	    RequestorContext context,
 	    AnimeEpisodeRef episode,
 	    GetFilters filters,
-	    std::optional<AnimeTrackID> track = std::nullopt) = 0;
+	    std::optional<AnimeTrackID> track = std::nullopt) const = 0;
 
 	/**
 	 * @brief Expand a source into directly-playable streams.
@@ -225,7 +225,7 @@ struct AnimeGetter {
 	 */
 	virtual NetworkRequestTask<VideoSource> resolve_video(
 	    RequestorContext context,
-	    VideoSource source);
+	    VideoSource source) const;
 
 	/**
 	 * @brief This getter's identity in a form that survives the process, so a
@@ -241,7 +241,7 @@ struct AnimeGetter {
 	 * performs no request.
 	 * @return The serialized identity, or a RequestError
 	 */
-	virtual NetworkRequestTask<SerializedGetterData> serialize() = 0;
+	virtual NetworkRequestTask<SerializedGetterData> serialize() const = 0;
 };
 
 /**
@@ -261,7 +261,7 @@ struct AnimeRootGetter {
 	 * @return The support table, or a RequestError when it had to be fetched and the
 	 *         fetch failed
 	 */
-	virtual NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext context);
+	virtual NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext context) const;
 
 	/**
 	 * @brief What latest() accepts: its sort declaration and capability flags.
@@ -295,7 +295,7 @@ struct AnimeRootGetter {
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<AnimeGetter>>> search(
 	    RequestorContext context,
 	    SearchRequestQuery query,
-	    GetFilters filters);
+	    GetFilters filters) const;
 
 	/**
 	 * @brief The source's recently added or recently updated anime — its front page,
@@ -307,7 +307,7 @@ struct AnimeRootGetter {
 	 */
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<AnimeGetter>>> latest(
 	    RequestorContext context,
-	    GetFilters filters);
+	    GetFilters filters) const;
 
 	/**
 	 * @brief Autocomplete: suggest search tokens for a partial input.
@@ -321,7 +321,7 @@ struct AnimeRootGetter {
 	virtual NetworkRequestTask<std::vector<SearchSuggestion>> suggest(
 	    RequestorContext context,
 	    std::string partial,
-	    std::optional<std::string> kind = std::nullopt);
+	    std::optional<std::string> kind = std::nullopt) const;
 
 	/**
 	 * @brief Parse a url into the anime getter it addresses.
@@ -334,7 +334,7 @@ struct AnimeRootGetter {
 	 */
 	virtual NetworkRequestTask<std::unique_ptr<AnimeGetter>> parse_url(
 	    RequestorContext context,
-	    ParsedUrl url);
+	    ParsedUrl url) const;
 
 	/**
 	 * @brief Rebuild an anime getter from the identity AnimeGetter::serialize() emitted
@@ -346,7 +346,7 @@ struct AnimeRootGetter {
 	 * @return A getter addressing the same anime, or a RequestError
 	 *         (RequestErrorCode::InvalidArguments when the blob does not decode)
 	 */
-	virtual NetworkRequestTask<std::unique_ptr<AnimeGetter>> from_serialized(SerializedGetterData data) = 0;
+	virtual NetworkRequestTask<std::unique_ptr<AnimeGetter>> from_serialized(SerializedGetterData data) const = 0;
 };
 
 } // namespace aniparse

@@ -35,7 +35,7 @@ public:
 	// Optional. If not overridden, info(...) is used instead.
 	// Called when only minimal information is needed (title, preview, ...)
 	// and that information is already available in the getter.
-	NetworkRequestTask<MangaInfo> preview_info(RequestorContext context) override {
+	NetworkRequestTask<MangaInfo> preview_info(RequestorContext context) const override {
 		co_return MangaInfo{
 			.title = "Test",
 			.description = "Some description",
@@ -46,7 +46,7 @@ public:
 	}
 
 	// Fetch the full information about the manga
-	NetworkRequestTask<MangaInfo> info(RequestorContext context) override {
+	NetworkRequestTask<MangaInfo> info(RequestorContext context) const override {
 		co_return MangaInfo{
 			.title = "Test",
 			.description = "Some description",
@@ -59,7 +59,7 @@ public:
 	// Fetch the manga's translation information; there can be several
 	NetworkRequestTask<PageResults<MangaTranslationInfo>> translation_info(
 		RequestorContext context,
-		GetFilters filters) override {
+		GetFilters filters) const override {
 		PageResults<MangaTranslationInfo> pages;
 
 		// Return 0 pages if that is what was requested.
@@ -89,7 +89,7 @@ public:
 	NetworkRequestTask<PageResults<MangaChapterInfo>> chapters_info(
 		RequestorContext context,
 		GetFilters filters,
-		std::optional<MangaTranslationID> translation) override {
+		std::optional<MangaTranslationID> translation) const override {
 		PageResults<MangaChapterInfo> pages;
 
 		// Return 0 pages if that is what was requested.
@@ -119,7 +119,7 @@ public:
 	// If unsupported, return NotImplemented.
 	NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> related(
 		RequestorContext context,
-		GetFilters filters) override {
+		GetFilters filters) const override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "Parser doesn't support related");
 	}
 
@@ -130,7 +130,7 @@ public:
 		RequestorContext context,
 		MangaChapterRef chapter,
 		GetFilters filters,
-	    std::optional<MangaTranslationID> translation) override {
+	    std::optional<MangaTranslationID> translation) const override {
 		PageResults<MangaPage> pages;
 
 		// Return 0 pages if that is what was requested.
@@ -172,7 +172,7 @@ public:
 	// Serialize all of the getter's data into a serializable struct.
 	// Needed e.g. to save results to a file and reconstruct this getter later.
 	// Used together with ExampleParser::from_serialized(...)
-	NetworkRequestTask<SerializedGetterData> serialize() override {
+	NetworkRequestTask<SerializedGetterData> serialize() const override {
 		co_return SerializedGetterData{
 			.url = private_url_
 		};
@@ -188,7 +188,7 @@ public:
 
 	// Describe the manga search capabilities.
 	// This covers filters, sorting, ...
-	NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext) override {
+	NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext) const override {
 		co_return SearchCompatibilities{
 			// no sort, no filters
 		};
@@ -215,7 +215,7 @@ public:
 	NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> search(
 		RequestorContext context,
 		SearchRequestQuery query,
-		GetFilters filters) override {
+		GetFilters filters) const override {
 		// Check the search has no invalid/extra entries.
 		// search_support() is the reference.
 		auto support = co_await search_support(context);
@@ -233,7 +233,7 @@ public:
 	// Fetch the latest items for the chosen filters
 	NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> latest(
 		RequestorContext context,
-		GetFilters filters) override {
+		GetFilters filters) const override {
 		PageResults<std::unique_ptr<MangaGetter>> pages;
 		// Logging
 		context.info("latest() called, from {}, limit {}", filters.from, filters.limit);
@@ -259,12 +259,12 @@ public:
 	// Build a manga getter from a URL
 	NetworkRequestTask<std::unique_ptr<MangaGetter>> parse_url(
 		RequestorContext context,
-		ParsedUrl url) override {
+		ParsedUrl url) const override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot parse URLs");
 	}
 
 	// Build a manga getter from serialized data
-	NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData data) override {
+	NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData data) const override {
 		if (data.url.empty()) {
 			co_return make_response_error(RequestErrorCode::NotImplemented, "Invalid serialized url");
 		}

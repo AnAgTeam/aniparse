@@ -166,7 +166,7 @@ SearchCompatibilities filtering_support() {
 }
 
 struct FilteringRootGetter : MangaRootGetter {
-	NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext) override {
+	NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext) const override {
 		co_return filtering_support();
 	}
 
@@ -174,7 +174,7 @@ struct FilteringRootGetter : MangaRootGetter {
 		return { .supported_sorts = { { std::string(sort_keys::update_time), { .ascending = true } } } };
 	}
 
-	NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData) override {
+	NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData) const override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
 };

@@ -134,7 +134,7 @@ struct MangaGetter {
 	 * @return The complete MangaInfo, or a RequestError (NotFound when the item is
 	 *         gone, UnexpectedResponse when the source's shape changed, ...)
 	 */
-	virtual NetworkRequestTask<MangaInfo> info(RequestorContext context) = 0;
+	virtual NetworkRequestTask<MangaInfo> info(RequestorContext context) const = 0;
 
 	/**
 	 * @brief The translations this manga is available in, paginated via @p filters.
@@ -149,7 +149,7 @@ struct MangaGetter {
 	 */
 	virtual NetworkRequestTask<PageResults<MangaTranslationInfo>> translation_info(
 	    RequestorContext context,
-	    GetFilters filters);
+	    GetFilters filters) const;
 
 	/**
 	 * @brief The chapters of this manga, paginated via @p filters and optionally
@@ -167,7 +167,7 @@ struct MangaGetter {
 	virtual NetworkRequestTask<PageResults<MangaChapterInfo>> chapters_info(
 	    RequestorContext context,
 	    GetFilters filters,
-	    std::optional<MangaTranslationID> translation = std::nullopt);
+	    std::optional<MangaTranslationID> translation = std::nullopt) const;
 
 	/**
 	 * @brief User comments on the manga, paginated via @p filters.
@@ -180,7 +180,7 @@ struct MangaGetter {
 	 */
 	virtual NetworkRequestTask<PageResults<Comment>> comments(
 	    RequestorContext context,
-	    GetFilters filters);
+	    GetFilters filters) const;
 
 	/**
 	 * @brief The manga the source itself declares as related to this one (a sequel,
@@ -195,7 +195,7 @@ struct MangaGetter {
 	 */
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> related(
 	    RequestorContext context,
-	    GetFilters filters);
+	    GetFilters filters) const;
 
 	/**
 	 * @brief The manga the source recommends as similar to this one, paginated via
@@ -208,7 +208,7 @@ struct MangaGetter {
 	 */
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> similar(
 	    RequestorContext context,
-	    GetFilters filters);
+	    GetFilters filters) const;
 
 	/**
 	 * @brief The pages of one chapter — the read path of the manga domain.
@@ -231,7 +231,7 @@ struct MangaGetter {
 	    RequestorContext context,
 	    MangaChapterRef chapter,
 	    GetFilters filters,
-	    std::optional<MangaTranslationID> translation = std::nullopt) = 0;
+	    std::optional<MangaTranslationID> translation = std::nullopt) const = 0;
 
 	/**
 	 * @brief This getter's identity in a form that survives the process, so a
@@ -247,7 +247,7 @@ struct MangaGetter {
 	 * performs no request.
 	 * @return The serialized identity, or a RequestError
 	 */
-	virtual NetworkRequestTask<SerializedGetterData> serialize() = 0;
+	virtual NetworkRequestTask<SerializedGetterData> serialize() const = 0;
 };
 
 /**
@@ -270,7 +270,7 @@ struct MangaRootGetter {
 	 * @return The support table, or a RequestError when it had to be fetched and the
 	 *         fetch failed
 	 */
-	virtual NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext context);
+	virtual NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext context) const;
 
 	/**
 	 * @brief What latest() accepts: its sort declaration and capability flags.
@@ -309,7 +309,7 @@ struct MangaRootGetter {
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> search(
 	    RequestorContext context,
 	    SearchRequestQuery query,
-	    GetFilters filters);
+	    GetFilters filters) const;
 
 	/**
 	 * @brief The source's recently added or recently updated manga — its front page,
@@ -325,7 +325,7 @@ struct MangaRootGetter {
 	 */
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> latest(
 	    RequestorContext context,
-	    GetFilters filters);
+	    GetFilters filters) const;
 
 	/**
 	 * @brief Autocomplete: suggest search tokens for a partial input.
@@ -343,7 +343,7 @@ struct MangaRootGetter {
 	virtual NetworkRequestTask<std::vector<SearchSuggestion>> suggest(
 	    RequestorContext context,
 	    std::string partial,
-	    std::optional<std::string> kind = std::nullopt);
+	    std::optional<std::string> kind = std::nullopt) const;
 
 	/**
 	 * @see MangaGetter
@@ -356,7 +356,7 @@ struct MangaRootGetter {
 	 */
 	virtual NetworkRequestTask<std::unique_ptr<MangaGetter>> parse_url(
 	    RequestorContext context,
-	    ParsedUrl url);
+	    ParsedUrl url) const;
 
 	/**
 	 * @brief Rebuild a manga getter from the identity MangaGetter::serialize() emitted
@@ -372,7 +372,7 @@ struct MangaRootGetter {
 	 * @return A getter addressing the same manga, or a RequestError
 	 *         (RequestErrorCode::InvalidArguments when the blob does not decode)
 	 */
-	virtual NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData data) = 0;
+	virtual NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData data) const = 0;
 };
 
 } // namespace aniparse

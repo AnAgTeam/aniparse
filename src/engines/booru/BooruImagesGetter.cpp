@@ -52,12 +52,12 @@ namespace {
 	}
 } // namespace
 
-NetworkRequestTask<SearchCompatibilities> BooruImagesGetter::search_support(RequestorContext) {
+NetworkRequestTask<SearchCompatibilities> BooruImagesGetter::search_support(RequestorContext) const {
 	co_return site_.engine().search_support();
 }
 
 NetworkRequestTask<std::vector<SearchSuggestion>> BooruImagesGetter::suggest(
-    RequestorContext context, std::string partial, std::optional<std::string> kind) {
+    RequestorContext context, std::string partial, std::optional<std::string> kind) const {
 	const BooruEngine& engine = site_.engine();
 	std::string_view base = context.base_url(site_.api_hosts);
 	GetRequest request = engine.suggest_request(base, std::move(partial), std::move(kind));
@@ -69,7 +69,7 @@ NetworkRequestTask<std::vector<SearchSuggestion>> BooruImagesGetter::suggest(
 }
 
 NetworkRequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> BooruImagesGetter::search(
-    RequestorContext context, SearchRequestQuery query, GetFilters filters) {
+    RequestorContext context, SearchRequestQuery query, GetFilters filters) const {
 	auto support = co_await search_support(context);
 	if (!support) {
 		co_return unexpected(std::move(support.error()));
@@ -89,7 +89,7 @@ NetworkRequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> BooruImag
 }
 
 NetworkRequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> BooruImagesGetter::latest(
-    RequestorContext context, GetFilters filters) {
+    RequestorContext context, GetFilters filters) const {
 	if (auto errors = validate_latest_filters(filters); !errors.empty()) {
 		co_return make_response_error(RequestErrorCode::InvalidArguments,
 		                              describe_search_query_errors(errors));
@@ -106,7 +106,7 @@ NetworkRequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> BooruImag
 }
 
 NetworkRequestTask<std::unique_ptr<ImageContainerGetter>> BooruImagesGetter::parse_url(
-    RequestorContext, ParsedUrl url) {
+    RequestorContext, ParsedUrl url) const {
 	const BooruEngine& engine = site_.engine();
 	// A pool URL is a container-of-many; a post URL is a container-of-one.
 	if (engine.supports_pools()) {
@@ -122,7 +122,7 @@ NetworkRequestTask<std::unique_ptr<ImageContainerGetter>> BooruImagesGetter::par
 }
 
 NetworkRequestTask<std::unique_ptr<ImageContainerGetter>> BooruImagesGetter::from_serialized(
-    SerializedGetterData data) {
+    SerializedGetterData data) const {
 	// Inverse of the container/pool getters' serialize(): a bare number is a post id;
 	// a "pools/"-prefixed value is a pool id (only ever produced by a pool getter, so
 	// only routed back to one for a family that has pools).

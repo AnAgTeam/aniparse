@@ -93,7 +93,7 @@ struct ImageContainerGetter {
 	 * @return The complete ImageContainerInfo, or a RequestError (NotFound when the
 	 *         container is gone, UnexpectedResponse when the source's shape changed, ...)
 	 */
-	virtual NetworkRequestTask<ImageContainerInfo> info(RequestorContext context) = 0;
+	virtual NetworkRequestTask<ImageContainerInfo> info(RequestorContext context) const = 0;
 
 	/**
 	 * @brief The media items of this container, paginated via @p filters.
@@ -107,7 +107,7 @@ struct ImageContainerGetter {
 	 */
 	virtual NetworkRequestTask<PageResults<ImageItem>> items(
 	    RequestorContext context,
-	    GetFilters filters) = 0;
+	    GetFilters filters) const = 0;
 
 	/**
 	 * @brief User comments on the container, paginated via @p filters.
@@ -119,7 +119,7 @@ struct ImageContainerGetter {
 	 */
 	virtual NetworkRequestTask<PageResults<Comment>> comments(
 	    RequestorContext context,
-	    GetFilters filters);
+	    GetFilters filters) const;
 
 	/**
 	 * @brief This getter's identity in a form that survives the process, so a
@@ -135,7 +135,7 @@ struct ImageContainerGetter {
 	 * performs no request.
 	 * @return The serialized identity, or a RequestError
 	 */
-	virtual NetworkRequestTask<SerializedGetterData> serialize() = 0;
+	virtual NetworkRequestTask<SerializedGetterData> serialize() const = 0;
 };
 
 /**
@@ -155,7 +155,7 @@ struct ImagesGetter {
 	 * @return The support table, or a RequestError when it had to be fetched and the
 	 *         fetch failed
 	 */
-	virtual NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext context);
+	virtual NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext context) const;
 
 	/**
 	 * @brief What latest() accepts: its sort declaration and capability flags.
@@ -189,7 +189,7 @@ struct ImagesGetter {
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> search(
 	    RequestorContext context,
 	    SearchRequestQuery query,
-	    GetFilters filters);
+	    GetFilters filters) const;
 
 	/**
 	 * @brief The source's most recent containers — its front page, as opposed to an
@@ -201,7 +201,7 @@ struct ImagesGetter {
 	 */
 	virtual NetworkRequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> latest(
 	    RequestorContext context,
-	    GetFilters filters);
+	    GetFilters filters) const;
 
 	/**
 	 * @brief Autocomplete: suggest search tokens for a partial input.
@@ -219,7 +219,7 @@ struct ImagesGetter {
 	virtual NetworkRequestTask<std::vector<SearchSuggestion>> suggest(
 	    RequestorContext context,
 	    std::string partial,
-	    std::optional<std::string> kind = std::nullopt);
+	    std::optional<std::string> kind = std::nullopt) const;
 
 	/**
 	 * @brief Parse a url into the container getter it addresses.
@@ -234,7 +234,7 @@ struct ImagesGetter {
 	 */
 	virtual NetworkRequestTask<std::unique_ptr<ImageContainerGetter>> parse_url(
 	    RequestorContext context,
-	    ParsedUrl url);
+	    ParsedUrl url) const;
 
 	/**
 	 * @brief Rebuild a container getter from the identity
@@ -246,7 +246,7 @@ struct ImagesGetter {
 	 * @return A getter addressing the same container, or a RequestError
 	 *         (RequestErrorCode::InvalidArguments when the blob does not decode)
 	 */
-	virtual NetworkRequestTask<std::unique_ptr<ImageContainerGetter>> from_serialized(SerializedGetterData data) = 0;
+	virtual NetworkRequestTask<std::unique_ptr<ImageContainerGetter>> from_serialized(SerializedGetterData data) const = 0;
 };
 
 } // namespace aniparse

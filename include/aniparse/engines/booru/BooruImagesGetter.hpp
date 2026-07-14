@@ -25,28 +25,28 @@ class BooruImagesGetter : public ImagesGetter {
 public:
 	explicit BooruImagesGetter(const BooruSite& site) : site_(site) {}
 
-	NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext context) override;
+	NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext context) const override;
 
 	NetworkRequestTask<std::vector<SearchSuggestion>> suggest(
 	    RequestorContext context,
 	    std::string partial,
-	    std::optional<std::string> kind) override;
+	    std::optional<std::string> kind) const override;
 
 	NetworkRequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> search(
 	    RequestorContext context,
 	    SearchRequestQuery query,
-	    GetFilters filters) override;
+	    GetFilters filters) const override;
 
 	NetworkRequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> latest(
 	    RequestorContext context,
-	    GetFilters filters) override;
+	    GetFilters filters) const override;
 
 	NetworkRequestTask<std::unique_ptr<ImageContainerGetter>> parse_url(
 	    RequestorContext context,
-	    ParsedUrl url) override;
+	    ParsedUrl url) const override;
 
 	NetworkRequestTask<std::unique_ptr<ImageContainerGetter>> from_serialized(
-	    SerializedGetterData data) override;
+	    SerializedGetterData data) const override;
 
 protected:
 	const BooruSite& site_;

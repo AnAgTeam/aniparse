@@ -51,13 +51,13 @@ public:
 	/// of search needs no request to fill a card.
 	[[nodiscard]] std::optional<ImageContainerInfo> preview_info() const noexcept override;
 
-	NetworkRequestTask<ImageContainerInfo> info(RequestorContext context) override;
+	NetworkRequestTask<ImageContainerInfo> info(RequestorContext context) const override;
 
 	NetworkRequestTask<PageResults<ImageItem>> items(
 	    RequestorContext context,
-	    GetFilters filters) override;
+	    GetFilters filters) const override;
 
-	NetworkRequestTask<SerializedGetterData> serialize() override;
+	NetworkRequestTask<SerializedGetterData> serialize() const override;
 
 private:
 	/// The post as this engine maps it: the container metadata and its media leaf

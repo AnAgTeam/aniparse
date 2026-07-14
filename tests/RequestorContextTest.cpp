@@ -110,7 +110,7 @@ struct FreshJarClientMock : CannedClientMock {
 // Minimal concrete root getter: MangaRootGetter is abstract (from_serialized is
 // pure). Everything else uses the base implementation, which is what we test.
 struct DummyMangaRootGetter : MangaRootGetter {
-	asyncnet::NetworkTask<Response<std::unique_ptr<MangaGetter>>> from_serialized(SerializedGetterData) override {
+	asyncnet::NetworkTask<Response<std::unique_ptr<MangaGetter>>> from_serialized(SerializedGetterData) const override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "n/a");
 	}
 };

@@ -43,22 +43,22 @@ struct StubMangaGetter : MangaGetter {
 	MangaGetterCompatibilities compatibilities() const noexcept override {
 		return {};
 	}
-	NetworkRequestTask<MangaInfo> info(RequestorContext) override {
+	NetworkRequestTask<MangaInfo> info(RequestorContext) const override {
 		MangaInfo out;
 		out.title = "stub";
 		co_return out;
 	}
 	NetworkRequestTask<PageResults<MangaPage>> chapter_pages(
-	    RequestorContext, MangaChapterRef, GetFilters, std::optional<MangaTranslationID>) override {
+	    RequestorContext, MangaChapterRef, GetFilters, std::optional<MangaTranslationID>) const override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	NetworkRequestTask<SerializedGetterData> serialize() override {
+	NetworkRequestTask<SerializedGetterData> serialize() const override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
 };
 
 struct StubMangaRootGetter : MangaRootGetter {
-	NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData) override {
+	NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData) const override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
 };

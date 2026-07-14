@@ -16,45 +16,45 @@ std::optional<AnimeInfo> AnimeGetter::preview_info() const noexcept {
 
 NetworkRequestTask<PageResults<AnimeTrackInfo>> AnimeGetter::tracks(
     RequestorContext,
-    GetFilters) {
+    GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot list tracks");
 }
 
 NetworkRequestTask<PageResults<AnimeEpisodeInfo>> AnimeGetter::episodes_info(
     RequestorContext,
     GetFilters,
-    std::optional<AnimeTrackID>) {
+    std::optional<AnimeTrackID>) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot get episodes info");
 }
 
 NetworkRequestTask<PageResults<Comment>> AnimeGetter::comments(
     RequestorContext,
-    GetFilters) {
+    GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot get comments");
 }
 
 NetworkRequestTask<PageResults<std::unique_ptr<AnimeGetter>>> AnimeGetter::related(
     RequestorContext,
-    GetFilters) {
+    GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot get related info");
 }
 
 NetworkRequestTask<PageResults<std::unique_ptr<AnimeGetter>>> AnimeGetter::similar(
     RequestorContext,
-    GetFilters) {
+    GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot get similar info");
 }
 
 NetworkRequestTask<VideoSource> AnimeGetter::resolve_video(
     RequestorContext,
-    VideoSource source) {
+    VideoSource source) const {
 	// Native players arrive already resolved; the default is an identity
 	// passthrough. Embed-backed sources override to expand stream_url.
 	co_return source;
 }
 
 
-NetworkRequestTask<SearchCompatibilities> AnimeRootGetter::search_support(RequestorContext) {
+NetworkRequestTask<SearchCompatibilities> AnimeRootGetter::search_support(RequestorContext) const {
 	co_return SearchCompatibilities{};
 }
 
@@ -66,26 +66,26 @@ std::vector<SearchQueryError> AnimeRootGetter::validate_latest_filters(const Get
 	return validate_sort(latest_support().supported_sorts, filters.sort);
 }
 
-NetworkRequestTask<PageResults<std::unique_ptr<AnimeGetter>>> AnimeRootGetter::search(RequestorContext, SearchRequestQuery, GetFilters) {
+NetworkRequestTask<PageResults<std::unique_ptr<AnimeGetter>>> AnimeRootGetter::search(RequestorContext, SearchRequestQuery, GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot search");
 }
 
-NetworkRequestTask<PageResults<std::unique_ptr<AnimeGetter>>> AnimeRootGetter::latest(RequestorContext, GetFilters) {
+NetworkRequestTask<PageResults<std::unique_ptr<AnimeGetter>>> AnimeRootGetter::latest(RequestorContext, GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot get latest");
 }
 
 NetworkRequestTask<std::vector<SearchSuggestion>> AnimeRootGetter::suggest(
     RequestorContext,
     std::string,
-    std::optional<std::string>) {
+    std::optional<std::string>) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot suggest search tokens");
 }
 
-NetworkRequestTask<std::unique_ptr<AnimeGetter>> AnimeRootGetter::parse_url(RequestorContext, ParsedUrl) {
+NetworkRequestTask<std::unique_ptr<AnimeGetter>> AnimeRootGetter::parse_url(RequestorContext, ParsedUrl) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot parse url");
 }
 
-NetworkRequestTask<std::unique_ptr<AnimeGetter>> AnimeRootGetter::from_serialized(SerializedGetterData) {
+NetworkRequestTask<std::unique_ptr<AnimeGetter>> AnimeRootGetter::from_serialized(SerializedGetterData) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot deserialize data");
 }
 

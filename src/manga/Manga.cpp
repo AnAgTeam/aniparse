@@ -28,37 +28,37 @@ std::optional<MangaInfo> MangaGetter::preview_info() const noexcept {
 
 NetworkRequestTask<PageResults<MangaTranslationInfo>> MangaGetter::translation_info(
     RequestorContext,
-    GetFilters) {
+    GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get translation info");
 }
 
 NetworkRequestTask<PageResults<Comment>> MangaGetter::comments(
     RequestorContext,
-    GetFilters) {
+    GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get comments");
 }
 
 NetworkRequestTask<PageResults<MangaChapterInfo>> MangaGetter::chapters_info(
     RequestorContext,
     GetFilters,
-    std::optional<MangaTranslationID>) {
+    std::optional<MangaTranslationID>) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get chapters info");
 }
 
 NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaGetter::related(
     RequestorContext,
-    GetFilters) {
+    GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get related info");
 }
 
 NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaGetter::similar(
     RequestorContext,
-    GetFilters) {
+    GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get similar info");
 }
 
 
-NetworkRequestTask<SearchCompatibilities> MangaRootGetter::search_support(RequestorContext) {
+NetworkRequestTask<SearchCompatibilities> MangaRootGetter::search_support(RequestorContext) const {
 	co_return SearchCompatibilities{};
 }
 
@@ -70,26 +70,26 @@ std::vector<SearchQueryError> MangaRootGetter::validate_latest_filters(const Get
 	return validate_sort(latest_support().supported_sorts, filters.sort);
 }
 
-NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaRootGetter::search(RequestorContext, SearchRequestQuery, GetFilters) {
+NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaRootGetter::search(RequestorContext, SearchRequestQuery, GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot search");
 }
 
-NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaRootGetter::latest(RequestorContext, GetFilters) {
+NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaRootGetter::latest(RequestorContext, GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot get latest");
 }
 
 NetworkRequestTask<std::vector<SearchSuggestion>> MangaRootGetter::suggest(
     RequestorContext,
     std::string,
-    std::optional<std::string>) {
+    std::optional<std::string>) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot suggest search tokens");
 }
 
-NetworkRequestTask<std::unique_ptr<MangaGetter>> MangaRootGetter::parse_url(RequestorContext, ParsedUrl) {
+NetworkRequestTask<std::unique_ptr<MangaGetter>> MangaRootGetter::parse_url(RequestorContext, ParsedUrl) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot parse url");
 }
 
-NetworkRequestTask<std::unique_ptr<MangaGetter>> MangaRootGetter::from_serialized(SerializedGetterData) {
+NetworkRequestTask<std::unique_ptr<MangaGetter>> MangaRootGetter::from_serialized(SerializedGetterData) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot deserialize data");
 }
 } // namespace aniparse

@@ -22,11 +22,7 @@ ImageContainerCompatibilities BooruPoolGetter::compatibilities() const noexcept 
 	return {};
 }
 
-NetworkRequestTask<std::monostate> BooruPoolGetter::ensure_info(RequestorContext& context) {
-	if (info_) {
-		co_return std::monostate{};
-	}
-
+NetworkRequestTask<ImageContainerInfo> BooruPoolGetter::info(RequestorContext context) const {
 	const BooruEngine& engine = site_.engine();
 	std::string_view base = context.base_url(site_.api_hosts);
 	GetRequest request = engine.pool_request(base, id_);
@@ -42,19 +38,11 @@ NetworkRequestTask<std::monostate> BooruPoolGetter::ensure_info(RequestorContext
 		co_return make_response_error(RequestErrorCode::NotFound, "booru pool not found");
 	}
 
-	info_ = engine.pool_to_container_info(*pool);
-	co_return std::monostate{};
-}
-
-NetworkRequestTask<ImageContainerInfo> BooruPoolGetter::info(RequestorContext context) {
-	if (auto loaded = co_await ensure_info(context); !loaded) {
-		co_return unexpected(std::move(loaded.error()));
-	}
-	co_return *info_;
+	co_return engine.pool_to_container_info(*pool);
 }
 
 NetworkRequestTask<PageResults<ImageItem>> BooruPoolGetter::items(
-    RequestorContext context, GetFilters filters) {
+    RequestorContext context, GetFilters filters) const {
 	// The engine builds the pool-order page request (a listing in pool order), so
 	// items() streams the collection without holding the whole id list.
 	const BooruEngine& engine = site_.engine();
@@ -88,7 +76,7 @@ NetworkRequestTask<PageResults<ImageItem>> BooruPoolGetter::items(
 	co_return results;
 }
 
-NetworkRequestTask<SerializedGetterData> BooruPoolGetter::serialize() {
+NetworkRequestTask<SerializedGetterData> BooruPoolGetter::serialize() const {
 	// "pools/" prefix distinguishes a pool from a bare post id on restore.
 	co_return SerializedGetterData{ .url = "pools/" + std::to_string(id_) };
 }

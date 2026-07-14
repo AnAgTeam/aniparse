@@ -41,7 +41,7 @@ RequestorContext make_context() {
 // Implements only the pure-virtual surface; every optional override keeps its base
 // default (NotImplemented / delegating / empty).
 struct StubImagesGetter : ImagesGetter {
-	NetworkRequestTask<std::unique_ptr<ImageContainerGetter>> from_serialized(SerializedGetterData) override {
+	NetworkRequestTask<std::unique_ptr<ImageContainerGetter>> from_serialized(SerializedGetterData) const override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
 };
@@ -50,15 +50,15 @@ struct StubImageContainerGetter : ImageContainerGetter {
 	ImageContainerCompatibilities compatibilities() const noexcept override {
 		return {};
 	}
-	NetworkRequestTask<ImageContainerInfo> info(RequestorContext) override {
+	NetworkRequestTask<ImageContainerInfo> info(RequestorContext) const override {
 		ImageContainerInfo out;
 		out.title = "stub";
 		co_return out;
 	}
-	NetworkRequestTask<PageResults<ImageItem>> items(RequestorContext, GetFilters) override {
+	NetworkRequestTask<PageResults<ImageItem>> items(RequestorContext, GetFilters) const override {
 		co_return PageResults<ImageItem>{};
 	}
-	NetworkRequestTask<SerializedGetterData> serialize() override {
+	NetworkRequestTask<SerializedGetterData> serialize() const override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
 };
