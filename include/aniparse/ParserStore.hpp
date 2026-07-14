@@ -4,7 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/DomainScanner.hpp"
+#include "aniparse/detail/DomainScanner.hpp"
 #include "aniparse/Parser.hpp"
 #include "aniparse/types/ParsedUrl.hpp"
 

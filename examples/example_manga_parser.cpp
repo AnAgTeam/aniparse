@@ -1,6 +1,6 @@
 #include <aniparse/Parser.hpp>
 #include <aniparse/ParserStore.hpp>
-#include <aniparse/Client.hpp>
+#include <aniparse/net/Client.hpp>
 
 // for coro::sync_wait
 #include <coro/sync_wait.hpp>

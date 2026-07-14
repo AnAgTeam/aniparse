@@ -4,7 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #include "catch_amalgamated.hpp"
-#include <aniparse/Client.hpp>
+#include <aniparse/net/Client.hpp>
 
 using namespace aniparse;
 

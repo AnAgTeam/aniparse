@@ -8,7 +8,7 @@
 // accidental build a clean no-op rather than a curlpp-not-found error.
 #if defined(ANIPARSE_CURL_BACKEND) && ANIPARSE_CURL_BACKEND
 
-#include "aniparse/Client.hpp"
+#include "aniparse/net/Client.hpp"
 #include "aniparse/types/Headers.hpp"
 #include "aniparse/utility/UrlEncode.hpp"
 

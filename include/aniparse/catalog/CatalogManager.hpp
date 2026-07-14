@@ -4,7 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/Catalog.hpp"
+#include "aniparse/catalog/Catalog.hpp"
 #include "aniparse/ClientContext.hpp"
 #include "aniparse/ParserStore.hpp"
 

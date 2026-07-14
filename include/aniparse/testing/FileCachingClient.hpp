@@ -11,7 +11,7 @@
 // the curl backend, an upstream ClientContext must be injected explicitly, so
 // this decorator itself pulls in no HTTP backend.
 #if defined(ANIPARSE_CURL_BACKEND) && ANIPARSE_CURL_BACKEND
-#include "aniparse/Client.hpp"
+#include "aniparse/net/Client.hpp"
 #endif
 
 #include <cctype>

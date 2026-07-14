@@ -3,7 +3,7 @@
  *
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
-#include "aniparse/Catalog.hpp"
+#include "aniparse/catalog/Catalog.hpp"
 #include "aniparse/json/Json.hpp"
 
 #include <boost/json.hpp>

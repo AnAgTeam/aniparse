@@ -14,7 +14,7 @@
 //
 // Unlike example_parse this one needs network access; each call reports its own
 // error through the expected channel, so a failure just prints and moves on.
-#include <aniparse/Client.hpp>
+#include <aniparse/net/Client.hpp>
 #include <aniparse/ClientContext.hpp>
 #include <aniparse/html/HTMLDocument.hpp>
 

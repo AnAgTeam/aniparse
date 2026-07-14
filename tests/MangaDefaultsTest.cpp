@@ -5,7 +5,7 @@
  */
 #include "CoroTest.hpp"
 
-#include <aniparse/Client.hpp>
+#include <aniparse/net/Client.hpp>
 #include <aniparse/manga/Manga.hpp>
 
 #include <memory>

@@ -3,7 +3,7 @@
  *
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
-#include "aniparse/CatalogManager.hpp"
+#include "aniparse/catalog/CatalogManager.hpp"
 
 #include <algorithm>
 #include <string>

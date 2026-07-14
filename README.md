@@ -82,7 +82,7 @@ Want one of these sooner — or a source we don't cover yet? Issues and PRs are 
 Fetch a page and parse it as HTML — the client is backend-neutral, a parser never sees curl:
 
 ```cpp
-#include <aniparse/Client.hpp>
+#include <aniparse/net/Client.hpp>
 #include <aniparse/ClientContext.hpp>
 #include <coro/sync_wait.hpp>
 #include <print>

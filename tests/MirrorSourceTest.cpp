@@ -5,8 +5,8 @@
  */
 #include "catch_amalgamated.hpp"
 
-#include <aniparse/Client.hpp>
-#include <aniparse/MirrorSource.hpp>
+#include <aniparse/net/Client.hpp>
+#include <aniparse/catalog/MirrorSource.hpp>
 #include <aniparse/Parser.hpp>
 #include <aniparse/manga/Manga.hpp>
 

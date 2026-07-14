@@ -11,7 +11,7 @@
 //   - a JS array embedded in a <script>, extracted as JSON
 // Pair it with example_net, which shows how such a page is fetched in the first
 // place. Keeping the input on disk makes this example deterministic and offline.
-#include <aniparse/Client.hpp>
+#include <aniparse/net/Client.hpp>
 #include <aniparse/ClientContext.hpp>
 #include <aniparse/cache/ResourceCache.hpp>
 #include <aniparse/html/HTMLParser.hpp>

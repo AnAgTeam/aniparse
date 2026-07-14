@@ -5,7 +5,7 @@
  */
 #include "catch_amalgamated.hpp"
 
-#include <aniparse/Catalog.hpp>
+#include <aniparse/catalog/Catalog.hpp>
 
 #include <string>
 #include <string_view>

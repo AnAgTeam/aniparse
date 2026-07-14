@@ -4,7 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #include "CoroTest.hpp"
-#include <aniparse/Client.hpp>
+#include <aniparse/net/Client.hpp>
 #include <aniparse/Parser.hpp>
 #include <aniparse/manga/Manga.hpp>
 #include <aniparse/html/HTMLDocument.hpp>

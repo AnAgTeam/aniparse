@@ -87,8 +87,9 @@ add_library(aniparse ${aniparse_library_type}
 	"include/aniparse/utility/FlagsBitfield.hpp"
 	"include/aniparse/detail/BitsetLite.hpp"
 	"include/aniparse/detail/StrongBitset.hpp"
-	# src/Client.cpp (the curl backend) is added conditionally below.
-	"include/aniparse/Client.hpp"
+	"include/aniparse/detail/DomainScanner.hpp"
+	# src/net/Client.cpp (the curl backend) is added conditionally below.
+	"include/aniparse/net/Client.hpp"
 	"include/aniparse/net/CancellingTask.hpp"
 	"include/aniparse/net/vendor/CancellingTask.hpp"
 	"include/aniparse/net/vendor/Concepts.hpp"
@@ -127,8 +128,9 @@ add_library(aniparse ${aniparse_library_type}
 	"src/html/SelectorSource.cpp" "include/aniparse/html/SelectorSource.hpp"
 
 	"src/ParserStore.cpp" "include/aniparse/ParserStore.hpp"
-	"src/Catalog.cpp" "include/aniparse/Catalog.hpp"
-	"src/CatalogManager.cpp" "include/aniparse/CatalogManager.hpp"
+	"src/catalog/Catalog.cpp" "include/aniparse/catalog/Catalog.hpp"
+	"src/catalog/CatalogManager.cpp" "include/aniparse/catalog/CatalogManager.hpp"
+	"include/aniparse/catalog/MirrorSource.hpp"
 	"src/Parser.cpp" "include/aniparse/Parser.hpp"
 
 	"src/anime/Anime.cpp" "include/aniparse/anime/Anime.hpp"
@@ -211,7 +213,7 @@ if (ANIPARSE_CURL_BACKEND)
 	# selects the real asyncnet task type vs the vendored copy off it, so every
 	# consumer TU must see the same value as the library was built with.
 	target_compile_definitions(aniparse PUBLIC ANIPARSE_CURL_BACKEND=1)
-	target_sources(aniparse PRIVATE "src/Client.cpp")
+	target_sources(aniparse PRIVATE "src/net/Client.cpp")
 	target_link_libraries(aniparse PUBLIC $<BUILD_INTERFACE:asyncnet>)
 endif()
 

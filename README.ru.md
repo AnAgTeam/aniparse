@@ -82,7 +82,7 @@
 Получить страницу и распарсить как HTML — клиент бэкенд-нейтральный, парсер не видит curl:
 
 ```cpp
-#include <aniparse/Client.hpp>
+#include <aniparse/net/Client.hpp>
 #include <aniparse/ClientContext.hpp>
 #include <coro/sync_wait.hpp>
 #include <print>
