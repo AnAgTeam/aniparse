@@ -205,3 +205,28 @@ TEST_CASE("MangaRootGetter validates against its own declaration") {
 	REQUIRE(getter.validate_latest_filters(latest_filters).empty());
 	REQUIRE_FALSE(getter.validate_latest_filters(invalid_filters).empty());
 }
+
+TEST_CASE("Identity keys are told apart from filters") {
+	SearchCompatibilities support{ .supported_filters = make_supported() };
+	support.supported_filters.emplace(std::string(search_keys::mal_id), ItemSelection{});
+
+	REQUIRE(is_identity_key(support, search_keys::mal_id));
+	REQUIRE_FALSE(is_identity_key(support, search_keys::tag));
+	// A key the source does not offer is still not a filter to present.
+	REQUIRE(is_identity_key(support, search_keys::kitsu_id));
+	REQUIRE_FALSE(is_identity_key(support, "made_up"));
+}
+
+TEST_CASE("An id namespace maps to the key that looks it up") {
+	REQUIRE(search_key_for(id_namespaces::mal) == search_keys::mal_id);
+	REQUIRE(search_key_for(id_namespaces::shikimori) == search_keys::shikimori_id);
+	// Partial by design: a vocabulary no source looks up by has no key, and the
+	// namespace and key spellings are deliberately not the same string.
+	REQUIRE(search_key_for(id_namespaces::anidb).empty());
+	REQUIRE(search_key_for("made_up").empty());
+	REQUIRE(search_key_for(search_keys::mal_id).empty());
+
+	// Every key a namespace maps to is one a consumer can recognise as a lookup.
+	SearchCompatibilities support;
+	REQUIRE(is_identity_key(support, search_key_for(id_namespaces::anilist)));
+}

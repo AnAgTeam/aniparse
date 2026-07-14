@@ -333,10 +333,20 @@ inline constexpr std::string_view language        = "language";
 // exactly which lookups a parser offers and the machinery that already rejects an
 // unsupported key checks it.
 //
-// The value is normally an ItemSelection with an open vocabulary — any token is a
-// candidate id, and the parser resolves a whole selection in one request where its
-// API takes a batch. A token IS the id, so an ExternalId collected off one source
-// drops straight into a query against another.
+// These are lookups, not filters: a token names one item exactly, so there is no
+// substring match to run and no sensible way to invert one. A consumer that shows
+// filters (a UI panel, `support search`) keeps them off that surface and drives
+// them from wherever ids arrive instead — an id paste box, a deep link, a library
+// import. @see is_identity_key
+//
+// **The value is an ItemSelection with an open vocabulary, not a TextQuery** —
+// though a single id looks like free text, it is a token identity, and selection
+// semantics are what carry the batch: a selection holds many tokens, and a source
+// whose API accepts a set of ids in one call resolves the whole selection in ONE
+// request. That is what makes opening fifty saved ids cheap, and it is the reason
+// not to "simplify" these keys to a single-string type. Validation of an open
+// vocabulary accepts any token (@see ItemSelection). A token IS the id, so an
+// ExternalId collected off one source drops straight into a query against another.
 //
 // **A parser that owns a vocabulary must accept its own ids.** Others emit them
 // (an ExternalId naming this site), and a consumer that holds one has nothing else
@@ -355,3 +365,57 @@ inline constexpr std::string_view kitsu_id        = "kitsu_id";
 /// Look up by Shikimori id. @see id_namespaces::shikimori
 inline constexpr std::string_view shikimori_id    = "shikimori_id";
 } // namespace aniparse::search_keys
+
+namespace aniparse {
+/**
+ * @brief The search key that looks ids of an @ref aniparse::id_namespaces vocabulary
+ *        up; empty when the core names no lookup for it.
+ *
+ * The bridge an id crosses to become a query: an ExternalId collected off one source
+ * carries a namespace, and this maps it to the key another source accepts it under —
+ * so a consumer routes ids without hardcoding the pairing.
+ *
+ * The two spellings stay distinct on purpose ("mal" vs "mal_id"). Both vocabularies
+ * are open — a parser may emit a namespace the core does not name, and may accept a
+ * key the core does not name — so nothing structurally stops the two spaces from
+ * overlapping; the @c _id suffix keeps them apart by convention, which is what makes
+ * a namespace no source looks up by fail loudly (SearchQueryError::Reason::UnknownKey)
+ * rather than silently match an unrelated filter of the same name. The mapping is
+ * partial for the same reason: a namespace with no key is one no source offers a
+ * lookup for — it can still be emitted and stored, just not searched by.
+ */
+[[nodiscard]] std::string_view search_key_for(std::string_view ns);
+
+/**
+ * @brief Whether a filter key is an exact id lookup rather than a user-facing filter.
+ *
+ * Scoped to one source's support table because what counts as a lookup axis is a
+ * property of the source, even while the core names the common keys — a caller asks
+ * "is this key, on this source, a lookup?". Every caller already holds the table: it
+ * is what they are iterating to render or validate.
+ *
+ * A consumer that presents filters uses this to keep lookups out of the filter
+ * surface: they take an id nobody types by hand, they cannot be excluded ('!'), and
+ * combining one with a filter is pointless even where the source technically allows
+ * it. Ids reach a query from where ids actually come from — a paste box, a deep link,
+ * a library import — via search_key_for. @see search_keys, search_key_for
+ */
+[[nodiscard]] bool is_identity_key(const SearchCompatibilities& support, std::string_view key);
+} // namespace aniparse
+
+namespace aniparse {
+/**
+ * @brief Whether a filter key is an exact id lookup rather than a user-facing filter.
+ *
+ * Scoped to one source's support table because what counts as a lookup axis is a
+ * property of the source, even while the core owns the key names — a caller asks
+ * "is this key, on this source, a lookup?". Every caller already holds the table:
+ * it is what they are iterating to render or validate.
+ *
+ * A consumer that presents filters uses this to keep lookups out of the filter
+ * surface: they take an id nobody types by hand, they cannot be excluded ('!'),
+ * and combining one with a filter is pointless even where the source technically
+ * allows it. @see search_keys::identity
+ */
+[[nodiscard]] bool is_identity_key(const SearchCompatibilities& support, std::string_view key);
+} // namespace aniparse

@@ -5,11 +5,35 @@
  */
 #include "aniparse/types/Search.hpp"
 
+#include "aniparse/types/Model.hpp"
+
 #include <algorithm>
 #include <type_traits>
 
 namespace aniparse {
 namespace {
+
+/**
+ * Every identity axis the core names: which ids can be fed back into a search, and
+ * which key takes them. Using the core spelling for a common axis is what lets a
+ * consumer route an id collected off one source into a query against another — two
+ * sources spelling one vocabulary differently are unjoinable.
+ *
+ * Adding a lookup means adding the key constant in @ref search_keys AND pairing it
+ * here. Namespaces absent from the table (anidb, mangaupdates at the time of writing)
+ * are ones no source offers a lookup for; they are emitted and stored all the same.
+ */
+struct IdentityAxis {
+	std::string_view ns;
+	std::string_view key;
+};
+
+constexpr IdentityAxis identity_axes[] = {
+	{ id_namespaces::mal,       search_keys::mal_id       },
+	{ id_namespaces::anilist,   search_keys::anilist_id   },
+	{ id_namespaces::kitsu,     search_keys::kitsu_id     },
+	{ id_namespaces::shikimori, search_keys::shikimori_id },
+};
 
 bool exclusion_denied(const TextQuery& descriptor, const TextQuery& value) {
 	return value.exclusive && !descriptor.exclusive;
@@ -141,6 +165,23 @@ std::vector<SearchQueryError> validate_query(
 		std::make_move_iterator(sort_errors.begin()),
 		std::make_move_iterator(sort_errors.end()));
 	return errors;
+}
+
+std::string_view search_key_for(std::string_view ns) {
+	auto found = std::find_if(std::begin(identity_axes), std::end(identity_axes),
+		[&](const IdentityAxis& axis) { return axis.ns == ns; });
+	return found != std::end(identity_axes) ? found->key : std::string_view{};
+}
+
+// The support table is unused for now: only the core names identity keys today, so
+// the answer is the same for every source. The parameter is not dead weight — filter
+// keys are an open vocabulary, so a parser may introduce an identity axis the core
+// does not name, and the day one does, it declares that in its SearchCompatibilities
+// and this reads it there. Taking the table now is what keeps that change invisible
+// to every caller.
+bool is_identity_key(const SearchCompatibilities& /*support*/, std::string_view key) {
+	return std::any_of(std::begin(identity_axes), std::end(identity_axes),
+		[&](const IdentityAxis& axis) { return axis.key == key; });
 }
 
 std::string describe_search_query_errors(std::span<const SearchQueryError> errors) {
