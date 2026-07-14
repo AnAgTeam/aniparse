@@ -33,10 +33,11 @@ public:
 	}
 
 	// Optional. If not overridden, info(...) is used instead.
-	// Called when only minimal information is needed (title, preview, ...)
-	// and that information is already available in the getter.
-	NetworkRequestTask<MangaInfo> preview_info(RequestorContext context) const override {
-		co_return MangaInfo{
+	// The short-card info this getter was handed, if any — free and synchronous, no
+	// request. Nullopt would mean "nothing known yet"; a getter built from a listing
+	// (as here) already holds its card.
+	std::optional<MangaInfo> preview_info() const noexcept override {
+		return MangaInfo{
 			.title = "Test",
 			.description = "Some description",
 			.status = AiredStatus {
@@ -115,9 +116,10 @@ public:
 		co_return std::move(pages);
 	}
 
-	// Optional. Fetch related manga, if supported.
-	// If unsupported, return NotImplemented.
-	NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> related(
+	// Optional. The works the source declares related to this one (a sequel, a
+	// spin-off, an anime adaptation), as RelatedWork descriptors. If unsupported,
+	// return NotImplemented.
+	NetworkRequestTask<PageResults<RelatedWork>> related(
 		RequestorContext context,
 		GetFilters filters) const override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "Parser doesn't support related");
