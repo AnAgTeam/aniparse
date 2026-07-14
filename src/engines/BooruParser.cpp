@@ -36,7 +36,10 @@ GetterSuggestionType BooruParser::suggest_getter(const ParsedUrl& url) const {
 }
 
 ParserCompatibilities BooruParser::compatibilities() const {
-	return { .flags = site_.compatibilities };
+	// supports_images_store is derived, not declared: every booru parser hands out an
+	// images getter (see images_getter), so the bit follows from the engine rather
+	// than from a descriptor that can forget it.
+	return { .flags = site_.compatibilities | compatibilities_flags::supports_images_store };
 }
 
 void BooruParser::emplace_domains(EmplaceDomainsContext& context) const {

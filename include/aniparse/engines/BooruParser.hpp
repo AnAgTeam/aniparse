@@ -23,6 +23,14 @@ public:
 	ParserInfo info() const override;
 	std::string identifier() const override;
 	GetterSuggestionType suggest_getter(const ParsedUrl& url) const override;
+	/**
+	 * @brief What the source declares it can do.
+	 * The descriptor's own flags plus supports_images_store, which is always set: a
+	 * booru parser hands out an images getter unconditionally (@see images_getter),
+	 * so the bit follows from the engine rather than from a descriptor that could
+	 * forget it.
+	 * @return The site's capability flags, with the image-library bit added
+	 */
 	ParserCompatibilities compatibilities() const override;
 	void emplace_domains(EmplaceDomainsContext& context) const override;
 	void configure(ParserConfig& config) const override;

@@ -59,6 +59,9 @@ struct BooruSite {
 	const BooruEngine& (*engine)();
 	/// Parser-level capability flags (Parser::compatibilities) — e.g. whether the
 	/// source hosts adult content. A datum, since a SFW booru would clear adult_source.
+	/// Lists only what the site adds: BooruParser always advertises
+	/// supports_images_store on top of this, because every booru parser hands out an
+	/// images getter, so a descriptor cannot forget the bit and need not repeat it.
 	CompatibilitiesFlags compatibilities;
 	/// The credential model, or nullopt for an anonymous source (reads need no login).
 	std::optional<BooruStaticParamAuth> auth;
