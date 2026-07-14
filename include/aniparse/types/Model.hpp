@@ -173,7 +173,14 @@ enum class MediaKind {
  * Emission is not symmetric with lookup: an item announcing an external id says
  * nothing about the source being able to *find* an item by one. That is a
  * separate, rarely offered capability and it is declared as a search filter key
- * (@see search_keys::mal_id), not here.
+ * (@see search_keys::mal_id), not here. The asymmetry runs both ways — a source
+ * MUST accept its own vocabulary as a lookup key, and MUST NOT emit it here.
+ *
+ * **A parser never emits its own namespace.** These ids say where else the item
+ * lives, and a source restating that its own item is its own says nothing. The
+ * item's own id is already in the model (@c id), and what reopens it later is the
+ * getter's serialize() handle — the identity built to survive a restart. An
+ * external id exists for the item a *different* parser would have to find.
  *
  * @note A namespace names an identity vocabulary, NOT a parser. The two are
  *       independent: a namespace may have no parser at all (a consumer keying on
