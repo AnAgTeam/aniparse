@@ -52,10 +52,17 @@ jobs:
 
       # The macos-debug preset sets neither the vcpkg toolchain nor these options
       # (only windows-base does), so pass them here. curl backend stays on by default.
+      #
+      # macos-latest is Apple silicon: pin the arch and the vcpkg triplet explicitly.
+      # Without CMAKE_OSX_ARCHITECTURES the vcpkg toolchain cannot resolve the target
+      # arch during its first try-compile ("Continuing without vcpkg"), so it installs
+      # no port for the right triplet and find_package(Boost) then fails.
       - name: Configure (macos-debug, clang, tests + examples)
         run: >
           cmake --preset macos-debug
           -D CMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+          -D CMAKE_OSX_ARCHITECTURES=arm64
+          -D VCPKG_TARGET_TRIPLET=arm64-osx
           -D ANIPARSE_BUILD_TESTS=ON
           -D ANIPARSE_BUILD_EXAMPLES=ON
 
