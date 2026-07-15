@@ -94,12 +94,7 @@ struct MangaType {
 /// The MangaID that addresses nothing: the value @ref aniparse::MangaInfo::id carries when
 /// the source has no numeric id for the manga (it addresses works by slug, say).
 /// It is not an error marker — the manga is still fully usable through its getter.
-inline constexpr MangaID invalid_manga_id                 = MangaID{ 0 };
-/// The MangaTranslationID that addresses no particular translation, for callers
-/// that must pass an id where "unspecified" is meant. No @ref aniparse::MangaTranslationInfo
-/// carries it; getters normally express the same thing by passing nullopt, which
-/// selects the source's default.
-inline constexpr MangaTranslationID any_manga_translation = -1;
+inline constexpr MangaID invalid_manga_id = MangaID{ 0 };
 
 /**
  * @brief Everything a source states about one manga: what it is called, who made
