@@ -114,7 +114,7 @@ CompiledSelector SelectorCompiler::compile(std::string_view selector) {
 expected<CompiledSelector, SelectorParseError> SelectorCompiler::try_compile(std::string_view selector) {
 	lxb_css_selector_list_t* list = parse_selector(parser_, selector);
 	if (list == nullptr) {
-		return unexpected(SelectorParseError(format("invalid CSS selector: {}", selector)));
+		return unexpected(SelectorParseError(fmt::format("invalid CSS selector: {}", selector)));
 	}
 	return CompiledSelector(list);
 }

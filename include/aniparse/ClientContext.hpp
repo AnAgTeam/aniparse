@@ -383,7 +383,7 @@ public:
 	void info(SourcedFormatString<Args...> sourced_fmt, Args&&... args) {
 		if (services_->logger) {
 			services_->logger->log(LogLevel::Info,
-			             format(sourced_fmt.fmt, std::forward<Args>(args)...),
+			             fmt::format(sourced_fmt.fmt, std::forward<Args>(args)...),
 			             sourced_fmt.loc);
 		}
 	}
@@ -398,7 +398,7 @@ public:
 	void debug(SourcedFormatString<Args...> sourced_fmt, Args&&... args) {
 		if (services_->logger) {
 			services_->logger->log(LogLevel::Debug,
-			             format(sourced_fmt.fmt, std::forward<Args>(args)...),
+			             fmt::format(sourced_fmt.fmt, std::forward<Args>(args)...),
 			             sourced_fmt.loc);
 		}
 	}
@@ -413,7 +413,7 @@ public:
 	void warning(SourcedFormatString<Args...> sourced_fmt, Args&&... args) {
 		if (services_->logger) {
 			services_->logger->log(LogLevel::Warning,
-			             format(sourced_fmt.fmt, std::forward<Args>(args)...),
+			             fmt::format(sourced_fmt.fmt, std::forward<Args>(args)...),
 			             sourced_fmt.loc);
 		}
 	}
@@ -428,7 +428,7 @@ public:
 	void error(SourcedFormatString<Args...> sourced_fmt, Args&&... args) {
 		if (services_->logger) {
 			services_->logger->log(LogLevel::Error,
-			             format(sourced_fmt.fmt, std::forward<Args>(args)...),
+			             fmt::format(sourced_fmt.fmt, std::forward<Args>(args)...),
 			             sourced_fmt.loc);
 		}
 	}
@@ -443,7 +443,7 @@ public:
 	void fatal(SourcedFormatString<Args...> sourced_fmt, Args&&... args) {
 		if (services_->logger) {
 			services_->logger->log(LogLevel::Fatal,
-			             format(sourced_fmt.fmt, std::forward<Args>(args)...),
+			             fmt::format(sourced_fmt.fmt, std::forward<Args>(args)...),
 			             sourced_fmt.loc);
 		}
 	}
