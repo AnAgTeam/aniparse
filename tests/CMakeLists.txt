@@ -18,6 +18,7 @@ add_executable(aniparse-tests
 	"CatalogTest.cpp"
 	"CatalogManagerTest.cpp"
 	"HTMLParseTests.cpp"
+	"HtmlTextTest.cpp"
 	"CoroutinesTest.cpp"
 	"SearchValidationTest.cpp"
 	"CssSelectorTest.cpp"

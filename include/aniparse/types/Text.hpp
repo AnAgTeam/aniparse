@@ -13,10 +13,23 @@ struct Hyperlink {
 	std::string url;
 };
 
+/// An inline style over a run of text. Both the shared HTML/Markdown converters and a
+/// parser building its own dialect (BBCode, DText) normalise into this closed vocabulary,
+/// so a consumer renders one model regardless of the source's markup.
+struct TextStyle {
+	enum class Kind {
+		Bold,
+		Italic,
+		Strikethrough,
+		Spoiler,
+	};
+	Kind kind;
+};
+
 struct TextAttributeInfo {
 	int start;
 	int end;
-	std::variant<Hyperlink> data;
+	std::variant<Hyperlink, TextStyle> data;
 };
 
 /**

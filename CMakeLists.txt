@@ -101,6 +101,7 @@ add_library(aniparse ${aniparse_library_type}
 	"include/aniparse/utility/Regex.hpp"
 	"include/aniparse/utility/UrlEncode.hpp"
 	"src/utility/Time.cpp" "include/aniparse/utility/Time.hpp"
+	"src/utility/HtmlText.cpp" "include/aniparse/utility/HtmlText.hpp"
 
 	"include/aniparse/types/Ids.hpp"
 	"include/aniparse/types/Flags.hpp"
