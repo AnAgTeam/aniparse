@@ -9,15 +9,13 @@
 #if defined(ANIPARSE_CURL_BACKEND) && ANIPARSE_CURL_BACKEND
 
 #include "aniparse/net/Client.hpp"
+#include "aniparse/net/CookieStore.hpp"
 #include "aniparse/types/Headers.hpp"
 #include "aniparse/utility/UrlEncode.hpp"
 
 #include <asyncnet/Exceptions.hpp>
 #include <asyncnet/MultipartForms.hpp>
 #include <curlpp/Options.hpp>
-
-#include <array>
-#include <charconv>
 
 using asyncnet::NetworkTask;
 // NB: don't `using asyncnet::Response` here — inside namespace aniparse the
@@ -189,85 +187,6 @@ CurlCookieJar::CurlCookieJar()
 CurlCookieJar::CurlCookieJar(std::shared_ptr<asyncnet::CurlShared> shared)
     : shared_(std::move(shared)) {
 }
-
-namespace {
-
-// Netscape-format cookie line (as produced by CURLINFO_COOKIELIST):
-//   domain \t include_subdomains \t path \t secure \t expires \t name \t value
-// httponly cookies carry a "#HttpOnly_" prefix on the domain field. The value is
-// the trailing field and is taken verbatim (tabs and all).
-constexpr std::string_view httponly_prefix = "#HttpOnly_";
-
-std::optional<Cookie> parse_netscape_line(std::string_view line) {
-	constexpr size_t field_count = 7;
-
-	std::array<std::string_view, field_count> fields;
-	size_t count = 0;
-	size_t start = 0;
-
-	while (count < field_count) {
-		// Last field (the value) is the remainder of the line, tabs and all.
-		size_t tab = (count == field_count - 1) ? std::string_view::npos : line.find('\t', start);
-		if (tab == std::string_view::npos) {
-			fields[count++] = line.substr(start);
-			break;
-		}
-		fields[count++] = line.substr(start, tab - start);
-		start = tab + 1;
-	}
-
-	if (count != field_count) {
-		return std::nullopt;
-	}
-
-	Cookie cookie;
-	std::string_view domain = fields[0];
-	if (domain.starts_with(httponly_prefix)) {
-		cookie.http_only = true;
-		domain.remove_prefix(httponly_prefix.size());
-	}
-	cookie.domain             = std::string(domain);
-	cookie.include_subdomains = fields[1] == "TRUE";
-	cookie.path               = std::string(fields[2]);
-	cookie.secure             = fields[3] == "TRUE";
-
-	long long expires_unix = 0;
-	std::from_chars(fields[4].data(), fields[4].data() + fields[4].size(), expires_unix);
-	if (expires_unix != 0) {
-		cookie.expires = std::chrono::system_clock::time_point(std::chrono::seconds(expires_unix));
-	}
-
-	cookie.name  = std::string(fields[5]);
-	cookie.value = std::string(fields[6]);
-	return cookie;
-}
-
-std::string to_netscape_line(const Cookie& cookie) {
-	long long expires_unix = cookie.expires
-	    ? std::chrono::duration_cast<std::chrono::seconds>(cookie.expires->time_since_epoch()).count()
-	    : 0;
-
-	std::string line;
-	if (cookie.http_only) {
-		line += httponly_prefix;
-	}
-	line += cookie.domain;
-	line += '\t';
-	line += cookie.include_subdomains ? "TRUE" : "FALSE";
-	line += '\t';
-	line += cookie.path;
-	line += '\t';
-	line += cookie.secure ? "TRUE" : "FALSE";
-	line += '\t';
-	line += std::to_string(expires_unix);
-	line += '\t';
-	line += cookie.name;
-	line += '\t';
-	line += cookie.value;
-	return line;
-}
-
-} // namespace
 
 std::optional<Cookie> CurlCookieJar::find_cookie(std::string_view name) const {
 	for (const auto& line : serialize()) {

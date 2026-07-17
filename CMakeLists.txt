@@ -95,6 +95,10 @@ add_library(aniparse ${aniparse_library_type}
 	"include/aniparse/net/vendor/Concepts.hpp"
 	"src/ClientContext.cpp" "include/aniparse/ClientContext.hpp"
 	"include/aniparse/net/CookieJar.hpp"
+	# Backend-neutral on purpose: the Netscape codec and the cookie store are shared
+	# by every backend (curl reads the codec, a store-less backend uses both), so they
+	# are built unconditionally rather than alongside one backend's sources.
+	"src/net/CookieStore.cpp" "include/aniparse/net/CookieStore.hpp"
 	"include/aniparse/utility/Format.hpp"
 	"include/aniparse/utility/Coroutines.hpp"
 	"include/aniparse/utility/Expected.hpp"
