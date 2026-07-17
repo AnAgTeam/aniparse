@@ -232,9 +232,18 @@ if (ANIPARSE_CURL_BACKEND)
 endif()
 
 if (ANIPARSE_NSURLSESSION_BACKEND)
+	if (NOT APPLE)
+		message(FATAL_ERROR "ANIPARSE_NSURLSESSION_BACKEND needs Foundation — Apple platforms only")
+	endif()
+	# PUBLIC for the same reason as the curl macro: the backend's public header
+	# collapses to nothing without it, so every consumer TU must agree with the
+	# library on whether UrlSessionClient exists at all.
 	target_compile_definitions(aniparse PUBLIC ANIPARSE_NSURLSESSION_BACKEND=1)
-	# target_sources(aniparse PRIVATE "src/net/NSURLSessionClient.mm")
-	# target_link_libraries(aniparse PUBLIC "-framework Foundation")
+	target_sources(aniparse PRIVATE "src/net/UrlSessionClient.mm" "include/aniparse/net/UrlSessionClient.hpp")
+	# ARC, and only on the Objective-C++ source: the backend holds NSURLSession and
+	# its delegate as members of a plain C++ struct, which only ARC keeps alive.
+	set_source_files_properties("src/net/UrlSessionClient.mm" PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
+	target_link_libraries(aniparse PUBLIC "-framework Foundation")
 endif()
 
 # ---- COROUTINE RUNTIME (libcoro)
