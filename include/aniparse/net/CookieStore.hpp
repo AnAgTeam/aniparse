@@ -39,7 +39,7 @@ namespace aniparse {
 
 /**
  * @brief Serialize a cookie to a Netscape-format line. The inverse of
- * @ref parse_netscape_line — @see it for the field layout.
+ * @ref aniparse::parse_netscape_line() — @see it for the field layout.
  * @param cookie The cookie to serialize
  * @return The serialized line
  */
@@ -74,7 +74,7 @@ namespace aniparse {
  * @brief An in-memory cookie store with Netscape persistence — the storage half a
  * @ref CookieJar needs when its backend does not provide one.
  *
- * Owns the cookies of one session and answers @ref cookies_for with the subset a
+ * Owns the cookies of one session and answers @ref cookies_for() with the subset a
  * given request may carry. Deliberately transport-free: a backend supplies only
  * the parsing of `Set-Cookie` (whose attribute and date grammar is worth borrowing
  * from the platform) and hands the resulting cookies here.
@@ -125,7 +125,7 @@ public:
 	void clear();
 
 	/**
-	 * @brief Export every stored cookie as Netscape lines. @see to_netscape_line
+	 * @brief Export every stored cookie as Netscape lines. @see to_netscape_line()
 	 * @return One line per stored cookie
 	 */
 	[[nodiscard]] std::vector<std::string> serialize() const;
@@ -133,7 +133,7 @@ public:
 	/**
 	 * @brief Replace the contents with a previously serialized set; unparsable lines
 	 * are skipped. The store is cleared first, so what remains is exactly @p lines.
-	 * @param lines Lines produced by @ref serialize
+	 * @param lines Lines produced by @ref serialize()
 	 */
 	void deserialize(std::span<std::string> lines);
 
@@ -150,7 +150,7 @@ private:
  * exposes the store itself, which is what the backend reads to decide the cookies
  * for a request and writes the ones a response set. So the cookie layer is
  * testable without any transport, and a jar serialized under one backend restores
- * under another (both speak @ref to_netscape_line).
+ * under another (both speak @ref to_netscape_line()).
  */
 class MemoryCookieJar : public CookieJar {
 public:
