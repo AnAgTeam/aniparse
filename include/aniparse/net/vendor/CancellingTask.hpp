@@ -338,6 +338,18 @@ namespace asyncnet {
 
 		NetworkTask<T> get_return_object() noexcept;
 
+		/**
+		 * Adopt @p other_promise's stop state and progress counters, so a stop requested
+		 * on it reaches this coroutine and the bytes it reads are reported there.
+		 * @param other_promise The promise to get connected to
+		 * @warning Call this BEFORE the task is started. Connecting REPLACES this task's
+		 *          stop_source with @p other_promise's, so whatever was read from the old
+		 *          one is silently orphaned: a stop_token the body already took still names
+		 *          the discarded source and can never fire, and a request_stop() issued
+		 *          before connecting dies with it. Neither is diagnosed — cancellation
+		 *          simply stops arriving. Reading the token from inside the body is safe:
+		 *          a body only runs once its awaiter has connected it.
+		 */
 		template<typename U>
 		void connect_with(NetworkPromise<U>& other_promise) {
 			this->set_stop_source(other_promise.stop_source());
@@ -525,7 +537,7 @@ namespace asyncnet {
 	class [[nodiscard]] NetworkTask : public CancellingTask<T, TaskPromise> {
 	public:
 
-		using CancellingTask<T, TaskPromise>::promise_type;
+		using typename CancellingTask<T, TaskPromise>::promise_type;
 		using coroutine_handle = std::coroutine_handle<promise_type>;
 
 		struct Awaitable {
@@ -596,6 +608,13 @@ namespace asyncnet {
 		 * Used when you need to wrap NetworkTask object inside another coroutine, but want to use stop and info.
 		 * @param other_promise The promise to get connected to
 		 * @return Reference to this NetworkTask
+		 * @warning Call this BEFORE the task is started. Connecting REPLACES this task's
+		 *          stop_source with @p other_promise's, so whatever was read from the old
+		 *          one is silently orphaned: a stop_token the body already took still names
+		 *          the discarded source and can never fire, and a request_stop() issued
+		 *          before connecting dies with it. Neither is diagnosed — cancellation
+		 *          simply stops arriving. Reading the token from inside the body is safe:
+		 *          a body only runs once its awaiter has connected it.
 		 */
 		template<concepts::derived_from_template<NetworkPromise> U>
 		NetworkTask& connect_with(U& other_promise) & {
@@ -609,6 +628,13 @@ namespace asyncnet {
 		 * Used when you need to wrap NetworkTask object inside another coroutine, but want to use stop and info.
 		 * @param other_promise The promise to get connected to
 		 * @return R-value reference to this NetworkTask
+		 * @warning Call this BEFORE the task is started. Connecting REPLACES this task's
+		 *          stop_source with @p other_promise's, so whatever was read from the old
+		 *          one is silently orphaned: a stop_token the body already took still names
+		 *          the discarded source and can never fire, and a request_stop() issued
+		 *          before connecting dies with it. Neither is diagnosed — cancellation
+		 *          simply stops arriving. Reading the token from inside the body is safe:
+		 *          a body only runs once its awaiter has connected it.
 		 */
 		template<concepts::derived_from_template<NetworkPromise> U>
 		NetworkTask&& connect_with(U& other_promise) && {
