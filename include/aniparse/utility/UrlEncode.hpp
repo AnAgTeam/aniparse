@@ -45,4 +45,37 @@ inline std::string url_encode(std::string_view value) {
 	return out;
 }
 
+/**
+ * @brief Percent-decode a string per RFC 3986 — the inverse of @ref url_encode.
+ * Each "%XX" (two hex digits) becomes the byte it names; a malformed or truncated
+ * escape is left verbatim. '+' is passed through unchanged: it is a literal here,
+ * NOT a space — this decodes a path or opaque segment, not an
+ * application/x-www-form-urlencoded body (a form decoder maps '+'→' ' first).
+ * @param value Percent-encoded value
+ * @return Decoded value
+ */
+inline std::string url_decode(std::string_view value) {
+	auto hex_digit = [](unsigned char c) -> int {
+		if (c >= '0' && c <= '9') return c - '0';
+		if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+		if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+		return -1;
+	};
+	std::string out;
+	out.reserve(value.size());
+	for (size_t i = 0; i < value.size(); ++i) {
+		if (value[i] == '%' && i + 2 < value.size()) {
+			int hi = hex_digit(static_cast<unsigned char>(value[i + 1]));
+			int lo = hex_digit(static_cast<unsigned char>(value[i + 2]));
+			if (hi >= 0 && lo >= 0) {
+				out.push_back(static_cast<char>(hi * 16 + lo));
+				i += 2;
+				continue;
+			}
+		}
+		out.push_back(value[i]);
+	}
+	return out;
+}
+
 } // namespace aniparse
