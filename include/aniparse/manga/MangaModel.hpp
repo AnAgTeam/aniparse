@@ -200,6 +200,12 @@ struct MangaInfo {
 	/// it counts the work's chapters, not the chapters this source hosts.
 	std::optional<long> total_chapters;
 
+	/// How many pages the work has, when the source states it up front — meaningful for
+	/// one-shots and galleries (a booru pool, a doujin) whose whole length is one number.
+	/// nullopt = the source does not report it. Distinct from @ref total_chapters: a work
+	/// is a count of chapters OR, when it has none, a count of pages.
+	std::optional<long> total_pages;
+
 	/// The source marks this manga as adult/pornographic. False = it does not mark
 	/// it, which is a weaker statement than "safe": sources differ on where the line
 	/// sits, and one that has no adult flag at all leaves this false throughout.
