@@ -70,7 +70,17 @@ std::vector<AltLink> Parser::mirror_choices(const RequestorContext& context) con
 	return resolve_alt_links(mirrors(), context);
 }
 
+std::optional<AuthInfo> Parser::auth_info() const {
+	return std::nullopt;
+}
+
 AuthKeys Parser::auth_keys() const noexcept {
+	// Derive from the declared credential shape so a parser states it once in
+	// auth_info(); a parser with a credential a field list cannot name (e.g. a
+	// session cookie from a username/password login) overrides this directly.
+	if (std::optional<AuthInfo> info = auth_info()) {
+		return auth_keys_from_fields(info->fields);
+	}
 	return {};
 }
 

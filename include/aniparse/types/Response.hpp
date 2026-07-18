@@ -73,6 +73,16 @@ enum class RequestErrorCode {
 	/// expected (missing load-bearing element, changed markup, unparsable body).
 	/// The characteristic symptom of a source that changed its layout.
 	UnexpectedResponse,
+	/// The operation cannot complete without an interactive step the library
+	/// cannot perform headlessly — a captcha, a social-OAuth or in-browser login,
+	/// a 2FA prompt. The caller chooses the sign-in flow up front from
+	/// Parser::auth_info and collects the credential accordingly; this is the
+	/// escalation signal for when a *headless* attempt (authenticate_context with a
+	/// username/password) turns out to need that interaction after all, telling the
+	/// caller to fall back to the interactive flow auth_info describes. Distinct
+	/// from @ref InvalidCredentials (a credential was present and rejected): here
+	/// there is nothing to reject yet.
+	InteractionRequired,
 };
 
 /**

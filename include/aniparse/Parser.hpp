@@ -9,6 +9,7 @@
 #include "aniparse/types/ParseResult.hpp"
 #include "aniparse/types/ParserInfo.hpp"
 #include "aniparse/types/ParsedUrl.hpp"
+#include "aniparse/types/Authentication.hpp"
 #include "aniparse/images/Image.hpp"
 #include "aniparse/manga/Manga.hpp"
 
@@ -187,14 +188,29 @@ struct Parser {
 	    AuthenticationData data);
 
 	/**
+	 * @see AuthInfo
+	 * @brief How a user signs in to this source — the flow the client drives.
+	 *
+	 * Consulted BEFORE any login: it tells the client which AuthenticationData
+	 * variant to build (token vs username/password) and which UI to present, so the
+	 * client never guesses. Pure and side-effect-free (no network): a login_url that
+	 * must be computed is resolved lazily when the web view opens, not here. Default:
+	 * empty (the source needs no authentication).
+	 * @return The sign-in descriptor, or nullopt when the source is anonymous.
+	 */
+	[[nodiscard]] virtual std::optional<AuthInfo> auth_info() const;
+
+	/**
 	 * @see AuthKeys
 	 * @brief Names of the credential-bearing config entries to persist.
 	 *
 	 * These identify which cookies / headers / url params of the authenticated
 	 * config are the durable credential and should be copied into an AuthState;
 	 * everything else (volatile session/anti-bot data) is left behind. Default:
-	 * empty (nothing distinguished). Only cookie-/header-/param-based logins need
-	 * to override this.
+	 * derived from @ref auth_info's fields (their targets grouped by channel), so a
+	 * parser that declares auth_info gets this for free; empty when there is no
+	 * auth_info. Override only for a credential a field list cannot name (e.g. the
+	 * session cookie minted by a username/password login).
 	 * @return The names of the durable credential entries; empty when none.
 	 */
 	virtual AuthKeys auth_keys() const noexcept;
