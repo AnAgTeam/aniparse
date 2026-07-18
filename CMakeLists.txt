@@ -256,6 +256,12 @@ endif()
 if (NOT ANIPARSE_CURL_BACKEND)
 	set(LIBCORO_BUILD_EXAMPLES OFF)
 	set(LIBCORO_BUILD_TESTS OFF)
+	# Only the coroutine core (task, thread_pool) is wanted here — not libcoro's own
+	# networking, which pulls in c-ares and (via TLS) OpenSSL. The curl backend brought
+	# those transitively; a curl-free build must not, so turn the features off. FORCE
+	# because they are cmake_dependent_option()s inside the subproject.
+	set(LIBCORO_FEATURE_NETWORKING OFF CACHE BOOL "" FORCE)
+	set(LIBCORO_FEATURE_TLS OFF CACHE BOOL "" FORCE)
 	add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/libasyncnet/libcoro")
 	target_link_libraries(aniparse PUBLIC $<BUILD_INTERFACE:libcoro>)
 endif()
