@@ -163,9 +163,11 @@ struct MangaInfo {
 	RelatedUser author;
 	/// Who drew it. Empty name = not credited here; see @ref author.
 	RelatedUser artist;
-	/// The franchise/parent work, when the source places the manga in one. nullopt =
-	/// it does not — either the manga stands alone or the source has no such axis.
-	std::optional<Series> series;
+	/// The franchise(s)/parent work(s) the source places the manga in, primary first.
+	/// Empty = it places the manga in none — the manga stands alone or the source has
+	/// no such axis. Usually one, but a source that tags by franchise (a doujin's
+	/// parodies, a booru's copyrights) can list several for one work.
+	std::vector<Series> series;
 
 	/// Cover art and thumbnails, best first (a consumer showing one shows previews
 	/// front()). Empty = the source offers no artwork; the images are fetch

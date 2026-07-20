@@ -145,9 +145,10 @@ struct AnimeInfo {
 	/// Opaque change marker for the whole anime; @see MangaInfo::revision.
 	std::string revision;
 
-	/// The franchise/parent work, when the source places the anime in one. nullopt =
-	/// it does not — either the anime stands alone or the source has no such axis.
-	std::optional<Series> series;
+	/// The franchise(s)/parent work(s) the source places the anime in, primary first.
+	/// Empty = it places the anime in none — the anime stands alone or the source has
+	/// no such axis. Usually one; a franchise-tagging source may list several.
+	std::vector<Series> series;
 
 	/// Poster art and thumbnails, best first (a consumer showing one shows previews
 	/// front()). Empty = the source offers no artwork. Fetch descriptors, not bytes.

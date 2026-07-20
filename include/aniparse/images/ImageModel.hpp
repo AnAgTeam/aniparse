@@ -111,9 +111,10 @@ struct ImageContainerInfo {
 	/// The account that posted the container. nullopt = the source does not credit an
 	/// uploader (or does not carry it in this response).
 	std::optional<RelatedUser> uploader;
-	/// The franchise the content derives from, where the source tags by one. nullopt =
-	/// it does not, or the work is original rather than derivative (@see series_original).
-	std::optional<Series> series;
+	/// The franchise(s) the content derives from, where the source tags by them,
+	/// primary first. Empty = it does not, or the work is original rather than
+	/// derivative (@see series_original). A booru commonly lists several copyrights.
+	std::vector<Series> series;
 
 	/// Cover/sample images for the container as a whole (grid thumbnails).
 	/// Empty = the source offers no separate preview; the media itself must be used.
