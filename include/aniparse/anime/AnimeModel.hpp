@@ -99,27 +99,12 @@ enum class AnimeSeason {
 struct AnimeInfo {
 	/// The source's own numeric id, when it has one. @ref aniparse::invalid_anime_id (0) = it
 	/// does not, which is not an error. Neither a cross-source identity
-	/// (@ref external_ids) nor the handle to fetch with (@see AnimeGetter::serialize).
+	/// (@ref MediaInfo::external_ids) nor the handle to fetch with (@see AnimeGetter::serialize).
 	AnimeID id = invalid_anime_id;
 
-	/// Ids this anime carries on other sites, as the source reports them — the
-	/// consumer's handle for joining the same work across parsers, including
-	/// across domains (an anime and its manga are one work to a tracker). Empty
-	/// when the source knows none. Not this parser's own identity: to address the
-	/// anime here, use the getter (@see AnimeGetter::serialize). @see ExternalId
-	std::vector<ExternalId> external_ids;
-
-	/// The title to show, in whichever language the source leads with (there is no
-	/// promise it is English or romanized). Empty only when the source does not name
-	/// the anime at all.
-	std::string title;
-	/// The title in the work's original language/script, when the source carries one
-	/// AND it differs from @ref title. nullopt = no separate original title, or it is
-	/// the same string — so a consumer never renders the title twice.
-	std::optional<std::string> original_title;
-	/// Synopsis, plain text plus any links the source marked up (not HTML). Empty =
-	/// the source gives none in this response. @see AttributedText
-	AttributedText description;
+	/// The metadata shared with every other domain — title, description, dates, tags,
+	/// series, previews, rating, external ids, and the rest. @see aniparse::MediaInfo
+	MediaInfo common;
 
 	/// The broadcast season it premiered in. nullopt = the source has no season axis
 	/// at all; AnimeSeason::Unknown = it has one but states no value for this anime.
@@ -129,41 +114,6 @@ struct AnimeInfo {
 	/// none — compare against `std::chrono::year{}`, since year 0 is otherwise a
 	/// well-formed value.
 	std::chrono::year year{};
-	/// Airing state (ongoing / released / announced / source-specific). A
-	/// default-constructed status (empty name) = the source states none, and reads as
-	/// DefaultAiredStatuses::Other rather than as "released". @see AiredStatus
-	AiredStatus status;
-
-	/// When the anime was last touched on the source (a new episode, an edit).
-	/// @c nullopt = not stated. Orders items within one source only, since
-	/// sources differ on what counts as an update.
-	std::optional<ModelDate> update_time;
-	/// When it first aired. @c nullopt = the source states no exact date —
-	/// common, since many sources give only @ref season and @ref year.
-	std::optional<ModelDate> release_time;
-
-	/// Opaque change marker for the whole anime; @see MangaInfo::revision.
-	std::string revision;
-
-	/// The franchise(s)/parent work(s) the source places the anime in, primary first.
-	/// Empty = it places the anime in none — the anime stands alone or the source has
-	/// no such axis. Usually one; a franchise-tagging source may list several.
-	std::vector<Series> series;
-
-	/// Poster art and thumbnails, best first (a consumer showing one shows previews
-	/// front()). Empty = the source offers no artwork. Fetch descriptors, not bytes.
-	/// @see Image
-	std::vector<Image> previews;
-	/// The source's labels for this anime — genres, themes, whatever axes it tags by,
-	/// flattened into one list. A tag whose @ref Tag::ref is non-empty can be fed back
-	/// into a search; empty = the source lists none in this response.
-	std::vector<Tag> tags;
-
-	/// Community score, normalized to a 0-10 axis (@see Rating). nullopt = the source
-	/// publishes no score for this anime, which is not a score of zero.
-	std::optional<Rating> rating;
-	/// View/popularity counters. nullopt = the source publishes none. @see ViewStats
-	std::optional<ViewStats> views;
 
 	/// Episodes actually available now (a running airing exposes fewer than
 	/// planned); absent when the source does not state it.
@@ -174,20 +124,6 @@ struct AnimeInfo {
 	/// the series, not a per-episode measurement, so it is an estimate for a UI and
 	/// not a seek/progress bound. nullopt = the source does not state it.
 	std::optional<std::chrono::minutes> episode_duration;
-
-	/// Minimum age the source requires to view the anime, in years. 0 = unrestricted
-	/// or unstated — an adult work is more reliably detected via @ref is_hentai.
-	/// @see AgeRestriction
-	AgeRestriction age_restriction = 0;
-
-	/// The account that posted the anime, on sources where content is user-submitted.
-	/// nullopt = the source has no notion of an uploader (a publisher-side catalog).
-	std::optional<RelatedUser> uploader;
-
-	/// The source marks this anime as adult/pornographic. False = it does not mark it,
-	/// which is weaker than "safe": sources differ on where the line sits, and one
-	/// with no adult flag at all leaves this false throughout.
-	bool is_hentai = false;
 };
 
 /**
@@ -270,7 +206,7 @@ struct AnimeEpisodeInfo {
 	 *         unchanged — the number alone identifies an episode only on sources that
 	 *         leave @ref id empty. Cheap: nothing is fetched, the id is copied.
 	 */
-	[[nodiscard]] AnimeEpisodeRef ref() const { return { episode, id }; }
+	[[nodiscard]] AnimeEpisodeRef ref() const { return { .episode = episode, .id = id }; }
 };
 
 /**

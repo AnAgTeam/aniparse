@@ -45,7 +45,7 @@ struct StubMangaGetter : MangaGetter {
 	}
 	NetworkRequestTask<MangaInfo> info(RequestorContext) const override {
 		MangaInfo out;
-		out.title = "stub";
+		out.common.title = "stub";
 		co_return out;
 	}
 	NetworkRequestTask<PageResults<MangaPage>> chapter_pages(

@@ -93,65 +93,19 @@ struct ImageContainerInfo {
 	/// @ref aniparse::invalid_image_container_id (0) = the source has no numeric id for it.
 	ImageContainerID id = invalid_image_container_id;
 
-	/// A label to show. Where the source titles its containers this is that title;
-	/// where it does not — a tag-only catalog whose posts have no name — the parser
-	/// synthesizes one that is stable for the container (built from its most telling
-	/// tags, or from its id). So it is never empty, but it is not necessarily
-	/// something the source itself would display, and it is not an identity.
-	std::string title;
-	/// Free text about the container, with any links the source marked up. Empty =
-	/// the source carries none, which is the norm for single-media containers.
-	/// @see AttributedText
-	AttributedText description;
-	/// The source's labels for the container — on a tag-driven catalog this is the
-	/// post's whole tag set, which is its primary metadata. Each tag whose
-	/// @ref Tag::ref is non-empty searches for that tag. Empty = the source lists none.
-	std::vector<Tag> tags;
-
-	/// The account that posted the container. nullopt = the source does not credit an
-	/// uploader (or does not carry it in this response).
-	std::optional<RelatedUser> uploader;
-	/// The franchise(s) the content derives from, where the source tags by them,
-	/// primary first. Empty = it does not, or the work is original rather than
-	/// derivative (@see series_original). A booru commonly lists several copyrights.
-	std::vector<Series> series;
-
-	/// Cover/sample images for the container as a whole (grid thumbnails).
-	/// Empty = the source offers no separate preview; the media itself must be used.
-	/// These are lower-resolution stand-ins, never the content. @see Image
-	std::vector<Image> previews;
-
-	/// Community score, normalized to a 0-10 axis (@see Rating). nullopt = the source
-	/// publishes no score for the container — note that a source may score posts
-	/// without exposing the scale, and then no rating is reported at all.
-	std::optional<Rating> rating;
-	/// View counters. nullopt = the source publishes none. @see ViewStats
-	std::optional<ViewStats> views;
-
-	/// When the container was last changed on the source. @c nullopt = not
-	/// stated. For change detection prefer @ref revision, which is defined for
-	/// equality comparison; this field is for display.
-	std::optional<ModelDate> update_time;
-	/// When the container was posted. @c nullopt = the source does not state it.
-	std::optional<ModelDate> release_time;
-
-	/// Opaque change marker for the whole container; @see MangaInfo::revision.
-	std::string revision;
-
-	/// Minimum age the source requires to view the container, in years. 0 =
-	/// unrestricted or unstated. A source that grades its content by explicitness
-	/// maps its adult grades onto this (18) as well as onto @ref is_hentai, so a
-	/// consumer can gate on either. @see AgeRestriction
-	AgeRestriction age_restriction = 0;
+	/// The metadata shared with every other domain — title, description, dates, tags,
+	/// series, previews, rating, and the rest. An image container leaves the members
+	/// that have no meaning for it (@ref MediaInfo::external_ids,
+	/// @ref MediaInfo::original_title, @ref MediaInfo::status) defaulted. Note that
+	/// @ref MediaInfo::title is never empty here — a tag-only catalog whose posts have
+	/// no name gets a stable synthesized title (built from its most telling tags, or
+	/// its id), which is not necessarily something the source itself would display and
+	/// is not an identity. @see aniparse::MediaInfo
+	MediaInfo common;
 
 	/// How many ImageItems the container holds, when the source states it up
 	/// front (a booru post is 1); absent when only discoverable by paging items().
 	std::optional<long> total_items;
-
-	/// The source marks this container as adult/pornographic. False = it does not
-	/// mark it, which is weaker than "safe": a source whose adult grades are coarse
-	/// (or absent) leaves borderline content unflagged. @see age_restriction
-	bool is_hentai = false;
 };
 
 } // namespace aniparse

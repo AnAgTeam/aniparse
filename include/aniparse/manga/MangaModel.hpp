@@ -111,51 +111,13 @@ inline constexpr MangaID invalid_manga_id = MangaID{ 0 };
 struct MangaInfo {
 	/// The source's own numeric id, when it has one. @ref aniparse::invalid_manga_id (0) = it
 	/// does not — which is not an error. This is a display/debugging convenience and
-	/// a source-local key; it is neither a cross-source identity (@ref external_ids)
+	/// a source-local key; it is neither a cross-source identity (@ref MediaInfo::external_ids)
 	/// nor the handle to fetch with (@see MangaGetter::serialize).
 	MangaID id = invalid_manga_id;
 
-	/// Ids this manga carries on other sites, as the source reports them — the
-	/// consumer's handle for joining the same work across parsers. Empty when the
-	/// source knows none (most reader sites); a metadata source typically knows at
-	/// least its MyAnimeList id. Not this parser's own identity: to address the
-	/// manga here, use the getter (@see MangaGetter::serialize). @see ExternalId
-	std::vector<ExternalId> external_ids;
-
-	/// The title to show, in whichever language the source leads with (a source that
-	/// carries several picks one; there is no promise it is English or romanized).
-	/// Empty only when the source does not name the manga at all.
-	std::string title;
-	/// The title in the work's original language/script, when the source carries one
-	/// AND it differs from @ref title. nullopt = the source has no separate original
-	/// title, or it is the same string — so a consumer never renders the title twice.
-	std::optional<std::string> original_title;
-	/// Synopsis, plain text plus any links the source marked up. Empty = the source
-	/// gives no description here (usual for a search card, and some works simply
-	/// have none). Not HTML: markup is either flattened into the text or lifted into
-	/// the attributes. @see AttributedText
-	AttributedText description;
-
-	/// When the manga was last touched on the source (a new chapter, an edit).
-	/// @c nullopt = the source does not state it. Sources differ on what
-	/// counts as an update, so this orders items within one source only.
-	std::optional<ModelDate> update_time;
-	/// When the manga was first published. @c nullopt = the source does not
-	/// state it — common when only a year is known.
-	std::optional<ModelDate> release_time;
-	/// Publication state (ongoing / released / announced / source-specific). A
-	/// default-constructed status (empty name) = the source states none, and reads as
-	/// DefaultAiredStatuses::Other rather than as "released". @see AiredStatus
-	AiredStatus status;
-
-	/// Opaque change marker for the whole manga, filled from the cheapest
-	/// signal the source exposes (an ETag, an updated-at value, an explicit
-	/// version, or a composite). Compared only for equality: a changed value
-	/// means the source reports the content as a different revision. Equality
-	/// is a cheap "probably unchanged" hint, not a content-integrity guarantee
-	/// (it does not catch a single re-uploaded chapter or mid-list id drift).
-	/// Empty = the source exposes no such signal.
-	std::string revision;
+	/// The metadata shared with every other domain — title, description, dates, tags,
+	/// series, previews, rating, external ids, and the rest. @see aniparse::MediaInfo
+	MediaInfo common;
 
 	/// Who wrote it. Its name is empty when the source credits no author (or does not
 	/// carry the credit in this response); the same person is often credited as both
@@ -163,38 +125,11 @@ struct MangaInfo {
 	RelatedUser author;
 	/// Who drew it. Empty name = not credited here; see @ref author.
 	RelatedUser artist;
-	/// The franchise(s)/parent work(s) the source places the manga in, primary first.
-	/// Empty = it places the manga in none — the manga stands alone or the source has
-	/// no such axis. Usually one, but a source that tags by franchise (a doujin's
-	/// parodies, a booru's copyrights) can list several for one work.
-	std::vector<Series> series;
 
-	/// Cover art and thumbnails, best first (a consumer showing one shows previews
-	/// front()). Empty = the source offers no artwork; the images are fetch
-	/// descriptors, not bytes. @see Image
-	std::vector<Image> previews;
-	/// The source's labels for this manga — genres, themes, whatever axes it tags by,
-	/// flattened into one list. A tag whose @ref Tag::ref is non-empty can be fed
-	/// back into a search; empty = the source lists none in this response.
-	std::vector<Tag> tags;
-
-	/// Community score, normalized to a 0-10 axis (@see Rating). nullopt = the source
-	/// publishes no score for this manga, which is not the same as a score of zero.
-	std::optional<Rating> rating;
-	/// View/popularity counters. nullopt = the source publishes none. @see ViewStats
-	std::optional<ViewStats> views;
 	/// The list the authenticated user keeps this manga on (reading, planning, …).
 	/// nullopt = the request was anonymous, the source has no lists, or the user has
 	/// not filed this manga — the three are not distinguishable here. @see UserList
 	std::optional<UserList> user_lists;
-	/// Minimum age the source requires to view the manga, in years. 0 = unrestricted
-	/// or unstated — an adult work is more reliably detected via @ref is_hentai and
-	/// the source's own adult flag. @see AgeRestriction
-	AgeRestriction age_restriction = 0;
-
-	/// The account that posted the manga, on sources where content is user-submitted.
-	/// nullopt = the source has no notion of an uploader (a publisher-side catalog).
-	std::optional<RelatedUser> uploader;
 
 	/// How many chapters the source claims the manga has, when it says so up front.
 	/// nullopt = it does not, and the only way to know is to page chapters_info().
@@ -207,11 +142,6 @@ struct MangaInfo {
 	/// nullopt = the source does not report it. Distinct from @ref aniparse::MangaInfo::total_chapters — a work
 	/// is a count of chapters OR, when it has none, a count of pages.
 	std::optional<long> total_pages;
-
-	/// The source marks this manga as adult/pornographic. False = it does not mark
-	/// it, which is a weaker statement than "safe": sources differ on where the line
-	/// sits, and one that has no adult flag at all leaves this false throughout.
-	bool is_hentai = false;
 };
 
 /**
@@ -299,7 +229,7 @@ struct MangaChapterInfo {
 	 *         unchanged — the numbers alone identify a chapter only on sources that
 	 *         leave @ref id empty. Cheap: nothing is fetched, the id is copied.
 	 */
-	[[nodiscard]] MangaChapterRef ref() const { return { volume, chapter, id }; }
+	[[nodiscard]] MangaChapterRef ref() const { return { .volume = volume, .chapter = chapter, .id = id }; }
 };
 
 /**

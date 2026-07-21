@@ -52,7 +52,7 @@ struct StubImageContainerGetter : ImageContainerGetter {
 	}
 	NetworkRequestTask<ImageContainerInfo> info(RequestorContext) const override {
 		ImageContainerInfo out;
-		out.title = "stub";
+		out.common.title = "stub";
 		co_return out;
 	}
 	NetworkRequestTask<PageResults<ImageItem>> items(RequestorContext, GetFilters) const override {
