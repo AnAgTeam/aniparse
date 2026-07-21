@@ -91,6 +91,17 @@ struct Tag {
 	/// Display-only: two sources may name the same concept differently, and the
 	/// same tag may read differently on the same source over time.
 	std::string name;
+	/// The categorical axis this tag belongs to: a @ref aniparse::search_keys value
+	/// (@ref search_keys::tag, @ref search_keys::genre, @ref search_keys::character,
+	/// @ref search_keys::type, @ref search_keys::language, ...). It names the filter
+	/// GROUP; @ref ref is the token WITHIN it, so the pair (axis, ref) fully addresses
+	/// this tag in a query — search() routes ref into the filter keyed by axis.
+	/// Empty = @ref search_keys::tag, the default axis, so a tag that predates this
+	/// field (or a source with a single, unnamed tag axis) behaves exactly as before.
+	/// Where the source has no per-axis filter at all, ref carries the whole token and
+	/// axis is a display-only grouping hint. A consumer may section its tag display by
+	/// this value, and MUST degrade to a flat list when it is empty.
+	std::string axis;
 	/// Opaque parser-owned handle for this tag. NOT an HTTP Referer and not for
 	/// the consumer to interpret — it is moved, never parsed. It round-trips to
 	/// build follow-up requests; and where the parser supports searching by tag,

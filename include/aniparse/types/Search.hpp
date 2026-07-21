@@ -292,7 +292,12 @@ inline constexpr std::string_view episodes        = pages;
 /// Filter by Tag. TextQuery for free-text sources; ItemSelection where the
 /// source enumerates its tags, keyed by the opaque token that equals Tag::ref
 /// so a tag from MangaInfo searches directly. @see ItemSelection
+/// The default @ref Tag::axis: a Tag with an empty axis filters through this key.
 inline constexpr std::string_view tag             = "tag";
+/// Filter by genre — the coarse editorial category axis a source keeps SEPARATE
+/// from its finer tag axis (a source with one flat tag list uses @ref tag alone
+/// and never this). Usually ItemSelection, keyed like @ref tag. @see ItemSelection
+inline constexpr std::string_view genre           = "genre";
 /// Filter by upload time (when the item was last updated). Usually TimeInterval
 /// or RelativeTimeInterval.
 inline constexpr std::string_view upload_time     = "upd_time";
@@ -315,6 +320,12 @@ inline constexpr std::string_view age_restriction = "age_res";
 // a booru/doujin catalog: character:, artist:, group:, ...) these are both filter
 // keys in supported_filters AND the token kinds suggest() completes — one vocabulary
 // for search and autocomplete. A source uses whichever apply. @see suggest
+//
+// These keys — together with @ref tag and @ref genre above — are the vocabulary of
+// @ref Tag::axis. A Tag carries the key of the axis it belongs to; the pair
+// (Tag::axis, Tag::ref) then names one option in the supported_filters group keyed by
+// that axis, so a tag read off an item routes straight back into the right filter and
+// a consumer may section its tag display by axis. An empty Tag::axis means @ref tag.
 /// Filter/suggest by artist or author tag. Usually ItemSelection or TextQuery.
 inline constexpr std::string_view artist          = "artist";
 /// Filter/suggest by character tag.
