@@ -38,10 +38,12 @@ public:
 	// (as here) already holds its card.
 	std::optional<MangaInfo> preview_info() const noexcept override {
 		return MangaInfo{
-			.title = "Test",
-			.description = "Some description",
-			.status = AiredStatus {
-				.name = std::string(aired_status_released)
+			.common = {
+				.title = "Test",
+				.description = "Some description",
+				.status = AiredStatus {
+					.name = std::string(aired_status_released)
+				}
 			}
 		};
 	}
@@ -49,10 +51,12 @@ public:
 	// Fetch the full information about the manga
 	NetworkRequestTask<MangaInfo> info(RequestorContext context) const override {
 		co_return MangaInfo{
-			.title = "Test",
-			.description = "Some description",
-			.status = AiredStatus {
-				.name = std::string(aired_status_released)
+			.common = {
+				.title = "Test",
+				.description = "Some description",
+				.status = AiredStatus {
+					.name = std::string(aired_status_released)
+				}
 			}
 		};
 	}
@@ -451,8 +455,8 @@ int main() {
 	}
 
 	auto& first_manga_info = first_manga_info_response.value();
-	std::println("Title: {}", first_manga_info.title);
-	std::println("Description: {}", first_manga_info.description.text);
+	std::println("Title: {}", first_manga_info.common.title);
+	std::println("Description: {}", first_manga_info.common.description.text);
 
 	// Route a pasted URL to its parser and getter category, then build the getter
 	// from it. The store parses the URL once and hands it back in route->url.
