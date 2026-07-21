@@ -46,7 +46,7 @@ inline std::string url_encode(std::string_view value) {
 }
 
 /**
- * @brief Percent-decode a string per RFC 3986 — the inverse of @ref url_encode.
+ * @brief Percent-decode a string per RFC 3986 — the inverse of @ref aniparse::url_encode.
  * Each "%XX" (two hex digits) becomes the byte it names; a malformed or truncated
  * escape is left verbatim. '+' is passed through unchanged: it is a literal here,
  * NOT a space — this decodes a path or opaque segment, not an

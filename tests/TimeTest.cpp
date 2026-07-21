@@ -80,9 +80,9 @@ TEST_CASE("parse_iso8601 rejects what is not a timestamp") {
 }
 
 TEST_CASE("parse_iso8601 does not confuse absent with the epoch") {
-	// unknown_time is the epoch, so a source that genuinely sends 1970 must not be read
-	// as a source that sent nothing. That distinction is the caller's to make, which it
-	// can only do if the parser hands back an empty optional rather than a zero.
+	// A source that genuinely sends 1970 must not be read as a source that sent nothing.
+	// That distinction is the caller's to make, which it can only do if the parser hands
+	// back an empty optional rather than a zero (an absent date is a nullopt ModelDate).
 	const auto epoch = parse_iso8601("1970-01-01T00:00:00Z");
 	REQUIRE(epoch.has_value());
 	CHECK(*epoch == system_clock::time_point{});

@@ -30,10 +30,10 @@ namespace aniparse {
  *  - a zone: 'Z', "+03:00", "+0300", or none, in which case UTC is assumed.
  *
  * @param text The timestamp, with no surrounding whitespace.
- * @return The instant, or nullopt if @p text is not a timestamp. Note that nullopt is
- *         NOT @ref aniparse::unknown_time — a caller that models "unknown" as the epoch maps it
- *         over itself, so that a source sending "1970-01-01" is not mistaken for a
- *         source sending nothing.
+ * @return The instant, or nullopt if @p text is not a timestamp. Parsing assigns no
+ *         "unknown" meaning to any value: "1970-01-01" parses to a real epoch instant, so
+ *         a caller must distinguish it from an absent date (a @c nullopt @ref aniparse::ModelDate),
+ *         never from the timestamp itself.
  */
 [[nodiscard]] std::optional<std::chrono::system_clock::time_point> parse_iso8601(
     std::string_view text) noexcept;

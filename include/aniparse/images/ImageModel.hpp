@@ -33,7 +33,7 @@
  * holding a single item and the other many. The items are not necessarily still
  * pictures, so each declares its own @ref aniparse::ImageItemKind. Absent values
  * follow the model-wide rule: an empty string, a nullopt or
- * @ref aniparse::unknown_time means the source did not state it.
+ * @c nullopt means the source did not state it.
  */
 
 namespace aniparse {
@@ -128,12 +128,12 @@ struct ImageContainerInfo {
 	/// View counters. nullopt = the source publishes none. @see ViewStats
 	std::optional<ViewStats> views;
 
-	/// When the container was last changed on the source. @ref aniparse::unknown_time = not
+	/// When the container was last changed on the source. @c nullopt = not
 	/// stated. For change detection prefer @ref revision, which is defined for
 	/// equality comparison; this field is for display.
-	std::chrono::system_clock::time_point update_time  = unknown_time;
-	/// When the container was posted. @ref aniparse::unknown_time = the source does not state it.
-	std::chrono::system_clock::time_point release_time = unknown_time;
+	std::optional<ModelDate> update_time;
+	/// When the container was posted. @c nullopt = the source does not state it.
+	std::optional<ModelDate> release_time;
 
 	/// Opaque change marker for the whole container; @see MangaInfo::revision.
 	std::string revision;

@@ -12,6 +12,7 @@
 #include <span>
 #include <array>
 #include <chrono>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -25,7 +26,7 @@
  * These types are shared deliberately — a tag means the same thing whether it hangs
  * off a manga, an anime or an image container, so a consumer learns them once. Two
  * conventions run through the file and are worth reading before the individual
- * fields: an absent value (an empty string, a nullopt, @ref aniparse::unknown_time)
+ * fields: an absent value (an empty string, a @c nullopt @ref aniparse::ModelDate)
  * always means "the source did not state it", never "the item does not have it"; and
  * anything named @c ref is an opaque parser-owned handle, to be stored and passed
  * back, never parsed.
@@ -306,6 +307,38 @@ inline constexpr std::string_view aired_status_ongoing   = "ongoing";
 inline constexpr std::string_view aired_status_announced = "announced";
 
 /**
+ * @brief How precisely a source dated something — the granularity of a @ref aniparse::ModelDate.
+ *
+ * A source may give a full calendar day, or only a coarser bucket: a month, a quarter
+ * (an anime "season" — Winter/Spring/Summer/Fall map onto Q1..Q4), or a bare year. The
+ * date's @ref aniparse::ModelDate::time is pinned to the FIRST instant of that bucket (a year →
+ * Jan 1, Q3 → Jul 1), so ordering still works; this field says how much of it is real,
+ * so a consumer renders "2025" / "Q1 2025" / "March 2025" / the full date instead of a
+ * fabricated January 1.
+ */
+enum class DatePrecision : std::uint8_t {
+	Day,     ///< A full calendar day is known (the default). Render the whole date.
+	Month,   ///< Only the month is known — render e.g. "March 2025".
+	Quarter, ///< Only the quarter / anime season — @ref aniparse::ModelDate::time is its first day.
+	Year,    ///< Only the year is known — render e.g. "2025".
+};
+
+/**
+ * @brief A moment a source attaches to an item, carrying how precisely it is known.
+ *
+ * Wrapped rather than a bare time_point so the precision cannot drift from the value.
+ * A date field is @c std::optional<ModelDate>: @c nullopt means the source gave no date
+ * at all — an absent date is absent, not a sentinel epoch — and a present value is
+ * always a real moment plus its @ref aniparse::DatePrecision.
+ */
+struct ModelDate {
+	/// The instant, pinned to the first moment of the precision bucket (@ref aniparse::DatePrecision).
+	std::chrono::system_clock::time_point time;
+	/// How much of @ref aniparse::ModelDate::time the source actually stated.
+	DatePrecision precision = DatePrecision::Day;
+};
+
+/**
  * @brief Where an item stands in its publication/airing life: released, ongoing,
  * announced, or something only that source names.
  *
@@ -322,11 +355,11 @@ struct AiredStatus {
 	/// status; that reads as @ref aniparse::DefaultAiredStatuses::Other, so an item whose
 	/// status is unknown is not silently reported as released.
 	std::string name;
-	/// The moment the source attaches to that state, when it gives one. Equal to
-	/// @ref aniparse::unknown_time (the default) when the source states only the state and no
-	/// date — the common case, so treat a date here as a bonus and never as a
-	/// reliable ordering key. Not to be confused with the item's own release_time.
-	std::chrono::system_clock::time_point time;
+	/// The moment the source attaches to that state, when it gives one. @c nullopt (the
+	/// default) when the source states only the state and no date — the common case, so
+	/// treat a date here as a bonus and never as a reliable ordering key. Not to be
+	/// confused with the item's own release_time.
+	std::optional<ModelDate> time;
 
 	/**
 	 * @brief Classify @ref name into the well-known set.
@@ -337,14 +370,6 @@ struct AiredStatus {
 	DefaultAiredStatuses to_enum() const;
 };
 
-/**
- * The value every time_point in the model carries when the source states no time:
- * the system_clock epoch, not a real timestamp. Every unset date field (an item's
- * release_time, a chapter's update_time, @ref aniparse::AiredStatus::time) compares equal to
- * this, so "unknown" is testable rather than merely early. A consumer must check for
- * it before formatting a date, or it will show 1970.
- */
-inline constexpr std::chrono::system_clock::time_point unknown_time{std::chrono::system_clock::duration{0}};
 
 /**
  * Structure representing rating (score) of the item (release, manga, etc.)
@@ -526,9 +551,9 @@ struct Comment {
 	RelatedUser author;
 	/// The body, with any links the source marked up preserved as attributes.
 	AttributedText text;
-	/// When it was posted; @ref aniparse::unknown_time when the source does not date it
+	/// When it was posted; @c nullopt when the source does not date it
 	/// (some report only a relative "2 days ago" the parser will not guess from).
-	std::chrono::system_clock::time_point time = unknown_time;
+	std::optional<ModelDate> time;
 	/// Net score / likes, if the source exposes one. Source-defined and possibly
 	/// negative where downvotes exist. nullopt = the source has no voting on
 	/// comments, or does not report it — never "zero votes".

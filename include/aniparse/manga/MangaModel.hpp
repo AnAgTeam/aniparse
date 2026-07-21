@@ -30,7 +30,7 @@
  * field here; the getters do the fetching, these types only carry what came back.
  *
  * Two rules run through the file. An absent value (an empty string, a nullopt,
- * @ref aniparse::unknown_time) means the source did not state it in that response,
+ * @c nullopt) means the source did not state it in that response,
  * never that the manga lacks it — the same struct is filled shallowly for a search
  * card and fully for a detail fetch. And identity is the opaque handle, not the
  * numbers: a chapter is addressed by MangaChapterInfo::ref(), not by its volume and
@@ -137,12 +137,12 @@ struct MangaInfo {
 	AttributedText description;
 
 	/// When the manga was last touched on the source (a new chapter, an edit).
-	/// @ref aniparse::unknown_time = the source does not state it. Sources differ on what
+	/// @c nullopt = the source does not state it. Sources differ on what
 	/// counts as an update, so this orders items within one source only.
-	std::chrono::system_clock::time_point update_time  = unknown_time;
-	/// When the manga was first published. @ref aniparse::unknown_time = the source does not
+	std::optional<ModelDate> update_time;
+	/// When the manga was first published. @c nullopt = the source does not
 	/// state it — common when only a year is known.
-	std::chrono::system_clock::time_point release_time = unknown_time;
+	std::optional<ModelDate> release_time;
 	/// Publication state (ongoing / released / announced / source-specific). A
 	/// default-constructed status (empty name) = the source states none, and reads as
 	/// DefaultAiredStatuses::Other rather than as "released". @see AiredStatus
@@ -204,7 +204,7 @@ struct MangaInfo {
 
 	/// How many pages the work has, when the source states it up front — meaningful for
 	/// one-shots and galleries (a booru pool, a doujin) whose whole length is one number.
-	/// nullopt = the source does not report it. Distinct from @ref total_chapters: a work
+	/// nullopt = the source does not report it. Distinct from @ref aniparse::MangaInfo::total_chapters — a work
 	/// is a count of chapters OR, when it has none, a count of pages.
 	std::optional<long> total_pages;
 
@@ -286,12 +286,12 @@ struct MangaChapterInfo {
 	/// none. Fetch descriptors, not the chapter's pages — those come from
 	/// chapter_pages(). @see Image
 	std::vector<Image> previews;
-	/// When the chapter was last edited/re-uploaded on the source; @ref aniparse::unknown_time
+	/// When the chapter was last edited/re-uploaded on the source; @c nullopt
 	/// = not stated.
-	std::chrono::system_clock::time_point update_time  = unknown_time;
-	/// When the chapter was published on the source; @ref aniparse::unknown_time = not stated.
+	std::optional<ModelDate> update_time;
+	/// When the chapter was published on the source; @c nullopt = not stated.
 	/// This is the source's posting date, not the original serialization date.
-	std::chrono::system_clock::time_point release_time = unknown_time;
+	std::optional<ModelDate> release_time;
 
 	/**
 	 * @brief Identity for the chapter_pages() round-trip

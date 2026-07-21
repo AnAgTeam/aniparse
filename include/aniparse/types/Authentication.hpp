@@ -92,8 +92,8 @@ void import_auth(ParserConfig& config, const AuthState& state);
 
 /**
  * @brief How a source expects a user to sign in — the shape the client collects.
- * Declared by @ref Parser::auth_info so the client picks the right
- * @ref AuthenticationData variant and UI instead of guessing.
+ * Declared by @ref aniparse::Parser::auth_info so the client picks the right
+ * @ref aniparse::AuthenticationData variant and UI instead of guessing.
  */
 enum class AuthMethod {
 	/// A username + password fed to Parser::authenticate_context, which logs in and
@@ -115,7 +115,7 @@ enum class AuthMethod {
  * Describes a directly-injected credential — a token, an API key, a session
  * cookie — not the username/password fed to an interactive login (those drive a
  * handshake, they are not injected). @ref auth_keys_from_fields turns a list of
- * these into the @ref AuthKeys a session persists by, so a parser declares its
+ * these into the @ref aniparse::AuthKeys a session persists by, so a parser declares its
  * credential shape once.
  */
 struct AuthField {
@@ -172,7 +172,7 @@ struct AuthInfo {
 };
 
 /**
- * @brief Derive the persistable @ref AuthKeys from a credential-field list by
+ * @brief Derive the persistable @ref aniparse::AuthKeys from a credential-field list by
  * grouping each field's target under its channel. Lets a parser declare its
  * credential shape once (in AuthInfo::fields) and get auth_keys() for free.
  */

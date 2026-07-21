@@ -32,7 +32,7 @@
  *
  * It parallels the manga model deliberately (episodes for chapters, playable sources
  * for pages) and follows the same two rules: an absent value (an empty string, a
- * nullopt, @ref aniparse::unknown_time) means the source did not state it in that
+ * nullopt, @c nullopt) means the source did not state it in that
  * response, not that the anime lacks it; and identity is the opaque handle
  * (AnimeEpisodeInfo::ref()), not the episode number, which is for display.
  *
@@ -135,12 +135,12 @@ struct AnimeInfo {
 	AiredStatus status;
 
 	/// When the anime was last touched on the source (a new episode, an edit).
-	/// @ref aniparse::unknown_time = not stated. Orders items within one source only, since
+	/// @c nullopt = not stated. Orders items within one source only, since
 	/// sources differ on what counts as an update.
-	std::chrono::system_clock::time_point update_time  = unknown_time;
-	/// When it first aired. @ref aniparse::unknown_time = the source states no exact date —
+	std::optional<ModelDate> update_time;
+	/// When it first aired. @c nullopt = the source states no exact date —
 	/// common, since many sources give only @ref season and @ref year.
-	std::chrono::system_clock::time_point release_time = unknown_time;
+	std::optional<ModelDate> release_time;
 
 	/// Opaque change marker for the whole anime; @see MangaInfo::revision.
 	std::string revision;
@@ -258,11 +258,11 @@ struct AnimeEpisodeInfo {
 	/// descriptors, not the video — that comes from episode_sources(). @see Image
 	std::vector<Image> previews;
 	/// When the episode entry was last edited/re-uploaded on the source;
-	/// @ref aniparse::unknown_time = not stated.
-	std::chrono::system_clock::time_point update_time  = unknown_time;
-	/// When the episode aired or was posted; @ref aniparse::unknown_time = not stated. Sources
+	/// @c nullopt = not stated.
+	std::optional<ModelDate> update_time;
+	/// When the episode aired or was posted; @c nullopt = not stated. Sources
 	/// differ on which of the two they report, so it dates the entry, not the broadcast.
-	std::chrono::system_clock::time_point release_time = unknown_time;
+	std::optional<ModelDate> release_time;
 
 	/**
 	 * @brief Identity for the episode_sources() round-trip.
