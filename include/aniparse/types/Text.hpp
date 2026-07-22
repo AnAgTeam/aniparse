@@ -4,6 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
+#include <cstdint>
 #include <string>
 #include <variant>
 #include <vector>
@@ -26,10 +27,18 @@ struct TextStyle {
 	Kind kind;
 };
 
+/// Foreground colour of an inline run. Components are straight sRGB in the range 0...255.
+struct TextColor {
+	std::uint8_t red;
+	std::uint8_t green;
+	std::uint8_t blue;
+	std::uint8_t alpha = 255;
+};
+
 struct TextAttributeInfo {
 	int start;
 	int end;
-	std::variant<Hyperlink, TextStyle> data;
+	std::variant<Hyperlink, TextStyle, TextColor> data;
 };
 
 /**

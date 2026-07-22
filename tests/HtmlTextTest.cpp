@@ -12,6 +12,7 @@
 
 using aniparse::AttributedText;
 using aniparse::Hyperlink;
+using aniparse::TextColor;
 using aniparse::TextStyle;
 using aniparse::text::from_html;
 
@@ -84,6 +85,22 @@ TEST_CASE("from_html keeps text of unknown tags", "[htmltext]") {
 	const AttributedText r = from_html(R"(<span class="x">kept</span>)");
 	REQUIRE(r.text == "kept");
 	REQUIRE(r.attributes.empty());
+}
+
+TEST_CASE("from_html carries foreground colours", "[htmltext]") {
+	const AttributedText r = from_html(R"(<span style="font-weight: 400; color: #789">dim</span> <font color="#10203080">faint</font>)");
+	REQUIRE(r.text == "dim faint");
+	bool dim = false, faint = false;
+	for (const auto& attribute : r.attributes) {
+		const auto* color = std::get_if<TextColor>(&attribute.data);
+		if (!color) continue;
+		if (covered(r, attribute) == "dim")
+			dim = color->red == 0x77 && color->green == 0x88 && color->blue == 0x99 && color->alpha == 0xff;
+		if (covered(r, attribute) == "faint")
+			faint = color->red == 0x10 && color->green == 0x20 && color->blue == 0x30 && color->alpha == 0x80;
+	}
+	REQUIRE(dim);
+	REQUIRE(faint);
 }
 
 TEST_CASE("from_html on a real AniList-shaped description", "[htmltext]") {

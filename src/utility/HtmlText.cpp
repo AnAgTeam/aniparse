@@ -11,6 +11,7 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 
 namespace aniparse::text {
 namespace {
@@ -24,6 +25,57 @@ std::optional<TextStyle::Kind> style_of(std::string_view tag) {
 		return TextStyle::Kind::Bold;
 	if (tag == "s" || tag == "del" || tag == "strike")
 		return TextStyle::Kind::Strikethrough;
+	return std::nullopt;
+}
+
+std::string_view trim(std::string_view value) {
+	while (!value.empty() && (value.front() == ' ' || value.front() == '\t' || value.front() == '\n' || value.front() == '\r'))
+		value.remove_prefix(1);
+	while (!value.empty() && (value.back() == ' ' || value.back() == '\t' || value.back() == '\n' || value.back() == '\r'))
+		value.remove_suffix(1);
+	return value;
+}
+
+int hex_digit(char character) {
+	if (character >= '0' && character <= '9') return character - '0';
+	if (character >= 'a' && character <= 'f') return character - 'a' + 10;
+	if (character >= 'A' && character <= 'F') return character - 'A' + 10;
+	return -1;
+}
+
+std::optional<TextColor> color_value(std::string_view value) {
+	value = trim(value);
+	if (value.size() < 4 || value.front() != '#') return std::nullopt;
+	value.remove_prefix(1);
+	if (value.size() != 3 && value.size() != 4 && value.size() != 6 && value.size() != 8) return std::nullopt;
+	auto component = [&](std::size_t offset) -> std::optional<std::uint8_t> {
+		const int high = hex_digit(value[offset]);
+		const int low = value.size() <= 4 ? high : hex_digit(value[offset + 1]);
+		if (high < 0 || low < 0) return std::nullopt;
+		return static_cast<std::uint8_t>(high * 16 + low);
+	};
+	const std::size_t step = value.size() <= 4 ? 1 : 2;
+	const auto red = component(0), green = component(step), blue = component(step * 2);
+	if (!red || !green || !blue) return std::nullopt;
+	const auto alpha = value.size() == 4 || value.size() == 8 ? component(step * 3) : std::optional<std::uint8_t>{ 255 };
+	if (!alpha) return std::nullopt;
+	return TextColor{ *red, *green, *blue, *alpha };
+}
+
+std::optional<TextColor> color_of(const DOMElementView& element) {
+	if (const auto value = element.get_attr("color"))
+		if (const auto color = color_value(*value)) return color;
+	if (const auto style = element.get_attr("style")) {
+		std::string_view declarations = *style;
+		while (!declarations.empty()) {
+			const std::size_t separator = declarations.find(';');
+			const std::string_view declaration = trim(declarations.substr(0, separator));
+			declarations = separator == std::string_view::npos ? std::string_view{} : declarations.substr(separator + 1);
+			const std::size_t colon = declaration.find(':');
+			if (colon == std::string_view::npos || trim(declaration.substr(0, colon)) != "color") continue;
+			if (const auto color = color_value(declaration.substr(colon + 1))) return color;
+		}
+	}
 	return std::nullopt;
 }
 
@@ -55,26 +107,26 @@ void walk(DOMNodeView node, AttributedText& out) {
 			const std::size_t n = out.text.size();
 			if (n < 2 || out.text[n - 1] != '\n' || out.text[n - 2] != '\n')
 				out.text += '\n';
-		} else if (tag == "p" || tag == "div" || tag == "li") {
-			break_line(out.text);
-			walk(child, out);
-			break_line(out.text);
-		} else if (tag == "a") {
-			const int start = static_cast<int>(out.text.size());
-			walk(child, out);
-			const int end = static_cast<int>(out.text.size());
-			if (const auto href = element.get_attr("href"); href && !href->empty() && end > start)
-				out.attributes.push_back({ start, end, Hyperlink{ std::string(*href) } });
-		} else if (const auto kind = style_of(tag)) {
-			const int start = static_cast<int>(out.text.size());
-			walk(child, out);
-			const int end = static_cast<int>(out.text.size());
-			if (end > start)
-				out.attributes.push_back({ start, end, TextStyle{ *kind } });
-		} else {
-			// Unknown/transparent tag (span, wbr, ...): keep its text, drop the tag.
-			walk(child, out);
+			continue;
 		}
+		if (tag == "p" || tag == "div" || tag == "li") {
+			break_line(out.text);
+			walk(child, out);
+			break_line(out.text);
+			continue;
+		}
+
+		const int start = static_cast<int>(out.text.size());
+		walk(child, out);
+		const int end = static_cast<int>(out.text.size());
+		if (end <= start) continue;
+		if (tag == "a")
+			if (const auto href = element.get_attr("href"); href && !href->empty())
+				out.attributes.push_back({ start, end, Hyperlink{ std::string(*href) } });
+		if (const auto kind = style_of(tag))
+			out.attributes.push_back({ start, end, TextStyle{ *kind } });
+		if (const auto color = color_of(element))
+			out.attributes.push_back({ start, end, *color });
 	}
 }
 } // namespace
