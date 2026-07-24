@@ -21,6 +21,10 @@ static constexpr auto split_domains(Range&& range) {
 	// clang-format on
 }
 
+using DomainLabels = decltype(split_domains(std::string_view{}));
+using DomainLabel  = std::ranges::range_value_t<DomainLabels>;
+static_assert(std::ranges::contiguous_range<DomainLabel>);
+
 static constexpr auto split_url_domains(std::string_view url) {
 	size_t protocol_end = url.find("://");
 	size_t drop_start   = protocol_end == std::string_view::npos ? 0 : protocol_end + 3;
