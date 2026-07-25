@@ -13,6 +13,7 @@
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -33,6 +34,8 @@
  */
 
 namespace aniparse {
+class ResourceAdapter;
+
 /// Minimal age allowed to access the item. Use 0 for all
 using AgeRestriction = int;
 
@@ -71,6 +74,12 @@ struct Image {
 	/// a Referer that some sources require to serve their images (a bare GET 403s
 	/// otherwise). Empty when the plain URL suffices; set by the producing parser.
 	Headers headers;
+	/// Optional parser-provided policy for preparing and transforming this image's
+	/// bytes. Null when a consumer may fetch @ref url directly. The adapter is
+	/// shared because the same immutable policy can serve previews, pages, and
+	/// concurrent loads; the concrete type is forward-declared here so this data
+	/// model does not import transport or coroutine declarations.
+	std::shared_ptr<const ResourceAdapter> adapter;
 };
 
 /**

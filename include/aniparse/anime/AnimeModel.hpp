@@ -11,6 +11,7 @@
 #include "aniparse/types/Video.hpp"
 
 #include <chrono>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -247,6 +248,13 @@ struct VideoSource {
 	/// serve the media (a bare GET is refused otherwise). Shared across the
 	/// ladder; empty when the plain URLs suffice. @see Image::headers
 	Headers headers;
+
+	/// Optional parser-provided policy for preparing and transforming every
+	/// resource reached from this source's selected stream. Null when the player
+	/// may fetch a stream URL directly. The immutable adapter is shared across the
+	/// quality ladder and any concurrent segment loads; its definition is kept out
+	/// of this data-model header to preserve the bridge-safe include boundary.
+	std::shared_ptr<const ResourceAdapter> adapter;
 
 	/// A poster/still for this option, when the source offers one distinct from
 	/// the anime's previews.
