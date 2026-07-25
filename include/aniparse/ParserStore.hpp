@@ -59,7 +59,7 @@ public:
 	ParserStore() = default;
 
 	/// Start a local mutable draft; commit() publishes one new routing snapshot.
-	[[nodiscard]] Edit begin_edit() { return Edit(domains_.begin_edit()); }
+	[[nodiscard]] Edit begin_edit() ANIPARSE_LIFETIMEBOUND { return Edit(domains_.begin_edit()); }
 
 	/**
 	 * @brief Add parser to the store

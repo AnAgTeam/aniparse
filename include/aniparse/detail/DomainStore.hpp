@@ -6,6 +6,7 @@
 #pragma once
 #include "aniparse/detail/DomainScanner.hpp"
 #include "aniparse/utility/AtomicSharedPtr.hpp"
+#include "aniparse/utility/Attributes.hpp"
 
 #include <map>
 #include <memory>
@@ -38,7 +39,7 @@ public:
 	DomainStore()
 	    : snapshot_(make_snapshot({}, {})) {}
 
-	[[nodiscard]] Edit begin_edit();
+	[[nodiscard]] Edit begin_edit() ANIPARSE_LIFETIMEBOUND;
 
 	[[nodiscard]] bool contains(std::string_view identifier) const {
 		return snapshot_.load()->entries.contains(identifier);

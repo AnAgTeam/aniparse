@@ -135,6 +135,7 @@ add_library(aniparse ${aniparse_library_type}
 	"src/html/SelectorSource.cpp" "include/aniparse/html/SelectorSource.hpp"
 
 	"src/ParserStore.cpp" "include/aniparse/ParserStore.hpp"
+	"src/video/VideoExtractor.cpp" "include/aniparse/video/VideoExtractor.hpp"
 	"src/catalog/Catalog.cpp" "include/aniparse/catalog/Catalog.hpp"
 	"src/catalog/CatalogManager.cpp" "include/aniparse/catalog/CatalogManager.hpp"
 	"include/aniparse/catalog/MirrorSource.hpp"
