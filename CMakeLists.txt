@@ -79,6 +79,7 @@ endif()
 find_package(lexbor REQUIRED)
 find_package(fmt REQUIRED)
 find_package(Boost REQUIRED COMPONENTS json regex)
+find_package(tl-expected CONFIG REQUIRED)
 
 # ---- ADD LIBRARY
 
@@ -88,6 +89,7 @@ add_library(aniparse ${aniparse_library_type}
 	"include/aniparse/detail/BitsetLite.hpp"
 	"include/aniparse/detail/StrongBitset.hpp"
 	"include/aniparse/detail/DomainScanner.hpp"
+	"include/aniparse/detail/DomainStore.hpp"
 	# src/net/Client.cpp (the curl backend) is added conditionally below.
 	"include/aniparse/net/Client.hpp"
 	"include/aniparse/net/CancellingTask.hpp"
@@ -209,7 +211,7 @@ target_include_directories(aniparse PUBLIC
 	$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-# fmt / Boost are find_package'd imported targets a consumer recreates via
+# fmt / Boost / tl-expected are find_package'd imported targets a consumer recreates via
 # find_dependency (see aniparse-config.cmake.in), so they belong on the install
 # interface too — not only BUILD_INTERFACE. lexbor is a vendored static lib the
 # install does not ship, so it stays build-only.
@@ -217,6 +219,7 @@ target_link_libraries(aniparse PUBLIC
 	fmt::fmt
 	Boost::json
 	Boost::regex
+	tl::expected
 	$<BUILD_INTERFACE:${LEXBOR_LIBRARIES}>
 )
 

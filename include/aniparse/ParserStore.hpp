@@ -4,14 +4,12 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/detail/DomainScanner.hpp"
+#include "aniparse/detail/DomainStore.hpp"
 #include "aniparse/Parser.hpp"
 #include "aniparse/types/ParsedUrl.hpp"
 
-#include "aniparse/utility/AtomicSharedPtr.hpp"
 #include <string>
 #include <map>
-#include <numeric>
 #include <optional>
 #include <vector>
 
@@ -32,7 +30,36 @@ struct UrlRoute {
  */
 class ParserStore {
 public:
-	ParserStore();
+	struct ParserDomainEmitter {
+		void operator()(const Parser& parser, EmplaceDomainsContext& context) const {
+			parser.emplace_domains(context);
+		}
+	};
+	using Domains = detail::DomainStore<Parser, EmplaceDomainsContext, ParserDomainEmitter>;
+	using DomainEdit = Domains::Edit;
+
+	class Edit {
+	public:
+		Edit(const Edit&) = delete;
+		Edit& operator=(const Edit&) = delete;
+		Edit(Edit&&) noexcept = default;
+		Edit& operator=(Edit&&) noexcept = default;
+
+		std::shared_ptr<Parser> add_parser(std::shared_ptr<Parser> parser);
+		bool remove_parser(std::string_view identifier);
+		void refresh_domains(std::map<std::string, std::vector<std::string>, std::less<>> volatile_domains);
+		void commit();
+
+	private:
+		friend class ParserStore;
+		explicit Edit(DomainEdit edit) : edit_(std::move(edit)) {}
+		DomainEdit edit_;
+	};
+
+	ParserStore() = default;
+
+	/// Start a local mutable draft; commit() publishes one new routing snapshot.
+	[[nodiscard]] Edit begin_edit() { return Edit(domains_.begin_edit()); }
 
 	/**
 	 * @brief Add parser to the store
@@ -100,28 +127,6 @@ public:
 	void refresh_domains(std::map<std::string, std::vector<std::string>, std::less<>> volatile_domains);
 
 private:
-	using Scanner = DomainScanner<std::shared_ptr<Parser>>;
-
-	/**
-	 * Check if the parser identifier doesn't conflicting with existing parsers
-	 * @see Parser
-	 * @param parser The parser to check identifier uniqueness
-	 * @return true if the identifier is unique, false otherwise
-	 */
-	bool check_is_conflicting(const std::shared_ptr<Parser>& parser) const;
-
-	/**
-	 * Build a fresh routing index from the current parsers and volatile domains.
-	 * Every parser contributes its static domains plus any volatile domains keyed
-	 * by its identifier. Pure: produces a new scanner and mutates nothing.
-	 */
-	std::shared_ptr<Scanner> build_scanner() const;
-
-	/// Rebuild the routing index and swap it in atomically.
-	void rebuild_index();
-
-	std::map<std::string, std::shared_ptr<Parser>, std::less<>> parsers_;
-	std::map<std::string, std::vector<std::string>, std::less<>> volatile_domains_;
-	AtomicSharedPtr<Scanner> scanner_;
+	Domains domains_;
 };
 } // namespace aniparse

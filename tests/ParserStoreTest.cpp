@@ -43,6 +43,19 @@ struct NamedParser : aniparse::Parser {
 	std::string id_;
 };
 
+struct CountingDomainsParser : aniparse::Parser {
+	aniparse::ParserInfo info() const override { return { .name = "Counting" }; }
+	std::string identifier() const override { return "CountingDomains"; }
+	bool valid_for_url(const aniparse::ParsedUrl&) const override { return true; }
+	aniparse::ParserCompatibilities compatibilities() const override { return {}; }
+	void emplace_domains(aniparse::EmplaceDomainsContext& context) const override {
+		++calls;
+		context.add_domain("static.example");
+	}
+
+	mutable int calls = 0;
+};
+
 TEST_CASE("ParserStore parsers() is empty for a fresh store") {
 	aniparse::ParserStore parser_store;
 	CHECK(parser_store.parsers().empty());
@@ -113,4 +126,40 @@ TEST_CASE("ParserStore refresh_domains adds and drops volatile domains") {
 	parser_store.refresh_domains({});
 	CHECK_FALSE(parser_store.find_for_url("https://example.org"));
 	CHECK(parser_store.find_for_url("https://www.youtube.com"));
+}
+
+TEST_CASE("ParserStore re-emits static domains when building a new snapshot") {
+	aniparse::ParserStore parser_store;
+	auto parser = std::make_shared<CountingDomainsParser>();
+	parser_store.add_parser(parser);
+	REQUIRE(parser->calls == 1);
+
+	parser_store.refresh_domains({ { "CountingDomains", { "volatile.example" } } });
+	CHECK(parser->calls == 2);
+	CHECK(parser_store.find_for_url("https://static.example"));
+	CHECK(parser_store.find_for_url("https://volatile.example"));
+}
+
+TEST_CASE("ParserStore publishes one edit as a routing snapshot") {
+	aniparse::ParserStore parser_store;
+	{
+		auto edit = parser_store.begin_edit();
+		edit.add_parser(std::make_unique<CountingDomainsParser>());
+		CHECK_FALSE(parser_store.find_for_url("https://static.example"));
+		edit.commit();
+	}
+	CHECK(parser_store.find_for_url("https://static.example"));
+}
+
+TEST_CASE("ParserStore rejects an edit based on a stale snapshot") {
+	aniparse::ParserStore parser_store;
+	auto first  = parser_store.begin_edit();
+	auto second = parser_store.begin_edit();
+	first.add_parser(std::make_unique<NamedParser>("First"));
+	first.commit();
+
+	second.add_parser(std::make_unique<NamedParser>("Second"));
+	REQUIRE_THROWS_AS(second.commit(), std::logic_error);
+	CHECK(parser_store.find_by_key("First"));
+	CHECK_FALSE(parser_store.find_by_key("Second"));
 }
