@@ -107,6 +107,10 @@ private:
 		// clang-format on
 	}
 
+	using DomainLabels = decltype(split_domains(std::string_view{}));
+	using DomainLabel  = std::ranges::range_value_t<DomainLabels>;
+	static_assert(std::ranges::contiguous_range<DomainLabel>);
+
 	std::shared_ptr<const Snapshot> make_snapshot(
 	    std::map<std::string, Entry, std::less<>> entries,
 	    DomainOverrides volatile_domains) {

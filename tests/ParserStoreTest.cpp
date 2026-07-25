@@ -163,3 +163,57 @@ TEST_CASE("ParserStore rejects an edit based on a stale snapshot") {
 	CHECK(parser_store.find_by_key("First"));
 	CHECK_FALSE(parser_store.find_by_key("Second"));
 }
+
+TEST_CASE("ParserStore edit removes a parser from every published lookup") {
+	aniparse::ParserStore parser_store;
+	parser_store.add_parser(std::make_unique<CountingDomainsParser>());
+	REQUIRE(parser_store.find_by_key("CountingDomains"));
+	REQUIRE(parser_store.find_for_url("https://static.example"));
+
+	auto edit = parser_store.begin_edit();
+	REQUIRE(edit.remove_parser("CountingDomains"));
+	CHECK_FALSE(edit.remove_parser("Missing"));
+	edit.commit();
+
+	CHECK_FALSE(parser_store.find_by_key("CountingDomains"));
+	CHECK_FALSE(parser_store.find_for_url("https://static.example"));
+	CHECK(parser_store.parsers().empty());
+}
+
+TEST_CASE("ParserStore publishes add remove and volatile domains in one edit") {
+	aniparse::ParserStore parser_store;
+	parser_store.add_parser(std::make_unique<TestParser>());
+
+	auto edit = parser_store.begin_edit();
+	REQUIRE(edit.remove_parser("TestParser"));
+	edit.add_parser(std::make_unique<CountingDomainsParser>());
+	edit.refresh_domains({ { "CountingDomains", { "volatile.example" } } });
+	edit.commit();
+
+	CHECK_FALSE(parser_store.find_for_url("https://www.youtube.com"));
+	CHECK(parser_store.find_for_url("https://static.example"));
+	CHECK(parser_store.find_for_url("https://volatile.example"));
+	CHECK_FALSE(parser_store.find_by_key("TestParser"));
+	CHECK(parser_store.find_by_key("CountingDomains"));
+}
+
+TEST_CASE("ParserStore edit rejects duplicate identifiers and a second commit") {
+	aniparse::ParserStore parser_store;
+	auto edit = parser_store.begin_edit();
+	edit.add_parser(std::make_unique<NamedParser>("Only"));
+	REQUIRE_THROWS_AS(edit.add_parser(std::make_unique<NamedParser>("Only")), std::logic_error);
+	edit.commit();
+	REQUIRE_THROWS_AS(edit.commit(), std::logic_error);
+}
+
+TEST_CASE("ParserStore routes URLs through an edit-published parser") {
+	aniparse::ParserStore parser_store;
+	auto edit = parser_store.begin_edit();
+	edit.add_parser(std::make_unique<TestParser>());
+	edit.commit();
+
+	auto route = parser_store.route_url("https://youtu.be/watch?v=123");
+	REQUIRE(route);
+	CHECK(route->parser->identifier() == "TestParser");
+	CHECK(route->url.host() == "youtu.be");
+}
