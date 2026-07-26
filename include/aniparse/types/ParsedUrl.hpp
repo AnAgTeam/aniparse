@@ -37,26 +37,31 @@ public:
 	[[nodiscard]] std::string_view href() const noexcept ANIPARSE_LIFETIMEBOUND { return href_; }
 
 	/// Scheme without the trailing colon, e.g. "https".
-	[[nodiscard]] std::string_view scheme() const noexcept ANIPARSE_LIFETIMEBOUND { return component(scheme_); }
+	[[nodiscard]] std::string_view scheme() const noexcept ANIPARSE_LIFETIMEBOUND {
+		return {href_.data() + scheme_.offset, scheme_.length};
+	}
 	/// Host (ASCII/IDNA), e.g. "api.example.com".
-	[[nodiscard]] std::string_view host() const noexcept ANIPARSE_LIFETIMEBOUND { return component(host_); }
+	[[nodiscard]] std::string_view host() const noexcept ANIPARSE_LIFETIMEBOUND {
+		return {href_.data() + host_.offset, host_.length};
+	}
 	/// Path with its leading slash, e.g. "/manga/12345.html". Empty if none.
-	[[nodiscard]] std::string_view path() const noexcept ANIPARSE_LIFETIMEBOUND { return component(path_); }
+	[[nodiscard]] std::string_view path() const noexcept ANIPARSE_LIFETIMEBOUND {
+		return {href_.data() + path_.offset, path_.length};
+	}
 	/// Query without its leading '?', e.g. "tab=info". Empty if none.
-	[[nodiscard]] std::string_view query() const noexcept ANIPARSE_LIFETIMEBOUND { return component(query_); }
+	[[nodiscard]] std::string_view query() const noexcept ANIPARSE_LIFETIMEBOUND {
+		return {href_.data() + query_.offset, query_.length};
+	}
 	/// Fragment without its leading '#', e.g. "top". Empty if none.
-	[[nodiscard]] std::string_view fragment() const noexcept ANIPARSE_LIFETIMEBOUND { return component(fragment_); }
+	[[nodiscard]] std::string_view fragment() const noexcept ANIPARSE_LIFETIMEBOUND {
+		return {href_.data() + fragment_.offset, fragment_.length};
+	}
 
 private:
 	struct UrlPart {
 		uint32_t offset = 0;
 		uint32_t length = 0;
 	};
-
-	[[nodiscard]] std::string_view component(UrlPart part) const noexcept ANIPARSE_LIFETIMEBOUND {
-		// UrlPart instances are created only by parse() and always refer to href_.
-		return {href_.data() + part.offset, part.length};
-	}
 
 	std::string href_;
 	UrlPart    scheme_;
