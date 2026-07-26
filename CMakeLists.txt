@@ -4,6 +4,7 @@
 
 option(ANIPARSE_BUILD_TESTS "build tests, Default=OFF" OFF)
 option(ANIPARSE_BUILD_EXAMPLES "build examples, Default=OFF" OFF)
+option(ANIPARSE_BUILD_BENCHMARKS "build microbenchmarks, Default=OFF" OFF)
 option(ANIPARSE_ANALYZE "MSVC /analyze lifetime gate (slow; CI leg)" OFF)
 
 # HTTP backends. The parse core is backend-neutral (talks only to ClientContext);
@@ -277,6 +278,10 @@ endif()
 
 if (ANIPARSE_BUILD_EXAMPLES)
 	add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/examples")
+endif()
+
+if (ANIPARSE_BUILD_BENCHMARKS)
+	add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/benchmarks")
 endif()
 
 # ---- CONFIGURE PACKAGE
