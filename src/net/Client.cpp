@@ -275,7 +275,7 @@ NetworkRequestTask<ResponseData> AsyncClient::do_request(ConfiguredGetRequest co
 	auto session  = session_.load();
 	auto& request = configured_request.request;
 
-	auto get_request = session->make_request<asyncnet::GetRequest>(std::move(request.url));
+	auto get_request = session->make_request<asyncnet::GetRequest>(url_encode_uri(request.url));
 	get_request.add_headers(to_header_lines(request.headers));
 	get_request.set_url_parameters(to_asyncnet_params(request.url_params));
 	apply_cookie_share(get_request, configured_request.cookies);
@@ -298,7 +298,8 @@ NetworkRequestTask<ResponseData> AsyncClient::do_request(ConfiguredPostRequest c
 	auto session  = session_.load();
 	auto& request = configured_request.request;
 
-	auto post_request = session->make_request<asyncnet::PostRequest>(std::move(request.url), std::move(request.body));
+	auto post_request = session->make_request<asyncnet::PostRequest>(
+	    url_encode_uri(request.url), std::move(request.body));
 	post_request.add_headers(to_header_lines(request.headers));
 	post_request.set_url_parameters(to_asyncnet_params(request.url_params));
 	apply_cookie_share(post_request, configured_request.cookies);
@@ -325,7 +326,7 @@ NetworkRequestTask<ResponseData> AsyncClient::do_request(ConfiguredPostMultipart
 	// (a File with an explicit filename); that is a caller bug, so let it propagate
 	// rather than folding it into the RequestError channel.
 	auto multipart_request = session->make_request<asyncnet::PostMultipartRequest>(
-	    std::move(request.url), to_curlpp_forms(std::move(request.forms)));
+	    url_encode_uri(request.url), to_curlpp_forms(std::move(request.forms)));
 	multipart_request.add_headers(to_header_lines(request.headers));
 	multipart_request.set_url_parameters(to_asyncnet_params(request.url_params));
 	apply_cookie_share(multipart_request, configured_request.cookies);

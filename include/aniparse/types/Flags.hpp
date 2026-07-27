@@ -57,6 +57,12 @@ inline constexpr auto supports_manga_store  = CompatibilitiesFlags::make_bit(3);
 /// this bit. A consumer uses it to tell a reader from a catalogue and to gate the
 /// reading UI before a request. @see MangaGetter::chapter_pages
 inline constexpr auto supports_reading      = CompatibilitiesFlags::make_bit(16);
+/// The source hosts the watching path itself: its AnimeGetter returns playable
+/// episode_sources(), not only metadata. A metadata-only anime catalogue
+/// advertises supports_anime_store WITHOUT this bit. A consumer uses it to
+/// distinguish a video source from a catalogue and to gate the player UI before
+/// a request. @see AnimeGetter::episode_sources
+inline constexpr auto supports_watching     = CompatibilitiesFlags::make_bit(17);
 /// The source offers a browsable video library beyond the anime catalog.
 inline constexpr auto supports_video_store  = CompatibilitiesFlags::make_bit(4);
 /**

@@ -46,6 +46,46 @@ inline std::string url_encode(std::string_view value) {
 }
 
 /**
+ * @brief Percent-encode bytes which are invalid in a complete URI.
+ * Keeps RFC 3986 unreserved and reserved URI characters, including existing percent
+ * escapes, so a parser-supplied URL can pass through the transport without turning
+ * delimiters or signed query strings into data. Invalid ASCII bytes and UTF-8 bytes
+ * are encoded as uppercase %XX sequences.
+ * @param value A complete URI which may contain unescaped path or query bytes.
+ * @return A URI safe to hand to an HTTP backend.
+ * @note This is for a complete URI, unlike @ref aniparse::url_encode which encodes a
+ * single URI component. Existing malformed percent escapes are preserved so callers
+ * can report them to the server rather than silently changing their meaning.
+ */
+inline std::string url_encode_uri(std::string_view value) {
+	static constexpr char hex[] = "0123456789ABCDEF";
+	auto is_uri_character = [](unsigned char c) {
+		const bool unreserved = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+		                     || (c >= '0' && c <= '9') || c == '-' || c == '.'
+		                     || c == '_' || c == '~';
+		const bool reserved = c == ':' || c == '/' || c == '?' || c == '#'
+		                   || c == '[' || c == ']' || c == '@' || c == '!'
+		                   || c == '$' || c == '&' || c == '\'' || c == '('
+		                   || c == ')' || c == '*' || c == '+' || c == ','
+		                   || c == ';' || c == '=' || c == '%';
+		return unreserved || reserved;
+	};
+
+	std::string out;
+	out.reserve(value.size());
+	for (unsigned char c : value) {
+		if (is_uri_character(c)) {
+			out.push_back(static_cast<char>(c));
+			continue;
+		}
+		out.push_back('%');
+		out.push_back(hex[c >> 4]);
+		out.push_back(hex[c & 0x0F]);
+	}
+	return out;
+}
+
+/**
  * @brief Percent-decode a string per RFC 3986 — the inverse of @ref aniparse::url_encode.
  * Each "%XX" (two hex digits) becomes the byte it names; a malformed or truncated
  * escape is left verbatim. '+' is passed through unchanged: it is a literal here,

@@ -13,6 +13,7 @@
 #include "aniparse/net/UrlSessionClient.hpp"
 #include "aniparse/net/CookieStore.hpp"
 #include "aniparse/types/Headers.hpp"
+#include "aniparse/utility/UrlEncode.hpp"
 
 #include <atomic>
 #include <chrono>
@@ -453,12 +454,12 @@ NSString* to_http_method(HttpMethod method) {
 // escaping rules differ, and a signature computed over the final URL would break.
 std::string build_url(const std::string& url, const UrlParameters& params) {
 	if (params.empty()) {
-		return url;
+		return url_encode_uri(url);
 	}
 	std::string full = url;
 	full += (full.find('?') == std::string::npos) ? '?' : '&';
 	full += to_urlencoded(params);
-	return full;
+	return url_encode_uri(full);
 }
 
 void apply_headers(NSMutableURLRequest* request, const Headers& headers) {

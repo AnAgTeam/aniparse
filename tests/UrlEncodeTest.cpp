@@ -25,6 +25,13 @@ TEST_CASE("url_encode percent-encodes UTF-8 bytes with uppercase hex", "[urlenco
 	REQUIRE(url_encode("\xD0\x92\xD1\x85\xD0\xBE\xD0\xB4") == "%D0%92%D1%85%D0%BE%D0%B4");
 }
 
+TEST_CASE("url_encode_uri preserves URI syntax and repairs invalid bytes", "[urlencode]") {
+	REQUIRE(url_encode_uri("https://img.example.test/images/example image.jpg?size=2x&token=a%2Bb")
+	        == "https://img.example.test/images/example%20image.jpg?size=2x&token=a%2Bb");
+	REQUIRE(url_encode_uri("https://example.test/\xD0\xBE\xD0\xB1\xD0\xBB\xD0\xBE\xD0\xB6\xD0\xBA\xD0\xB0.jpg")
+	        == "https://example.test/%D0%BE%D0%B1%D0%BB%D0%BE%D0%B6%D0%BA%D0%B0.jpg");
+}
+
 TEST_CASE("to_urlencoded builds a form body from raw pairs", "[urlencode]") {
 	UrlParameters form;
 	form.add("login", "submit");
