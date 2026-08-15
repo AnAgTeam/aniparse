@@ -94,14 +94,16 @@ class ResourceHandle;
 /**
  * @brief Result of asynchronously opening one resource.
  *
- * The adapter prepares @ref request and constructs an isolated @ref handle for
- * this open operation. The handle is non-null on success and is owned by the
- * caller until EOF, cancellation, or a transport failure.
+ * The adapter prepares @ref request and may construct an isolated @ref handle
+ * for this open operation. A null @ref handle means the transport must pass
+ * response metadata and bytes through unchanged. A non-null handle is owned by
+ * the caller until EOF, cancellation, or a transport failure.
  */
 struct OpenedResource {
 	/// Final request to give to the streaming transport.
 	ResourceRequest request;
-	/// Per-open byte and metadata transformer.
+	/// Optional per-open byte and metadata transformer.
+	/// A null value requests byte-for-byte response passthrough.
 	std::unique_ptr<ResourceHandle> handle;
 };
 
@@ -129,11 +131,12 @@ public:
 /**
  * @brief Isolated Init/Update/Final state for one resource response.
  *
- * ResourceAdapter::open() creates one handle per independent resource open.
- * The transport calls on_response() once before the first update(), calls
- * update() serially for each input block, and calls final() exactly once after
- * successful EOF. On cancellation or failure it destroys the handle without
- * calling final().
+ * When present, ResourceAdapter::open() creates one handle per independent
+ * resource open. The transport calls on_response() once before the first
+ * update(), calls update() serially for each input block, and calls final()
+ * exactly once after successful EOF. On cancellation or failure it destroys
+ * the handle without calling final(). A null handle means the resource needs
+ * request preparation only and the transport passes its response through.
  */
 class ResourceHandle {
 public:
@@ -189,13 +192,14 @@ public:
 	virtual ~ResourceAdapter() = default;
 
 	/**
-	 * @brief Prepare one resource request and create its isolated transformer.
+	 * @brief Prepare one resource request and optionally create its isolated transformer.
 	 * @param context Request context available to adapters that need asynchronous
 	 * preparation, cache policy, redirect policy, or cancellation state.
 	 * @param resource Source descriptor and optional manifest ancestry for this
 	 * operation.
-	 * @return An OpenedResource with a final request and non-null byte-transform
-	 * handle, or a RequestError when preparation cannot complete.
+	 * @return An OpenedResource with a final request and an optional byte-transform
+	 * handle, or a RequestError when preparation cannot complete. A null handle
+	 * requests byte-for-byte response passthrough.
 	 * @note This is the only coroutine phase of the adapter lifecycle. Both
 	 * parameters are values because the returned task may outlive its caller.
 	 */
