@@ -375,6 +375,7 @@ struct std::formatter<LogLevel> {
 struct ConsoleLogger : LoggerContext {
 	void log(LogLevel message_type,
 		std::string_view message,
+		std::string_view parser_id,
 		const std::source_location loc = std::source_location::current()) override {
 		using namespace std::chrono;
 
@@ -384,9 +385,10 @@ struct ConsoleLogger : LoggerContext {
 		auto now = floor<seconds>(system_clock::now());
 
 		std::format_to(std::ostream_iterator<char>(std::cout),
-			"[{:%T} {} {}:{}] {}\n",
+			"[{:%T} {} {} {}:{}] {}\n",
 			now,
 			message_type,
+			parser_id.empty() ? "-" : parser_id,
 			loc.file_name(),
 			loc.line(),
 			message);

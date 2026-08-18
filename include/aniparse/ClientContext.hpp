@@ -201,6 +201,11 @@ enum class LogLevel {
 
 /**
  * @brief Interface for logging messages
+ *
+ * The sink is shared by every parser of the session (it lives in @ref ServiceState),
+ * so the emitter's identity travels with each message as @ref log's parser_id rather
+ * than being a property of the logger — that is what lets a host filter the stream
+ * per parser.
  */
 struct LoggerContext {
 	virtual ~LoggerContext() = default;
@@ -209,10 +214,15 @@ struct LoggerContext {
 	 * @brief Output text with prefix and message
 	 * @param message_type Prefix to message. ("INFO", "ERROR", etc.)
 	 * @param message Message text to output
+	 * @param parser_id Identifier of the parser the message originates from (the value
+	 *        Parser::make_config stamped into the emitting context's config). Empty when
+	 *        the source is not tied to a parser — a context whose config never went
+	 *        through make_config.
 	 * @param loc Call site the message originates from, for diagnostics
 	 */
 	virtual void log(LogLevel message_type,
 	                 std::string_view message,
+	                 std::string_view parser_id,
 	                 const std::source_location loc = std::source_location::current()) = 0;
 };
 
@@ -384,6 +394,7 @@ public:
 		if (services_->logger) {
 			services_->logger->log(LogLevel::Info,
 			             fmt::format(sourced_fmt.fmt, std::forward<Args>(args)...),
+			             config_->parser_id,
 			             sourced_fmt.loc);
 		}
 	}
@@ -399,6 +410,7 @@ public:
 		if (services_->logger) {
 			services_->logger->log(LogLevel::Debug,
 			             fmt::format(sourced_fmt.fmt, std::forward<Args>(args)...),
+			             config_->parser_id,
 			             sourced_fmt.loc);
 		}
 	}
@@ -414,6 +426,7 @@ public:
 		if (services_->logger) {
 			services_->logger->log(LogLevel::Warning,
 			             fmt::format(sourced_fmt.fmt, std::forward<Args>(args)...),
+			             config_->parser_id,
 			             sourced_fmt.loc);
 		}
 	}
@@ -429,6 +442,7 @@ public:
 		if (services_->logger) {
 			services_->logger->log(LogLevel::Error,
 			             fmt::format(sourced_fmt.fmt, std::forward<Args>(args)...),
+			             config_->parser_id,
 			             sourced_fmt.loc);
 		}
 	}
@@ -444,6 +458,7 @@ public:
 		if (services_->logger) {
 			services_->logger->log(LogLevel::Fatal,
 			             fmt::format(sourced_fmt.fmt, std::forward<Args>(args)...),
+			             config_->parser_id,
 			             sourced_fmt.loc);
 		}
 	}

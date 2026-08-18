@@ -45,6 +45,7 @@ struct DummyLogger : public LoggerContext {
 
 	void log(LogLevel message_type,
 		std::string_view message,
+		std::string_view parser_id,
 		const std::source_location loc = std::source_location::current()) override {
 
 	}
@@ -189,6 +190,43 @@ CORO_TEST_CASE("make_config does not inherit the base cookie jar") {
 
 	// A null base yields a null config (nothing to derive from).
 	REQUIRE(parser.make_config(nullptr) == nullptr);
+
+	co_return;
+}
+
+// Records what it is handed, so a test can assert the emitter's identity travels
+// with the message.
+struct RecordingLogger : LoggerContext {
+	void log(LogLevel message_type,
+	         std::string_view message,
+	         std::string_view parser_id,
+	         std::source_location) override {
+		last_level     = message_type;
+		last_message   = std::string(message);
+		last_parser_id = std::string(parser_id);
+	}
+
+	LogLevel last_level = LogLevel::Info;
+	std::string last_message;
+	std::string last_parser_id;
+};
+
+CORO_TEST_CASE("RequestorContext stamps the parser id on log messages") {
+	DummyParser parser;
+	auto logger = std::make_shared<RecordingLogger>();
+
+	RequestorContext plain(std::make_shared<CannedClientMock>(), logger,
+	                       std::make_shared<ParserConfig>());
+
+	// An underived config has no parser identity, so the message goes out unattributed.
+	plain.info("plain");
+	REQUIRE(logger->last_parser_id.empty());
+
+	// A config derived through make_config names the parser on every message.
+	auto derived = plain.new_with_config(parser.make_config(plain.config()));
+	derived.error("derived");
+	REQUIRE(logger->last_level == LogLevel::Error);
+	REQUIRE(logger->last_parser_id == "Dummy");
 
 	co_return;
 }
