@@ -479,27 +479,38 @@ public:
 	ResourceCache& resources() const;
 
 	/**
-	 * @brief The data-driven CSS selector overrides for this context.
+	 * @brief The data-driven CSS selector override source, unscoped.
 	 * Empty by default (every selector falls back to its built-in literal); a
 	 * populated source arrives from the volatile catalog/index. Shared across
 	 * contexts derived via new_with_config / new_with_logger, like resources().
+	 * This is the raw source holding every parser's table — set construction
+	 * should go through @ref selectors, which scopes it to this context's parser.
 	 * @return The selector source
 	 */
 	std::shared_ptr<const html::SelectorSource> selector_source() const;
 
 	/**
-	 * @brief Build (once, cached) a selector set @p T from this context's selector
-	 * source, falling back to the set's built-in literals.
+	 * @brief Build (once per parser, cached) a selector set @p T from this
+	 * context's scoped selector source, falling back to the set's built-in
+	 * literals.
 	 *
-	 * Sugar over resources().get<T>(...) that feeds the selector source into
-	 * T::create, so getters name the set without repeating the factory lambda.
+	 * The set is compiled against the overrides of THIS context's parser (the id
+	 * Parser::make_config stamped into the config) and cached by (parser id, set
+	 * type) inside the selector-source holder — so two parsers sharing one set
+	 * type (an engine family) each get their own copy with their own overrides,
+	 * never a neighbour's. The getter names only the set type; it names neither
+	 * its id nor the override.
 	 * @tparam T Selector set type exposing `static T create(const html::SelectorSource&)`
-	 * @return Shared handle to the built set
+	 * @return Shared handle to the built set; hold it for the whole operation so a
+	 *         concurrent catalog swap cannot free it underneath
 	 */
 	template <class T>
 	[[nodiscard]] std::shared_ptr<const T> selectors() const {
-		// Hold the source for the whole build so a concurrent catalog swap cannot
-		// free it while T::create reads it.
+		if (services_ && services_->selectors) {
+			return services_->selectors->set_for<T>(config_->parser_id);
+		}
+		// No selector holder (tests, minimal hosts): every selector falls back to
+		// its built-in literal, cached by bare type in the shared resource cache.
 		auto source = selector_source();
 		return resources().get<T>([source] { return T::create(*source); });
 	}

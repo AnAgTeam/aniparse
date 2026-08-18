@@ -49,3 +49,112 @@ TEST_CASE("SelectorSource compile() degrades a broken override to the default") 
 	CHECK_NOTHROW(source.compile(compiler, "info.description", "#default"));
 	CHECK(static_cast<bool>(source.compile(compiler, "info.description", "#default")));
 }
+
+TEST_CASE("a scoped view sees only its own parser's overrides") {
+	// Schema v2: short keys nested under the parser identifier, so one parser's
+	// hotfix cannot name another parser's selector.
+	SelectorSource source({}, {
+	    { "parser_a", { { "info.title", "h1.override" } } },
+	    { "parser_b", { { "info.title", "h1.other" } } },
+	});
+	CHECK(source.has_scope("parser_a"));
+	CHECK(source.has_scope("parser_b"));
+	CHECK_FALSE(source.has_scope("parser_c"));
+	// A scoped-only source is not "empty" even with no flat entries.
+	CHECK_FALSE(source.empty_source());
+
+	auto view_a = source.scoped_to("parser_a");
+	auto view_b = source.scoped_to("parser_b");
+	auto view_c = source.scoped_to("parser_c");
+	CHECK(view_a->get("info.title", ".default") == "h1.override"sv);
+	CHECK(view_b->get("info.title", ".default") == "h1.other"sv);
+	// An id the catalog does not cover falls back to the built-in literal.
+	CHECK(view_c->get("info.title", ".default") == ".default"sv);
+}
+
+TEST_CASE("a scoped view keeps the flat table and loses to it on nothing") {
+	// Flat (v1, fully-spelled) keys stay visible from every scope; a scoped entry
+	// wins only on an exact same key, which the two naming shapes never produce.
+	SelectorSource source({ { "example.info.title", "h1.flat" } }, {
+	    { "example", { { "info.title", "h1.scoped" } } },
+	});
+
+	auto view = source.scoped_to("example");
+	CHECK(view->get("example.info.title", ".default") == "h1.flat"sv);
+	CHECK(view->get("info.title", ".default") == "h1.scoped"sv);
+}
+
+TEST_CASE("a scoped view degrades a broken override to the default") {
+	SelectorSource source({}, {
+	    { "parser_a", { { "info.title", "a[" } } },
+	});
+	auto view = source.scoped_to("parser_a");
+	CHECK(view->get("info.title", ".default") == "a["sv);
+
+	SelectorCompiler compiler;
+	CHECK_NOTHROW(view->compile(compiler, "info.title", ".default"));
+}
+
+namespace {
+/// A probe set that records which override text it was built with.
+struct ProbeSet {
+	std::string css;
+	static ProbeSet create(const SelectorSource& source) {
+		return { std::string(source.get("info.title", ".default")) };
+	}
+};
+} // namespace
+
+TEST_CASE("the holder caches compiled sets per (parser id, set type)") {
+	SelectorSourceHolder holder(std::make_shared<const SelectorSource>(
+	    SelectorSource::Overrides{}, SelectorSource::ScopedOverrides{
+	        { "parser_a", { { "info.title", "h1.a" } } },
+	        { "parser_b", { { "info.title", "h1.b" } } },
+	    }));
+
+	// Two parsers sharing one set type get one copy EACH, with their own override.
+	auto set_a = holder.set_for<ProbeSet>("parser_a");
+	auto set_b = holder.set_for<ProbeSet>("parser_b");
+	CHECK(set_a->css == "h1.a");
+	CHECK(set_b->css == "h1.b");
+	CHECK(set_a != set_b);
+
+	// A repeated request hits the cache: same instance, no rebuild.
+	CHECK(holder.set_for<ProbeSet>("parser_a") == set_a);
+	// An uncovered id gets the built-in default.
+	CHECK(holder.set_for<ProbeSet>("parser_c")->css == ".default");
+}
+
+TEST_CASE("holder set() invalidates cached views and sets") {
+	SelectorSourceHolder holder(std::make_shared<const SelectorSource>(
+	    SelectorSource::Overrides{}, SelectorSource::ScopedOverrides{
+	        { "parser_a", { { "info.title", "h1.before" } } },
+	    }));
+	auto before = holder.set_for<ProbeSet>("parser_a");
+	auto view_before = holder.view_for("parser_a");
+	CHECK(before->css == "h1.before");
+
+	// A catalog apply swaps the source: the next build must see the new overrides.
+	holder.set(std::make_shared<const SelectorSource>(
+	    SelectorSource::Overrides{}, SelectorSource::ScopedOverrides{
+	        { "parser_a", { { "info.title", "h1.after" } } },
+	    }));
+	auto after = holder.set_for<ProbeSet>("parser_a");
+	CHECK(after->css == "h1.after");
+	CHECK(after != before);
+	CHECK(holder.view_for("parser_a") != view_before);
+
+	// Swapping to an empty source reads as every built-in literal.
+	holder.set(nullptr);
+	CHECK(holder.set_for<ProbeSet>("parser_a")->css == ".default");
+}
+
+TEST_CASE("an id with no scoped overrides gets the shared source itself") {
+	auto source = std::make_shared<const SelectorSource>(
+	    SelectorSource::Overrides{ { "info.title", "h1.flat" } });
+	SelectorSourceHolder holder(source);
+	// No view materialization needed: the flat-only source IS the view.
+	CHECK(holder.view_for("parser_a") == source);
+	CHECK(holder.view_for("") == source);
+	CHECK(holder.set_for<ProbeSet>("parser_a")->css == "h1.flat");
+}

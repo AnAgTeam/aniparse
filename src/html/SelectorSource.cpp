@@ -12,8 +12,11 @@ const SelectorSource& SelectorSource::empty() noexcept {
 	return instance;
 }
 
-SelectorSource::SelectorSource(std::map<std::string, std::string, std::less<>> overrides)
+SelectorSource::SelectorSource(Overrides overrides)
     : overrides_(std::move(overrides)) {}
+
+SelectorSource::SelectorSource(Overrides shared, ScopedOverrides scoped)
+    : overrides_(std::move(shared)), scoped_(std::move(scoped)) {}
 
 CompiledSelector SelectorSource::compile(SelectorCompiler& compiler,
                                          std::string_view key,
@@ -36,7 +39,24 @@ std::string_view SelectorSource::get(std::string_view key, std::string_view fall
 }
 
 bool SelectorSource::empty_source() const noexcept {
-	return overrides_.empty();
+	return overrides_.empty() && scoped_.empty();
+}
+
+bool SelectorSource::has_scope(std::string_view parser_id) const {
+	auto scope = scoped_.find(parser_id);
+	return scope != scoped_.end() && !scope->second.empty();
+}
+
+std::shared_ptr<const SelectorSource> SelectorSource::scoped_to(std::string_view parser_id) const {
+	// The flat table is visible to every scope; the parser's scoped entries are
+	// merged over it and win on a key collision (the more specific of the two).
+	Overrides merged = overrides_;
+	if (auto scope = scoped_.find(parser_id); scope != scoped_.end()) {
+		for (const auto& [key, css] : scope->second) {
+			merged.insert_or_assign(key, css);
+		}
+	}
+	return std::make_shared<const SelectorSource>(std::move(merged));
 }
 
 } // namespace aniparse::html
