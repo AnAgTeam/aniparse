@@ -473,6 +473,21 @@ public:
 	std::shared_ptr<const ParserConfig> config() const;
 
 	/**
+	 * @brief Return this context's shared runtime services.
+	 *
+	 * The returned owner keeps the HTTP client, resource cache, and volatile catalog
+	 * holders alive. Hosts that construct a @ref CatalogManager for the same parser
+	 * session pass this handle to it, so a successful catalog apply updates the
+	 * mirrors and selectors observed by contexts derived from this one.
+	 * @return The immutable shared-services handle used by this context.
+	 * @note The @ref ServiceState object's holder members are intentionally mutable
+	 *       synchronization points; callers must not replace the service bundle.
+	 */
+	[[nodiscard]] std::shared_ptr<const ServiceState> services() const noexcept {
+		return services_;
+	}
+
+	/**
 	 * @brief Shared cache of compiled parser resources (CSS selector sets,
 	 *        regexes, ...), keyed by resource-set type.
 	 * Shared with every context derived via new_with_config / new_with_logger,
