@@ -97,6 +97,25 @@ struct MangaType {
 inline constexpr MangaID invalid_manga_id = MangaID{ 0 };
 
 /**
+ * @brief A future chapter a source schedules for a manga.
+ *
+ * This is deliberately not an @ref MangaChapterInfo: a scheduled chapter may
+ * not yet exist on the source, so it has no fetchable identity or pages. Empty
+ * @ref number or @ref name means the source announced only the other value or
+ * only the release time.
+ */
+struct UpcomingChapterInfo {
+	/// Chapter label exactly as the source states it, such as "104", "7.5", or
+	/// "Extra". Empty = the source does not identify the scheduled chapter.
+	std::string number;
+	/// Scheduled chapter title. Empty = none stated; it does not repeat @ref number.
+	std::string name;
+	/// When this chapter is expected to be posted. @c nullopt = the source announced
+	/// the chapter but not a date. @see ModelDate for date precision.
+	std::optional<ModelDate> release_time;
+};
+
+/**
  * @brief Everything a source states about one manga: what it is called, who made
  * it, how it is tagged, where it stands. The data half of MangaGetter — a plain
  * value the consumer holds and renders, with no request behind any field.
@@ -142,6 +161,10 @@ struct MangaInfo {
 	/// nullopt = the source does not report it. Distinct from @ref aniparse::MangaInfo::total_chapters — a work
 	/// is a count of chapters OR, when it has none, a count of pages.
 	std::optional<long> total_pages;
+	/// The next scheduled chapter, when the source publishes one. It may be absent
+	/// for an ongoing manga, because the library never infers a date or number from
+	/// a release cadence or from its current chapter list. @see UpcomingChapterInfo
+	std::optional<UpcomingChapterInfo> next_chapter;
 };
 
 /**

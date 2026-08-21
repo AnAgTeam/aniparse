@@ -533,6 +533,23 @@ struct UserList {
 };
 
 /**
+ * @brief A public count of users who placed one work in a named list.
+ *
+ * This is aggregate, source-published popularity data for the work, not the
+ * authenticated user's own list membership (@ref UserList). A source may expose
+ * only some list categories, so consumers render the entries supplied rather
+ * than synthesising missing zeroes.
+ */
+struct AudienceListCount {
+	/// The list's source spelling, using a canonical @ref UserList::name token when
+	/// it maps to one. Never empty for an entry emitted by a parser.
+	std::string name;
+	/// Number of source users in @ref name. @c nullopt = the source identifies the
+	/// category but withholds its count; zero is a real reported count.
+	std::optional<long> users_count;
+};
+
+/**
  * @brief How much attention an item has had on its source.
  * Its own struct rather than a bare int so an absent count (an optional ViewStats
  * left empty) is distinguishable from a real zero, and so further counters can be
@@ -659,6 +676,11 @@ struct MediaInfo {
 	std::optional<Rating> rating;
 	/// View/popularity counters. @c nullopt = the source publishes none. @see ViewStats
 	std::optional<ViewStats> views;
+	/// Public per-list audience counts, such as users planning, watching, or having
+	/// completed the work. Empty = the source publishes no such breakdown in this
+	/// response. This is aggregate data, distinct from the authenticated user's
+	/// @ref UserList membership.
+	std::vector<AudienceListCount> audience_lists;
 
 	/// Minimum age the source requires to view the item, in years. 0 = unrestricted or
 	/// unstated — an adult work is more reliably detected via @ref is_hentai and the

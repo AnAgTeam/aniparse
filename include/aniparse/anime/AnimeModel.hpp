@@ -87,6 +87,25 @@ enum class AnimeSeason {
 };
 
 /**
+ * @brief A future episode a source schedules for an anime.
+ *
+ * This is deliberately not an @ref AnimeEpisodeInfo: a scheduled episode may
+ * not yet exist on the source, so it has neither a fetchable identity nor
+ * playable sources. Empty @ref number or @ref name means the source announced
+ * only the other value or only the release time.
+ */
+struct UpcomingEpisodeInfo {
+	/// Episode label exactly as the source states it, such as "12", "7.5", or
+	/// "OVA". Empty = the source does not identify the scheduled episode.
+	std::string number;
+	/// Scheduled episode title. Empty = none stated; it does not repeat @ref number.
+	std::string name;
+	/// When this episode is expected to air or be posted. @c nullopt = the source
+	/// announced the episode but not a date. @see ModelDate for date precision.
+	std::optional<ModelDate> release_time;
+};
+
+/**
  * @brief Metadata of one anime. The anime counterpart of MangaInfo /
  * ImageContainerInfo: a plain data model returned by AnimeGetter::info, not a
  * bag of getter methods. Dub/fansub teams are not fields here — they are a
@@ -121,6 +140,10 @@ struct AnimeInfo {
 	std::optional<EpisodeCount> released_episodes;
 	/// Planned episode total when the source states it up front; absent otherwise.
 	std::optional<long> total_episodes;
+	/// The next scheduled episode, when the source publishes one. It may be absent
+	/// for an ongoing anime, because the library never infers a date or number from
+	/// cadence or from @ref released_episodes. @see UpcomingEpisodeInfo
+	std::optional<UpcomingEpisodeInfo> next_episode;
 	/// Nominal runtime of one episode, as the source states it — a typical value for
 	/// the series, not a per-episode measurement, so it is an estimate for a UI and
 	/// not a seek/progress bound. nullopt = the source does not state it.
