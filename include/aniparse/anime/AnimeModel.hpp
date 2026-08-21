@@ -125,6 +125,11 @@ struct AnimeInfo {
 	/// The metadata shared with every other domain — title, description, dates, tags,
 	/// series, previews, rating, external ids, and the rest. @see aniparse::MediaInfo
 	MediaInfo common;
+	/// Promotional stills or screenshots from this anime. Distinct from
+	/// @ref MediaInfo::previews, which are the work's cover/poster artwork. Empty =
+	/// the source offers no separate stills in this response. Fetch descriptors,
+	/// not image bytes. @see Image
+	std::vector<Image> screenshots;
 
 	/// The broadcast season it premiered in. nullopt = the source has no season axis
 	/// at all; AnimeSeason::Unknown = it has one but states no value for this anime.
