@@ -257,7 +257,10 @@ struct ServiceState {
 	std::shared_ptr<html::SelectorSourceHolder> selectors = nullptr;
 	/// Optional swappable mirror-source holder; null reads as an empty source
 	/// (every parser falls back to its built-in mirrors). A catalog apply set()s a
-	/// new source into it, keyed by parser identifier.
+	/// new source into it, keyed by parser identifier. A consumer that runs video
+	/// extractors keys overrides by extractor identifier instead, by building the
+	/// extractor-facing contexts on a state whose holder carries the extractor
+	/// mirror source.
 	std::shared_ptr<MirrorSourceHolder> mirrors = nullptr;
 };
 
@@ -530,6 +533,27 @@ public:
 	[[nodiscard]] Mirrors mirrors(std::span<const std::string_view> builtin) const {
 		const std::vector<std::string>* override_list =
 		    mirror_snapshot_ ? mirror_snapshot_->list_for(config_->parser_id) : nullptr;
+		return Mirrors{ override_list, builtin };
+	}
+
+	/**
+	 * @brief A mirror view keyed by an explicitly given @p id: the catalog
+	 * override for it (if any) combined with the @p builtin fallback.
+	 *
+	 * This overload exists for video extractors (via VideoExtractor::mirrors),
+	 * which carry no stamped ParserConfig and so name their own stable
+	 * identifier as the override key. Parsers must call the single-argument
+	 * @ref mirrors() instead: their override is keyed by the parser identity
+	 * Parser::make_config stamped into the config, and naming an id by hand can
+	 * only mis-key it.
+	 * @param id The extractor's stable identifier (@see VideoExtractor::identifier).
+	 * @param builtin The caller's built-in fallback base URLs.
+	 * @return The combined mirror view (@see Mirrors).
+	 */
+	[[nodiscard]] Mirrors mirrors(std::string_view id,
+	                              std::span<const std::string_view> builtin) const {
+		const std::vector<std::string>* override_list =
+		    mirror_snapshot_ ? mirror_snapshot_->list_for(id) : nullptr;
 		return Mirrors{ override_list, builtin };
 	}
 

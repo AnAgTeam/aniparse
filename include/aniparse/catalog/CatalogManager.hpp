@@ -14,6 +14,8 @@
 
 namespace aniparse {
 
+class VideoExtractorStore;
+
 /**
  * @brief Applies verified catalogs to a ParserStore in one guarded step.
  *
@@ -34,10 +36,22 @@ public:
 	 * @param services Optional shared services; when given, a successful apply also
 	 *                 swaps the catalog's selectors into its holder and clears its
 	 *                 resource cache so compiled sets rebuild. Null = domains only.
+	 * @param extractors Optional video extractor store; when given, a successful
+	 *                 apply also refreshes its routing from the catalog's
+	 *                 "extractors" section. Null = extractor overrides ignored.
+	 * @param extractor_services Optional extractor-facing services; when given, a
+	 *                 successful apply swaps the catalog's extractor mirrors into
+	 *                 its mirror holder. The consumer feeds extractors through
+	 *                 contexts built on this state, so extractor overrides (keyed
+	 *                 by extractor identifier) never mix with the parser ones in
+	 *                 @p services. Null = extractor mirrors ignored.
 	 */
 	CatalogManager(ParserStore& store, const SignatureVerifier& verifier,
-	               std::shared_ptr<const ServiceState> services = nullptr)
-	    : store_(store), verifier_(verifier), services_(std::move(services)) {}
+	               std::shared_ptr<const ServiceState> services = nullptr,
+	               VideoExtractorStore* extractors = nullptr,
+	               std::shared_ptr<const ServiceState> extractor_services = nullptr)
+	    : store_(store), verifier_(verifier), services_(std::move(services))
+	    , extractors_(extractors), extractor_services_(std::move(extractor_services)) {}
 
 	/**
 	 * @brief Verify, decode and apply a catalog payload.
@@ -58,6 +72,8 @@ private:
 	ParserStore& store_;
 	const SignatureVerifier& verifier_;
 	std::shared_ptr<const ServiceState> services_;
+	VideoExtractorStore* extractors_;
+	std::shared_ptr<const ServiceState> extractor_services_;
 	uint64_t revision_ = 0;
 };
 

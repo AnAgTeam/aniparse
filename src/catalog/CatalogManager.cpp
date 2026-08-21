@@ -4,8 +4,10 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #include "aniparse/catalog/CatalogManager.hpp"
+#include "aniparse/video/VideoExtractor.hpp"
 
 #include <algorithm>
+#include <map>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -24,6 +26,23 @@ std::string_view host_of(std::string_view url) noexcept {
 	url = url.substr(0, url.find('/'));
 	return url.substr(0, url.find(':'));
 }
+
+// A mirror host is also a routable host: union each mirror's host into that
+// entry's routing domains, so listing a mirror makes it route too (a URL pasted
+// from a live mirror resolves without repeating it under "domains").
+void union_mirror_hosts(
+    std::map<std::string, std::vector<std::string>, std::less<>>& domains,
+    const std::map<std::string, std::vector<std::string>, std::less<>>& mirrors) {
+	for (const auto& [id, urls] : mirrors) {
+		std::vector<std::string>& hosts = domains[id];
+		for (const std::string& url : urls) {
+			std::string host(host_of(url));
+			if (std::find(hosts.begin(), hosts.end(), host) == hosts.end()) {
+				hosts.push_back(std::move(host));
+			}
+		}
+	}
+}
 } // namespace
 
 expected<uint64_t, CatalogError> CatalogManager::apply(std::string_view payload,
@@ -33,25 +52,19 @@ expected<uint64_t, CatalogError> CatalogManager::apply(std::string_view payload,
 		return unexpected(decoded.error());
 	}
 
-	// A mirror host is also a routable host: union each mirror's host into that
-	// parser's routing domains, so listing a mirror makes it route too (a URL
-	// pasted from a live mirror resolves without repeating it under "domains").
 	auto domains = std::move(decoded->domains);
-	for (const auto& [id, urls] : decoded->mirrors) {
-		std::vector<std::string>& hosts = domains[id];
-		for (const std::string& url : urls) {
-			std::string host(host_of(url));
-			if (std::find(hosts.begin(), hosts.end(), host) == hosts.end()) {
-				hosts.push_back(std::move(host));
-			}
-		}
-	}
+	union_mirror_hosts(domains, decoded->mirrors);
 
 	// Commit only after a clean decode+verify: rebuild routing, swap mirrors and
 	// selectors, drop stale compiled sets, then advance the revision so the next
 	// apply is checked against it.
 	uint64_t new_revision = decoded->revision;
 	store_.refresh_domains(std::move(domains));
+	if (extractors_) {
+		auto extractor_domains = std::move(decoded->extractor_domains);
+		union_mirror_hosts(extractor_domains, decoded->extractor_mirrors);
+		extractors_->refresh_domains(std::move(extractor_domains));
+	}
 	if (services_) {
 		if (services_->mirrors) {
 			services_->mirrors->set(
@@ -64,6 +77,10 @@ expected<uint64_t, CatalogError> CatalogManager::apply(std::string_view payload,
 		if (services_->resources) {
 			services_->resources->clear();
 		}
+	}
+	if (extractor_services_ && extractor_services_->mirrors) {
+		extractor_services_->mirrors->set(
+		    std::make_shared<const MirrorSource>(std::move(decoded->extractor_mirrors)));
 	}
 	revision_ = new_revision;
 	return revision_;

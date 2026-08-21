@@ -10,8 +10,10 @@
 #include "aniparse/types/ParsedUrl.hpp"
 #include "aniparse/types/Video.hpp"
 
+#include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -92,6 +94,35 @@ struct VideoExtractor {
 	 * @note A direct stream's request headers belong in VideoExtraction::headers.
 	 */
 	virtual NetworkRequestTask<VideoExtraction> extract(RequestorContext context, ParsedUrl url) const = 0;
+	/**
+	 * @brief A mirror view for this extractor: the volatile-catalog override
+	 * keyed by this extractor's identifier() (if any) combined with the @p builtin
+	 * fallback.
+	 *
+	 * Non-virtual; the extractor counterpart of RequestorContext::mirrors(). An
+	 * extractor carries no stamped ParserConfig, so it names its own stable
+	 * identifier() as the override key. Overrides keyed by extractor identifier
+	 * reach the extractor only when the consumer builds its context on a
+	 * ServiceState whose mirror holder carries the extractor mirror source.
+	 * @param context Request context holding the mirror snapshot.
+	 * @param builtin The extractor's built-in fallback base URLs.
+	 * @return The combined mirror view (@see Mirrors).
+	 */
+	[[nodiscard]] Mirrors mirrors(const RequestorContext& context,
+	                              std::span<const std::string_view> builtin) const;
+	/**
+	 * @brief The base URL this extractor should fetch from.
+	 *
+	 * Folds @ref mirrors into a selection; extractors have no per-user mirror
+	 * switch (ParserConfig::alt_link is a parser concept), so the first mirror
+	 * is always used. Resolve it once into a local at the start of an extraction
+	 * so a concurrent catalog swap cannot split it across mirrors.
+	 * @param context Request context holding the mirror snapshot.
+	 * @param builtin The extractor's built-in fallback base URLs.
+	 * @return The first mirror's base URL, or an empty view when there is none.
+	 */
+	[[nodiscard]] std::string_view base_url(const RequestorContext& context,
+	                                         std::span<const std::string_view> builtin) const;
 };
 
 /**
@@ -106,6 +137,16 @@ struct VideoExtractionRoute {
 	/// Parsed URL accepted by @ref extractor.
 	ParsedUrl url;
 };
+
+/**
+ * @brief Default cap on delegated-link chasing in VideoExtractorStore::extract.
+ *
+ * VideoExtractionLink chains let one extractor hand a URL off to another; the
+ * cap bounds that recursion the way yt-dlp bounds nested URL results, so an
+ * extractor→extractor cycle returns its unresolved links instead of looping
+ * forever.
+ */
+inline constexpr int default_max_extraction_depth = 4;
 
 /**
  * @brief Snapshot-routed registry of standalone video extractors.
@@ -149,6 +190,16 @@ public:
 		 */
 		bool remove_extractor(std::string_view identifier);
 		/**
+		 * @brief Replace the volatile (catalog-supplied) domains in this draft.
+		 *
+		 * Each extractor's static domains (from emplace_domains()) are always
+		 * kept; the volatile domains here are merged on top, keyed by extractor
+		 * identifier. Applied on @ref commit as part of the same snapshot.
+		 * @param volatile_domains Extractor identifier -> extra domains it should
+		 * route.
+		 */
+		void refresh_domains(std::map<std::string, std::vector<std::string>, std::less<>> volatile_domains);
+		/**
 		 * @brief Build and publish this draft as one routing snapshot.
 		 * @throws std::logic_error when the draft was already committed or another
 		 * edit published a newer snapshot first.
@@ -177,6 +228,18 @@ public:
 	 * tree only once.
 	 */
 	std::shared_ptr<VideoExtractor> add_extractor(std::shared_ptr<VideoExtractor> extractor);
+	/**
+	 * @brief Replace the volatile (catalog-supplied) domains and rebuild routing.
+	 *
+	 * Each extractor's static domains (from emplace_domains()) are always kept;
+	 * the volatile domains here are merged on top, keyed by extractor identifier.
+	 * Passing an empty map falls back to static domains only. The routing index
+	 * is rebuilt as a fresh snapshot and swapped in atomically, so extractions
+	 * already in progress keep using their snapshot until they finish.
+	 * @param volatile_domains Extractor identifier -> extra domains it should
+	 * route.
+	 */
+	void refresh_domains(std::map<std::string, std::vector<std::string>, std::less<>> volatile_domains);
 	/**
 	 * @brief Look up an extractor by its stable registration key.
 	 * @param identifier Extractor identifier.
@@ -210,6 +273,45 @@ public:
 	 * route; nullopt for malformed URLs, missing pins, or rejected URLs.
 	 */
 	[[nodiscard]] std::optional<VideoExtractionRoute> route_link(const VideoExtractionLink& link) const;
+	/**
+	 * @brief Route an external video URL and run the selected extractor, chasing
+	 * delegated links until an extraction yields direct streams.
+	 *
+	 * Combines route_url() and VideoExtractor::extract() into the one call a
+	 * consumer needs before playback: when the first extraction returns
+	 * VideoExtraction::links instead of streams, each link is routed through
+	 * route_link() and extracted in turn; the first extraction with streams wins.
+	 * @param context Request context handed to the extractors; belongs to the
+	 * caller and is not retained past the returned task.
+	 * @param url URL to route through this store and extract.
+	 * @param max_depth Cap on delegated-link hops; once reached, the deepest
+	 * extraction is returned unresolved (streams empty, links intact), so an
+	 * extractor cycle cannot loop.
+	 * @return The first extraction that yields direct streams; the deepest
+	 * extraction (streams empty) when every delegated link failed to resolve or
+	 * the depth cap cut the chain; RequestErrorCode::NotImplemented when no
+	 * extractor accepts @p url; or the extractor's own RequestError.
+	 * @note Member coroutine: the store must outlive the returned task, under the
+	 * same caller-ownership convention as VideoExtractor::extract.
+	 */
+	[[nodiscard]] NetworkRequestTask<VideoExtraction> extract(
+	    RequestorContext context, ParsedUrl url, int max_depth = default_max_extraction_depth) const;
+	/**
+	 * @brief Overload taking an unparsed URL string.
+	 *
+	 * The URL is taken by value on purpose: a NetworkRequestTask is lazy and its
+	 * body — including the parse — starts only when the task is first awaited,
+	 * so a borrowed view could dangle before the parse ever runs.
+	 * @param context Request context handed to the extractors; belongs to the
+	 * caller and is not retained past the returned task.
+	 * @param url Absolute URL string; parsed before routing.
+	 * @param max_depth Cap on delegated-link hops, as in the ParsedUrl overload.
+	 * @return As in the ParsedUrl overload; RequestErrorCode::InvalidArguments
+	 * when @p url does not parse.
+	 * @note Same lifetime convention as the ParsedUrl overload.
+	 */
+	[[nodiscard]] NetworkRequestTask<VideoExtraction> extract(
+	    RequestorContext context, std::string url, int max_depth = default_max_extraction_depth) const;
 
 private:
 	Domains domains_;

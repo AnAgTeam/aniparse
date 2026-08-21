@@ -115,6 +115,28 @@ TEST_CASE("decode_catalog reads per-parser mirror base URLs alongside domains") 
 	CHECK(result->domains.at("ExampleParser") == std::vector<std::string>{ "example.com" });
 }
 
+TEST_CASE("decode_catalog reads the extractors section into separate maps") {
+	StubVerifier verifier(true);
+	std::string_view payload = R"({
+        "schema_version": 1,
+        "revision": 4,
+        "parsers": {
+            "SharedId": { "domains": ["parser.example"], "mirrors": ["https://parser-live.example"] }
+        },
+        "extractors": {
+            "SharedId": { "domains": ["extractor.example"], "mirrors": ["https://extractor-live.example"] }
+        }
+    })";
+	auto result = decode_catalog(payload, "sig", verifier);
+	REQUIRE(result.has_value());
+	// Parser and extractor entries land in separate maps even under the same id.
+	CHECK(result->domains.at("SharedId") == std::vector<std::string>{ "parser.example" });
+	CHECK(result->mirrors.at("SharedId") == std::vector<std::string>{ "https://parser-live.example" });
+	CHECK(result->extractor_domains.at("SharedId") == std::vector<std::string>{ "extractor.example" });
+	CHECK(result->extractor_mirrors.at("SharedId") ==
+	      std::vector<std::string>{ "https://extractor-live.example" });
+}
+
 TEST_CASE("decode_catalog treats a missing required field as bad format") {
 	StubVerifier verifier(true);
 	std::string_view no_revision = R"({ "schema_version": 1, "parsers": {} })";

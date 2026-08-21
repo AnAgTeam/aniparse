@@ -50,35 +50,47 @@ expected<CatalogData, CatalogError> decode_catalog(
 		return unexpected(CatalogError::StaleRevision);
 	}
 
-	if (const boost::json::object* parsers = json::object_field(*root, "parsers")) {
-		// Read a string array under the parser entry (domains / mirrors), dropping
-		// any non-string element.
-		auto read_urls = [](const boost::json::object& fields, const char* key) {
-			std::vector<std::string> out;
-			if (const boost::json::array* list = json::array_field(fields, key)) {
-				for (const boost::json::value& item : *list) {
-					if (const boost::json::string* url = item.if_string()) {
-						out.emplace_back(url->c_str(), url->size());
-					}
+	// Read a string array under an entry (domains / mirrors), dropping
+	// any non-string element.
+	auto read_urls = [](const boost::json::object& fields, const char* key) {
+		std::vector<std::string> out;
+		if (const boost::json::array* list = json::array_field(fields, key)) {
+			for (const boost::json::value& item : *list) {
+				if (const boost::json::string* url = item.if_string()) {
+					out.emplace_back(url->c_str(), url->size());
 				}
 			}
-			return out;
-		};
-		for (const boost::json::key_value_pair& entry : *parsers) {
+		}
+		return out;
+	};
+
+	// Read a "<id> -> {domains, mirrors}" section into the given maps; entries
+	// without a fields object, and empty lists, are skipped. Both the "parsers"
+	// and the "extractors" sections share this shape.
+	auto read_section = [&read_urls](const boost::json::object& section, auto& domains,
+	                                 auto& mirrors) {
+		for (const boost::json::key_value_pair& entry : section) {
 			const boost::json::object* fields = entry.value().if_object();
 			if (!fields) {
 				continue;
 			}
 			std::string id(entry.key());
-			std::vector<std::string> domains = read_urls(*fields, "domains");
-			if (!domains.empty()) {
-				data.domains.emplace(id, std::move(domains));
+			std::vector<std::string> entry_domains = read_urls(*fields, "domains");
+			if (!entry_domains.empty()) {
+				domains.emplace(id, std::move(entry_domains));
 			}
-			std::vector<std::string> mirrors = read_urls(*fields, "mirrors");
-			if (!mirrors.empty()) {
-				data.mirrors.emplace(std::move(id), std::move(mirrors));
+			std::vector<std::string> entry_mirrors = read_urls(*fields, "mirrors");
+			if (!entry_mirrors.empty()) {
+				mirrors.emplace(std::move(id), std::move(entry_mirrors));
 			}
 		}
+	};
+
+	if (const boost::json::object* parsers = json::object_field(*root, "parsers")) {
+		read_section(*parsers, data.domains, data.mirrors);
+	}
+	if (const boost::json::object* extractors = json::object_field(*root, "extractors")) {
+		read_section(*extractors, data.extractor_domains, data.extractor_mirrors);
 	}
 
 	// Selectors are a flat name -> CSS table, fed straight into a SelectorSource.

@@ -61,7 +61,9 @@ struct SignatureVerifier {
  * @brief A verified, parsed catalog. @c domains maps a parser identifier to the
  * extra domains it should route (for ParserStore::refresh_domains); @c mirrors
  * maps a parser identifier to its ordered fetch base URLs (for MirrorSource);
- * @c selectors maps a stable selector name (e.g. "example.info.description") to
+ * @c extractor_domains / @c extractor_mirrors are the same pair for video
+ * extractors, keyed by extractor identifier; @c selectors maps a stable selector
+ * name (e.g. "example.info.description") to
  * its override CSS, a flat table fed straight into a SelectorSource. Filters
  * join later.
  */
@@ -74,6 +76,16 @@ struct CatalogData {
 	/// overlap (a frontend host is both) and CatalogManager unions mirror hosts
 	/// into routing so listing a mirror also makes it route.
 	std::map<std::string, std::vector<std::string>, std::less<>> mirrors;
+	/// Per-extractor extra routing domains (for VideoExtractorStore::refresh_domains),
+	/// keyed by VideoExtractor::identifier(). Kept in separate maps from the parser
+	/// ones so a parser and an extractor sharing an identifier never alias each
+	/// other's overrides.
+	std::map<std::string, std::vector<std::string>, std::less<>> extractor_domains;
+	/// Per-extractor ordered fetch base URLs, keyed by extractor identifier; the
+	/// consumer feeds them to extractors through a MirrorSourceHolder of its own
+	/// (@see CatalogManager). CatalogManager unions their hosts into
+	/// @c extractor_domains the same way it does for parser mirrors.
+	std::map<std::string, std::vector<std::string>, std::less<>> extractor_mirrors;
 	std::map<std::string, std::string, std::less<>> selectors;
 };
 
