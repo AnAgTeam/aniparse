@@ -74,6 +74,10 @@ std::optional<AuthInfo> Parser::auth_info() const {
 	return std::nullopt;
 }
 
+std::optional<AuthInfo> Parser::auth_info(RequestorContext) const {
+	return auth_info();
+}
+
 AuthKeys Parser::auth_keys() const noexcept {
 	// Derive from the declared credential shape so a parser states it once in
 	// auth_info(); a parser with a credential a field list cannot name (e.g. a

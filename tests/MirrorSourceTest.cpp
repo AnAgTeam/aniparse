@@ -41,6 +41,7 @@ struct NullClient : ClientContext {
 constexpr std::array builtin = { "https://a.example"sv, "https://b.example"sv };
 
 using OverrideMap = std::map<std::string, std::vector<std::string>, std::less<>>;
+using CanonicalBaseMap = std::map<std::string, std::string, std::less<>>;
 
 std::shared_ptr<MirrorSourceHolder> holder_with(OverrideMap overrides) {
 	return std::make_shared<MirrorSourceHolder>(
@@ -120,6 +121,16 @@ TEST_CASE("MirrorSource returns an override list only for a known parser") {
 	CHECK(MirrorSource{}.empty_source());
 }
 
+TEST_CASE("MirrorSource returns a canonical frontend origin only for a known parser") {
+	MirrorSource source(OverrideMap{}, CanonicalBaseMap{
+	    { "ParserA", "https://frontend.example" },
+	});
+	CHECK_FALSE(source.empty_source());
+	REQUIRE(source.canonical_base_for("ParserA"));
+	CHECK(*source.canonical_base_for("ParserA") == "https://frontend.example");
+	CHECK(source.canonical_base_for("Unknown") == nullptr);
+}
+
 TEST_CASE("MirrorSourceHolder defaults to a non-null empty source and swaps") {
 	MirrorSourceHolder holder;
 	REQUIRE(holder.get());
@@ -157,6 +168,21 @@ TEST_CASE("RequestorContext base_url uses the catalog override keyed by parser_i
 	CHECK(unknown.base_url(builtin) == "https://a.example");
 }
 
+TEST_CASE("RequestorContext canonical_base_url uses the catalog override keyed by parser_id") {
+	auto services     = std::make_shared<ServiceState>();
+	services->client  = std::make_shared<NullClient>();
+	services->mirrors = std::make_shared<MirrorSourceHolder>(
+	    std::make_shared<const MirrorSource>(OverrideMap{}, CanonicalBaseMap{
+	                                                       { "ParserA", "https://frontend.example" },
+	                                                   }));
+
+	RequestorContext known(services, config_for("ParserA", 0));
+	CHECK(known.canonical_base_url("https://seed.example") == "https://frontend.example");
+
+	RequestorContext unknown(services, config_for("OtherParser", 0));
+	CHECK(unknown.canonical_base_url("https://seed.example") == "https://seed.example");
+}
+
 TEST_CASE("RequestorContext snapshots mirrors at construction, immune to a later swap") {
 	auto services     = std::make_shared<ServiceState>();
 	services->client  = std::make_shared<NullClient>();
@@ -178,6 +204,27 @@ TEST_CASE("RequestorContext snapshots mirrors at construction, immune to a later
 	CHECK(live.base_url(builtin) == "https://old.example");
 	RequestorContext fresh(services, config_for("ParserA", 0));
 	CHECK(fresh.base_url(builtin) == "https://new.example");
+}
+
+TEST_CASE("RequestorContext snapshots canonical frontend origins at construction") {
+	auto services     = std::make_shared<ServiceState>();
+	services->client  = std::make_shared<NullClient>();
+	services->mirrors = std::make_shared<MirrorSourceHolder>(
+	    std::make_shared<const MirrorSource>(OverrideMap{}, CanonicalBaseMap{
+	                                                       { "ParserA", "https://old.example" },
+	                                                   }));
+
+	RequestorContext live(services, config_for("ParserA", 0));
+	std::string_view pinned = live.canonical_base_url("https://seed.example");
+	CHECK(pinned == "https://old.example");
+
+	services->mirrors->set(std::make_shared<const MirrorSource>(
+	    OverrideMap{}, CanonicalBaseMap{ { "ParserA", "https://new.example" } }));
+
+	CHECK(pinned == "https://old.example");
+	CHECK(live.canonical_base_url("https://seed.example") == "https://old.example");
+	RequestorContext fresh(services, config_for("ParserA", 0));
+	CHECK(fresh.canonical_base_url("https://seed.example") == "https://new.example");
 }
 
 TEST_CASE("Parser::mirror_choices returns the built-in mirrors without a catalog override") {

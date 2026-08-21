@@ -585,6 +585,24 @@ public:
 	}
 
 	/**
+	 * @brief The canonical frontend origin for this context's parser.
+	 *
+	 * Resolves the signed catalog override from the same MirrorSource snapshot as
+	 * @ref mirrors, or returns @p builtin when the catalog has no replacement.
+	 * Use it for public source links, web authentication, and origin-sensitive
+	 * request headers; do not use it as an API fetch base unless that is the
+	 * source's explicit contract.
+	 * @param builtin The parser's built-in canonical frontend origin.
+	 * @return The resolved canonical origin. The view remains valid while this
+	 * context lives.
+	 */
+	[[nodiscard]] std::string_view canonical_base_url(std::string_view builtin) const {
+		const std::string* override_url =
+		    mirror_snapshot_ ? mirror_snapshot_->canonical_base_for(config_->parser_id) : nullptr;
+		return override_url ? std::string_view(*override_url) : builtin;
+	}
+
+	/**
 	 * @brief Index of the mirror currently selected for this context's parser.
 	 * Indexes the mirror view @ref mirrors() resolves; 0 (the first mirror) unless a
 	 * caller picked another. @see ParserConfig::alt_link
@@ -646,9 +664,10 @@ public:
 private:
 	std::shared_ptr<const ServiceState> services_;
 	std::shared_ptr<ParserConfig> config_;
-	/// Mirror overrides snapshotted once at construction, so an operation reads a
-	/// consistent mirror set even across a concurrent catalog swap. Null when the
-	/// services carry no mirror holder (every parser falls back to its built-ins).
+	/// Mirror and canonical-origin overrides snapshotted once at construction, so
+	/// an operation reads a consistent source definition even across a concurrent
+	/// catalog swap. Null when the services carry no mirror holder (every parser
+	/// falls back to its built-ins).
 	std::shared_ptr<const MirrorSource> mirror_snapshot_;
 };
 } // namespace aniparse

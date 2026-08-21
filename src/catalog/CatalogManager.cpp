@@ -43,6 +43,21 @@ void union_mirror_hosts(
 		}
 	}
 }
+
+// A canonical frontend origin is also routable: it is the address used for
+// human-facing links and interactive web authentication, so accept pasted URLs
+// from it without requiring a duplicate domains entry in the catalog.
+void union_canonical_hosts(
+    std::map<std::string, std::vector<std::string>, std::less<>>& domains,
+    const std::map<std::string, std::string, std::less<>>& canonical_base_urls) {
+	for (const auto& [id, url] : canonical_base_urls) {
+		std::vector<std::string>& hosts = domains[id];
+		std::string host(host_of(url));
+		if (std::find(hosts.begin(), hosts.end(), host) == hosts.end()) {
+			hosts.push_back(std::move(host));
+		}
+	}
+}
 } // namespace
 
 expected<uint64_t, CatalogError> CatalogManager::apply(std::string_view payload,
@@ -54,6 +69,7 @@ expected<uint64_t, CatalogError> CatalogManager::apply(std::string_view payload,
 
 	auto domains = std::move(decoded->domains);
 	union_mirror_hosts(domains, decoded->mirrors);
+	union_canonical_hosts(domains, decoded->canonical_base_urls);
 
 	// Commit only after a clean decode+verify: rebuild routing, swap mirrors and
 	// selectors, drop stale compiled sets, then advance the revision so the next
@@ -68,7 +84,8 @@ expected<uint64_t, CatalogError> CatalogManager::apply(std::string_view payload,
 	if (services_) {
 		if (services_->mirrors) {
 			services_->mirrors->set(
-			    std::make_shared<const MirrorSource>(std::move(decoded->mirrors)));
+			    std::make_shared<const MirrorSource>(std::move(decoded->mirrors),
+			                                         std::move(decoded->canonical_base_urls)));
 		}
 		if (services_->selectors) {
 			services_->selectors->set(

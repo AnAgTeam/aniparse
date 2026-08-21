@@ -22,6 +22,7 @@
 namespace aniparse {
 struct ImagesGetter;
 struct AnimeRootGetter;
+class RequestorContext;
 
 /**
  * @brief The sink a parser declares its domains into.
@@ -199,6 +200,21 @@ struct Parser {
 	 * @return The sign-in descriptor, or nullopt when the source is anonymous.
 	 */
 	[[nodiscard]] virtual std::optional<AuthInfo> auth_info() const;
+
+	/**
+	 * @brief Resolve this source's sign-in descriptor against a request context.
+	 *
+	 * The default returns the static descriptor from @ref auth_info. Sources with
+	 * a catalog-controlled frontend origin may override it to select a login URL
+	 * from the context's immutable catalog snapshot.
+	 * @param context Parser-configured request context; implementations must not
+	 * perform network I/O or mutate it.
+	 * @return The resolved sign-in descriptor, or nullopt when the source is
+	 * anonymous.
+	 * @note The context is passed by value so the result cannot borrow a caller's
+	 * short-lived context across an asynchronous UI boundary.
+	 */
+	[[nodiscard]] virtual std::optional<AuthInfo> auth_info(RequestorContext context) const;
 
 	/**
 	 * @see AuthKeys

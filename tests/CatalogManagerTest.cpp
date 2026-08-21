@@ -158,6 +158,30 @@ TEST_CASE("CatalogManager swaps catalog mirrors and unions their hosts into rout
 	CHECK(store.find_for_url("https://alt.example/title/1"));
 }
 
+TEST_CASE("CatalogManager swaps canonical frontend origins and routes their host") {
+	ParserStore store;
+	store.add_parser(std::make_unique<CatalogParser>("ExampleParser"));
+	StubVerifier verifier(true);
+
+	auto services     = std::make_shared<ServiceState>();
+	services->mirrors = std::make_shared<MirrorSourceHolder>();
+	CatalogManager manager(store, verifier, services);
+
+	std::string_view payload = R"({
+		"schema_version": 1, "revision": 4,
+		"parsers": {
+			"ExampleParser": { "canonical_base_url": "https://frontend.example:8443/path" }
+		}
+	})";
+	REQUIRE(manager.apply(payload, "sig").has_value());
+
+	auto source = services->mirrors->get();
+	REQUIRE(source);
+	REQUIRE(source->canonical_base_for("ExampleParser"));
+	CHECK(*source->canonical_base_for("ExampleParser") == "https://frontend.example:8443/path");
+	CHECK(store.find_for_url("https://frontend.example/title/1"));
+}
+
 TEST_CASE("CatalogManager applies the extractors section to the extractor store and mirrors") {
 	ParserStore store;
 	store.add_parser(std::make_unique<CatalogParser>("SharedId"));

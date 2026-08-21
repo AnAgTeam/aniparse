@@ -64,11 +64,13 @@ expected<CatalogData, CatalogError> decode_catalog(
 		return out;
 	};
 
-	// Read a "<id> -> {domains, mirrors}" section into the given maps; entries
+	// Read a "<id> -> {domains, mirrors, canonical_base_url}" section into the given maps; entries
 	// without a fields object, and empty lists, are skipped. Both the "parsers"
-	// and the "extractors" sections share this shape.
-	auto read_section = [&read_urls](const boost::json::object& section, auto& domains,
-	                                 auto& mirrors) {
+	// and the "extractors" sections share the domains/mirrors shape; only parsers
+	// accept canonical frontend origins.
+	auto read_section = [&read_urls](
+	                        const boost::json::object& section, auto& domains, auto& mirrors,
+	                        std::map<std::string, std::string, std::less<>>* canonical_base_urls) {
 		for (const boost::json::key_value_pair& entry : section) {
 			const boost::json::object* fields = entry.value().if_object();
 			if (!fields) {
@@ -81,16 +83,22 @@ expected<CatalogData, CatalogError> decode_catalog(
 			}
 			std::vector<std::string> entry_mirrors = read_urls(*fields, "mirrors");
 			if (!entry_mirrors.empty()) {
-				mirrors.emplace(std::move(id), std::move(entry_mirrors));
+				mirrors.emplace(id, std::move(entry_mirrors));
+			}
+			if (canonical_base_urls) {
+				if (std::string canonical_base_url = json::str(*fields, "canonical_base_url");
+				    !canonical_base_url.empty()) {
+					canonical_base_urls->emplace(std::move(id), std::move(canonical_base_url));
+				}
 			}
 		}
 	};
 
 	if (const boost::json::object* parsers = json::object_field(*root, "parsers")) {
-		read_section(*parsers, data.domains, data.mirrors);
+		read_section(*parsers, data.domains, data.mirrors, &data.canonical_base_urls);
 	}
 	if (const boost::json::object* extractors = json::object_field(*root, "extractors")) {
-		read_section(*extractors, data.extractor_domains, data.extractor_mirrors);
+		read_section(*extractors, data.extractor_domains, data.extractor_mirrors, nullptr);
 	}
 
 	// Selectors are a flat name -> CSS table, fed straight into a SelectorSource.

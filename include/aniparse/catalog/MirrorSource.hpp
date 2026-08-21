@@ -77,11 +77,16 @@ public:
 	MirrorSource() = default;
 
 	/**
-	 * @brief Build from a parser-id -> ordered base-URL-list map.
+	 * @brief Build from parser-scoped mirror and canonical-origin overrides.
 	 * @param overrides Mirror lists keyed by parser identifier.
+	 * @param canonical_base_urls Canonical frontend origins keyed by parser
+	 * identifier. Each origin shares this immutable source and therefore the same
+	 * request-time snapshot as its parser's mirrors.
 	 */
-	explicit MirrorSource(std::map<std::string, std::vector<std::string>, std::less<>> overrides)
-	    : overrides_(std::move(overrides)) {}
+	explicit MirrorSource(
+	    std::map<std::string, std::vector<std::string>, std::less<>> overrides,
+	    std::map<std::string, std::string, std::less<>> canonical_base_urls = {})
+	    : overrides_(std::move(overrides)), canonical_base_urls_(std::move(canonical_base_urls)) {}
 
 	/**
 	 * @brief The override list for @p parser_id, if present.
@@ -94,11 +99,25 @@ public:
 		return it == overrides_.end() ? nullptr : &it->second;
 	}
 
+	/**
+	 * @brief The catalog canonical frontend origin for @p parser_id, if present.
+	 * @param parser_id Parser identifier stamped into the request config.
+	 * @return A pointer to the origin, or nullptr when the parser keeps its
+	 * built-in fallback. Valid while this source lives.
+	 */
+	[[nodiscard]] const std::string* canonical_base_for(std::string_view parser_id) const {
+		auto it = canonical_base_urls_.find(parser_id);
+		return it == canonical_base_urls_.end() ? nullptr : &it->second;
+	}
+
 	/// @return true if the source carries no overrides (every parser falls back).
-	[[nodiscard]] bool empty_source() const noexcept { return overrides_.empty(); }
+	[[nodiscard]] bool empty_source() const noexcept {
+		return overrides_.empty() && canonical_base_urls_.empty();
+	}
 
 private:
 	std::map<std::string, std::vector<std::string>, std::less<>> overrides_;
+	std::map<std::string, std::string, std::less<>> canonical_base_urls_;
 };
 
 /**

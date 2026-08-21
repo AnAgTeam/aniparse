@@ -115,6 +115,23 @@ TEST_CASE("decode_catalog reads per-parser mirror base URLs alongside domains") 
 	CHECK(result->domains.at("ExampleParser") == std::vector<std::string>{ "example.com" });
 }
 
+TEST_CASE("decode_catalog reads a parser canonical frontend origin") {
+	StubVerifier verifier(true);
+	std::string_view payload = R"({
+        "schema_version": 1,
+        "revision": 3,
+        "parsers": {
+            "ExampleParser": {
+                "canonical_base_url": "https://frontend.example.com"
+            }
+        }
+    })";
+	auto result = decode_catalog(payload, "sig", verifier);
+	REQUIRE(result.has_value());
+	REQUIRE(result->canonical_base_urls.contains("ExampleParser"));
+	CHECK(result->canonical_base_urls.at("ExampleParser") == "https://frontend.example.com");
+}
+
 TEST_CASE("decode_catalog reads the extractors section into separate maps") {
 	StubVerifier verifier(true);
 	std::string_view payload = R"({

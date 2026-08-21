@@ -14,7 +14,8 @@
 
 /**
  * @file
- * The volatile half of a source definition — domains, mirrors and selectors —
+ * The volatile half of a source definition — domains, mirrors, canonical
+ * frontend origins and selectors —
  * as signed data that can be refreshed without shipping a new binary. Sites
  * break; when they do, the fix should be a catalog push, not a release.
  *
@@ -60,7 +61,9 @@ struct SignatureVerifier {
 /**
  * @brief A verified, parsed catalog. @c domains maps a parser identifier to the
  * extra domains it should route (for ParserStore::refresh_domains); @c mirrors
- * maps a parser identifier to its ordered fetch base URLs (for MirrorSource);
+ * maps a parser identifier to its ordered fetch base URLs and
+ * @c canonical_base_urls maps it to a public frontend origin (both for
+ * MirrorSource);
  * @c extractor_domains / @c extractor_mirrors are the same pair for video
  * extractors, keyed by extractor identifier; @c selectors maps a stable selector
  * name (e.g. "example.info.description") to
@@ -76,6 +79,11 @@ struct CatalogData {
 	/// overlap (a frontend host is both) and CatalogManager unions mirror hosts
 	/// into routing so listing a mirror also makes it route.
 	std::map<std::string, std::vector<std::string>, std::less<>> mirrors;
+	/// Per-parser canonical frontend origins. This is deliberately separate from
+	/// @c mirrors: a source can fetch from an API host while sharing links, web
+	/// authentication, and Referer headers against a different frontend origin.
+	/// CatalogManager unions the origin host into routing like a mirror host.
+	std::map<std::string, std::string, std::less<>> canonical_base_urls;
 	/// Per-extractor extra routing domains (for VideoExtractorStore::refresh_domains),
 	/// keyed by VideoExtractor::identifier(). Kept in separate maps from the parser
 	/// ones so a parser and an extractor sharing an identifier never alias each
