@@ -24,10 +24,13 @@ Rating Rating::from_distribution(std::span<const int> distribution) {
 		                                  return prev + current * (i++);
 	                                  });
 
+	const int raters = std::accumulate(distribution.begin(), distribution.end(), 0);
 	Rating rating;
 	rating.max_score_ = static_cast<int>(distribution.size()); // cannot be > 10
-	rating.score_     = weighted  / static_cast<double>(distribution.size());
-	rating.raters_    = std::accumulate(distribution.begin(), distribution.end(), 0);
+	rating.score_     = raters > 0
+	                      ? weighted / static_cast<double>(raters) / static_cast<double>(rating.max_score_) * 10.0
+	                      : 0;
+	rating.raters_    = raters;
 	// create array and copy distrubution to it. Other values stays 0
 	rating.distribution_ = std::array<int, 10>{};
 	std::copy(distribution.begin(), distribution.end(), rating.distribution_->begin());

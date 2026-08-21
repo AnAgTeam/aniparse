@@ -38,8 +38,9 @@ TEST_CASE("Rating::from_distribution derives score, raters and distribution") {
 	std::array<int, 3> votes{1, 2, 3};
 	Rating rating = Rating::from_distribution(votes);
 
-	// weighted = 1*1 + 2*2 + 3*3 = 14; score = 14 / 3
-	REQUIRE(rating.score() == Catch::Approx(14.0 / 3.0));
+	// weighted = 1*1 + 2*2 + 3*3 = 14; mean = 14 / 6 on a 3-point
+	// scale, normalised to the common 0..10 scale.
+	REQUIRE(rating.score() == Catch::Approx(14.0 / 6.0 / 3.0 * 10.0));
 	REQUIRE(rating.max_score() == 3);
 	REQUIRE(rating.raters() == 6);
 
