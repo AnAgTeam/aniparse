@@ -103,4 +103,26 @@ expected<uint64_t, CatalogError> CatalogManager::apply(std::string_view payload,
 	return revision_;
 }
 
+void CatalogManager::reset() {
+	store_.refresh_domains({});
+	if (extractors_) {
+		extractors_->refresh_domains({});
+	}
+	if (services_) {
+		if (services_->mirrors) {
+			services_->mirrors->set(std::make_shared<const MirrorSource>());
+		}
+		if (services_->selectors) {
+			services_->selectors->set(std::make_shared<const html::SelectorSource>());
+		}
+		if (services_->resources) {
+			services_->resources->clear();
+		}
+	}
+	if (extractor_services_ && extractor_services_->mirrors) {
+		extractor_services_->mirrors->set(std::make_shared<const MirrorSource>());
+	}
+	revision_ = 0;
+}
+
 } // namespace aniparse

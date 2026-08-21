@@ -65,6 +65,20 @@ public:
 	[[nodiscard]] expected<uint64_t, CatalogError> apply(std::string_view payload,
 	                                                     std::string_view signature);
 
+	/**
+	 * @brief Discard every active volatile catalog override.
+	 *
+	 * Rebuilds parser and extractor routing from static declarations only, swaps
+	 * empty mirror and selector sources into their holders, clears compiled
+	 * selector resources, and resets the anti-rollback revision to zero. In-flight
+	 * operations retain their old immutable snapshots; operations begun after this
+	 * call observe built-in parser and extractor fallbacks.
+	 * @return Nothing.
+	 * @note This method performs no I/O and does not verify or apply a new
+	 *       catalog. The caller may safely fetch and apply one afterwards.
+	 */
+	void reset();
+
 	/// @return The last applied revision (0 if none has been applied yet).
 	[[nodiscard]] uint64_t revision() const noexcept { return revision_; }
 

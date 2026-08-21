@@ -36,6 +36,14 @@ struct CatalogParser : Parser {
 	void emplace_domains(EmplaceDomainsContext&) const override {}
 };
 
+struct StaticCatalogParser final : CatalogParser {
+	using CatalogParser::CatalogParser;
+
+	void emplace_domains(EmplaceDomainsContext& context) const override {
+		context.add_domain("builtin.example");
+	}
+};
+
 // An extractor with a chosen identifier and no static domains, so routing to it
 // can only come from catalog-supplied volatile domains.
 struct CatalogExtractor : VideoExtractor {
@@ -217,6 +225,51 @@ TEST_CASE("CatalogManager applies the extractors section to the extractor store 
 	REQUIRE(extractor_services->mirrors->get()->list_for("SharedId"));
 	CHECK(*extractor_services->mirrors->get()->list_for("SharedId") ==
 	      std::vector<std::string>{ "https://extractor-live.example:8443/base" });
+}
+
+TEST_CASE("CatalogManager reset restores static routing and empty override snapshots") {
+	ParserStore store;
+	store.add_parser(std::make_unique<StaticCatalogParser>("SharedId"));
+	VideoExtractorStore extractors;
+	extractors.add_extractor(std::make_shared<CatalogExtractor>("SharedId"));
+	StubVerifier verifier(true);
+
+	auto services = std::make_shared<ServiceState>();
+	services->mirrors = std::make_shared<MirrorSourceHolder>();
+	services->selectors = std::make_shared<html::SelectorSourceHolder>();
+	services->resources = std::make_shared<ResourceCache>();
+	auto extractor_services = std::make_shared<ServiceState>();
+	extractor_services->mirrors = std::make_shared<MirrorSourceHolder>();
+	CatalogManager manager(store, verifier, services, &extractors, extractor_services);
+
+	std::string_view payload = R"({
+		"schema_version": 1, "revision": 6,
+		"parsers": {
+			"SharedId": {
+				"domains": ["catalog.example"],
+				"mirrors": ["https://mirror.example"],
+				"canonical_base_url": "https://frontend.example"
+			}
+		},
+		"extractors": { "SharedId": { "mirrors": ["https://extractor.example"] } },
+		"selectors": { "shared.info": ".catalog" }
+	})";
+	REQUIRE(manager.apply(payload, "sig").has_value());
+	CHECK(store.find_for_url("https://catalog.example/title/1"));
+	CHECK(extractors.route_url("https://extractor.example/embed/1"));
+	CHECK(services->selectors->get()->get("shared.info", "FALLBACK") == ".catalog");
+
+	manager.reset();
+
+	CHECK(manager.revision() == 0);
+	CHECK(store.find_for_url("https://builtin.example/title/1"));
+	CHECK_FALSE(store.find_for_url("https://catalog.example/title/1"));
+	CHECK_FALSE(store.find_for_url("https://mirror.example/title/1"));
+	CHECK_FALSE(store.find_for_url("https://frontend.example/title/1"));
+	CHECK_FALSE(extractors.route_url("https://extractor.example/embed/1"));
+	CHECK(services->mirrors->get()->empty_source());
+	CHECK(extractor_services->mirrors->get()->empty_source());
+	CHECK(services->selectors->get()->get("shared.info", "FALLBACK") == "FALLBACK");
 }
 
 TEST_CASE("CatalogManager without an extractor store ignores the extractors section") {
