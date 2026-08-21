@@ -88,6 +88,9 @@ DefaultUserLists UserList::to_enum() const {
 	if (name == user_list_read) {
 		return DefaultUserLists::Read;
 	}
+	if (name == user_list_on_hold) {
+		return DefaultUserLists::OnHold;
+	}
 	return DefaultUserLists::Other;
 }
 } // namespace aniparse

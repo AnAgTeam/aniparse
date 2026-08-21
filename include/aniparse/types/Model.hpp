@@ -492,6 +492,9 @@ enum class DefaultUserLists {
 	// book related
 	Reading,  ///< Currently reading. @see user_list_reading
 	Read,     ///< Finished reading. @see user_list_read
+	/// Temporarily paused, without abandoning the work. @see user_list_on_hold
+	/// Kept last to preserve the numeric values of the older public enum cases.
+	OnHold,
 };
 
 /// Canonical @ref UserList::name for @ref aniparse::DefaultUserLists::Planning.
@@ -508,6 +511,8 @@ inline constexpr std::string_view user_list_watching = "watching";
 inline constexpr std::string_view user_list_reading  = "reading";
 /// Canonical @ref UserList::name for @ref aniparse::DefaultUserLists::Read.
 inline constexpr std::string_view user_list_read     = "read";
+/// Canonical @ref UserList::name for @ref aniparse::DefaultUserLists::OnHold.
+inline constexpr std::string_view user_list_on_hold  = "on_hold";
 
 /**
  * Structure representing list, that users added
