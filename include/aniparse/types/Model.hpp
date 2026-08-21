@@ -555,6 +555,42 @@ struct AudienceListCount {
 };
 
 /**
+ * @brief The calendar unit of a recurring release interval.
+ *
+ * Together with @ref RecurringReleaseInfo::interval, this preserves a source's
+ * declared cadence without turning calendar months into an approximate number
+ * of days.
+ */
+enum class ReleaseCadenceUnit {
+	Days,   ///< Repeats after a whole-number count of calendar days.
+	Weeks,  ///< Repeats after a whole-number count of calendar weeks.
+	Months, ///< Repeats after a whole-number count of calendar months.
+};
+
+/**
+ * @brief A source-declared recurring publication or airing schedule.
+ *
+ * This describes a cadence, not an inferred next installment. Sources may
+ * publish only the interval, a weekday, a time of day, or any combination of
+ * them. Use a domain's upcoming-installment field for a concrete next release.
+ */
+struct RecurringReleaseInfo {
+	/// Positive number of @ref unit units between releases. Parsers must leave
+	/// the enclosing optional empty rather than emit zero.
+	unsigned int interval = 1;
+	/// Calendar unit paired with @ref interval. Weeks is the neutral default for
+	/// sources that state only a broadcast weekday.
+	ReleaseCadenceUnit unit = ReleaseCadenceUnit::Weeks;
+	/// Day on which a weekly cadence occurs. @c nullopt = the source does not
+	/// name one, including non-weekly cadences. `std::chrono::weekday` uses
+	/// Sunday = 0, Monday = 1 through Saturday = 6.
+	std::optional<std::chrono::weekday> weekday;
+	/// Local time of day announced by the source. @c nullopt = it names no time;
+	/// no timezone is implied by this value.
+	std::optional<std::chrono::minutes> time_of_day;
+};
+
+/**
  * @brief How much attention an item has had on its source.
  * Its own struct rather than a bare int so an absent count (an optional ViewStats
  * left empty) is distinguishable from a real zero, and so further counters can be
@@ -686,6 +722,10 @@ struct MediaInfo {
 	/// response. This is aggregate data, distinct from the authenticated user's
 	/// @ref UserList membership.
 	std::vector<AudienceListCount> audience_lists;
+	/// A recurring release cadence the source explicitly declares. @c nullopt =
+	/// no cadence is published in this response; consumers must not derive one
+	/// from previous installments. @see RecurringReleaseInfo
+	std::optional<RecurringReleaseInfo> release_schedule;
 
 	/// Minimum age the source requires to view the item, in years. 0 = unrestricted or
 	/// unstated — an adult work is more reliably detected via @ref is_hentai and the
