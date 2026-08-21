@@ -86,6 +86,7 @@ find_package(tl-expected CONFIG REQUIRED)
 
 add_library(aniparse ${aniparse_library_type}
 	"src/AniParse.cpp" "include/aniparse/AniParse.hpp"
+	"src/Version.cpp" "include/aniparse/Version.hpp"
 	"include/aniparse/utility/FlagsBitfield.hpp"
 	"include/aniparse/detail/BitsetLite.hpp"
 	"include/aniparse/detail/StrongBitset.hpp"
@@ -187,6 +188,7 @@ target_compile_options(aniparse PUBLIC
 # transitive too: suppressing it only in this target would leave every user of the
 # library to rediscover it and reach for the (std::max)(...) parenthesis trick.
 target_compile_definitions(aniparse PUBLIC
+	ANIPARSE_VERSION="${PROJECT_VERSION}"
 	$<$<PLATFORM_ID:Windows>:NOMINMAX>
 )
 
