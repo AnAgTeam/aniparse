@@ -137,6 +137,38 @@ TEST_CASE("CatalogManager swaps catalog selectors into the services holder") {
 	CHECK(source->get("unknown.key", "FALLBACK") == "FALLBACK");          // unknown still falls back
 }
 
+TEST_CASE("CatalogManager swaps catalog patterns into the services holders") {
+	ParserStore store;
+	StubVerifier verifier(true);
+
+	auto services = std::make_shared<ServiceState>();
+	services->patterns = std::make_shared<RegexSourceHolder>();
+	services->resources = std::make_shared<ResourceCache>();
+	auto extractor_services = std::make_shared<ServiceState>();
+	extractor_services->patterns = std::make_shared<RegexSourceHolder>();
+	CatalogManager manager(store, verifier, services, nullptr, extractor_services);
+
+	// Before any catalog the holders are empty -> every key falls back.
+	CHECK(services->patterns->get()->scoped_to("ExampleParser")->get("info.id", "FALLBACK") ==
+	      "FALLBACK");
+
+	std::string_view payload = R"json({
+		"schema_version": 1, "revision": 2,
+		"parsers": { "ExampleParser": { "patterns": { "info.id": "/x/(?<id>\\d+)" } } },
+		"extractors": { "SomeExtractor": { "patterns": { "video_path": "/v/x" } } }
+	})json";
+	REQUIRE(manager.apply(payload, "sig").has_value());
+
+	// Parser patterns land in the parser holder, extractor patterns in the
+	// extractor one — no aliasing across the two.
+	CHECK(services->patterns->get()->scoped_to("ExampleParser")->get("info.id", "FALLBACK") ==
+	      R"(/x/(?<id>\d+))");
+	CHECK(services->patterns->get()->scoped_to("SomeExtractor")->empty_source());
+	CHECK(extractor_services->patterns->get()->scoped_to("SomeExtractor")->get("video_path", "FALLBACK") ==
+	      "/v/x");
+	CHECK(extractor_services->patterns->get()->scoped_to("ExampleParser")->empty_source());
+}
+
 TEST_CASE("CatalogManager swaps catalog mirrors and unions their hosts into routing") {
 	ParserStore store;
 	store.add_parser(std::make_unique<CatalogParser>("ExampleParser"));
@@ -237,9 +269,11 @@ TEST_CASE("CatalogManager reset restores static routing and empty override snaps
 	auto services = std::make_shared<ServiceState>();
 	services->mirrors = std::make_shared<MirrorSourceHolder>();
 	services->selectors = std::make_shared<html::SelectorSourceHolder>();
+	services->patterns = std::make_shared<RegexSourceHolder>();
 	services->resources = std::make_shared<ResourceCache>();
 	auto extractor_services = std::make_shared<ServiceState>();
 	extractor_services->mirrors = std::make_shared<MirrorSourceHolder>();
+	extractor_services->patterns = std::make_shared<RegexSourceHolder>();
 	CatalogManager manager(store, verifier, services, &extractors, extractor_services);
 
 	std::string_view payload = R"({
@@ -248,16 +282,19 @@ TEST_CASE("CatalogManager reset restores static routing and empty override snaps
 			"SharedId": {
 				"domains": ["catalog.example"],
 				"mirrors": ["https://mirror.example"],
-				"canonical_base_url": "https://frontend.example"
+				"canonical_base_url": "https://frontend.example",
+				"patterns": { "info.id": "/x" }
 			}
 		},
-		"extractors": { "SharedId": { "mirrors": ["https://extractor.example"] } },
+		"extractors": { "SharedId": { "mirrors": ["https://extractor.example"], "patterns": { "video_path": "/v/x" } } },
 		"selectors": { "shared.info": ".catalog" }
 	})";
 	REQUIRE(manager.apply(payload, "sig").has_value());
 	CHECK(store.find_for_url("https://catalog.example/title/1"));
 	CHECK(extractors.route_url("https://extractor.example/embed/1"));
 	CHECK(services->selectors->get()->get("shared.info", "FALLBACK") == ".catalog");
+	CHECK(services->patterns->get()->scoped_to("SharedId")->get("info.id", "FALLBACK") == "/x");
+	CHECK(extractor_services->patterns->get()->scoped_to("SharedId")->get("video_path", "FALLBACK") == "/v/x");
 
 	manager.reset();
 
@@ -270,6 +307,8 @@ TEST_CASE("CatalogManager reset restores static routing and empty override snaps
 	CHECK(services->mirrors->get()->empty_source());
 	CHECK(extractor_services->mirrors->get()->empty_source());
 	CHECK(services->selectors->get()->get("shared.info", "FALLBACK") == "FALLBACK");
+	CHECK(services->patterns->get()->empty_source());
+	CHECK(extractor_services->patterns->get()->empty_source());
 }
 
 TEST_CASE("CatalogManager without an extractor store ignores the extractors section") {

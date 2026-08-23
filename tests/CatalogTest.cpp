@@ -154,6 +154,26 @@ TEST_CASE("decode_catalog reads the extractors section into separate maps") {
 	      std::vector<std::string>{ "https://extractor-live.example" });
 }
 
+TEST_CASE("decode_catalog reads per-entry regex pattern overrides") {
+	StubVerifier verifier(true);
+	std::string_view payload = R"json({
+        "schema_version": 1,
+        "revision": 5,
+        "parsers": {
+            "ExampleParser": { "patterns": { "info.id": "/x/(?<id>\\d+)" } }
+        },
+        "extractors": {
+            "SomeExtractor": { "patterns": { "video_path": "/v/[^\"']+?\\.mp4" } }
+        }
+    })json";
+	auto result = decode_catalog(payload, "sig", verifier);
+	REQUIRE(result.has_value());
+	REQUIRE(result->patterns.contains("ExampleParser"));
+	CHECK(result->patterns.at("ExampleParser").at("info.id") == R"(/x/(?<id>\d+))");
+	REQUIRE(result->extractor_patterns.contains("SomeExtractor"));
+	CHECK(result->extractor_patterns.at("SomeExtractor").at("video_path") == R"(/v/[^"']+?\.mp4)");
+}
+
 TEST_CASE("decode_catalog treats a missing required field as bad format") {
 	StubVerifier verifier(true);
 	std::string_view no_revision = R"({ "schema_version": 1, "parsers": {} })";

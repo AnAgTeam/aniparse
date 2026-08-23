@@ -123,6 +123,24 @@ struct VideoExtractor {
 	 */
 	[[nodiscard]] std::string_view base_url(const RequestorContext& context,
 	                                         std::span<const std::string_view> builtin) const;
+	/**
+	 * @brief Build (cached) the pattern set @p T scoped to this extractor's
+	 * identifier, from the volatile-catalog regex source.
+	 *
+	 * The extractor counterpart of RequestorContext::patterns(): an extractor
+	 * carries no stamped ParserConfig, so it names its own stable identifier() as
+	 * the override scope. Overrides reach the extractor only when the consumer
+	 * builds its context on a ServiceState whose pattern holder carries the
+	 * extractor pattern source.
+	 * @tparam T Pattern set type exposing `static T create(const RegexSource&)`.
+	 * @param context Request context holding the pattern snapshot.
+	 * @return Shared handle to the built set; hold it for the whole extraction so
+	 * a concurrent catalog swap cannot free it underneath.
+	 */
+	template <class T>
+	[[nodiscard]] std::shared_ptr<const T> patterns(const RequestorContext& context) const {
+		return context.patterns<T>(identifier());
+	}
 };
 
 /**

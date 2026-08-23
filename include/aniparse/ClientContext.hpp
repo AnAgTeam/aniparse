@@ -10,6 +10,7 @@
 #include "aniparse/catalog/MirrorSource.hpp"
 #include "aniparse/cache/ResourceCache.hpp"
 #include "aniparse/html/SelectorSource.hpp"
+#include "aniparse/utility/RegexSource.hpp"
 #include "aniparse/utility/Format.hpp"
 
 #include "aniparse/net/CancellingTask.hpp"
@@ -255,6 +256,11 @@ struct ServiceState {
 	/// Optional swappable selector-source holder; null reads as an empty source
 	/// (all built-in selectors). A catalog apply set()s a new source into it.
 	std::shared_ptr<html::SelectorSourceHolder> selectors = nullptr;
+	/// Optional swappable regex-source holder; null reads as an empty source
+	/// (all built-in pattern literals). A catalog apply set()s a new source into
+	/// it, keyed by parser identifier — or by extractor identifier for a state
+	/// built to feed video extractors.
+	std::shared_ptr<RegexSourceHolder> patterns = nullptr;
 	/// Optional swappable mirror-source holder; null reads as an empty source
 	/// (every parser falls back to its built-in mirrors). A catalog apply set()s a
 	/// new source into it, keyed by parser identifier. A consumer that runs video
@@ -530,6 +536,58 @@ public:
 		// No selector holder (tests, minimal hosts): every selector falls back to
 		// its built-in literal, cached by bare type in the shared resource cache.
 		auto source = selector_source();
+		return resources().get<T>([source] { return T::create(*source); });
+	}
+
+	/**
+	 * @brief The data-driven regex pattern override source, unscoped.
+	 * Empty by default (every pattern falls back to its built-in literal); a
+	 * populated source arrives from the volatile catalog. Shared across contexts
+	 * derived via new_with_config / new_with_logger, like resources(). This is
+	 * the raw source holding every owner's table — set construction should go
+	 * through @ref patterns, which scopes it to this context's parser.
+	 * @return The regex pattern source
+	 */
+	std::shared_ptr<const RegexSource> pattern_source() const;
+
+	/**
+	 * @brief Build (once per parser, cached) a pattern set @p T from this
+	 * context's scoped regex source, falling back to the set's built-in literals.
+	 *
+	 * The set is compiled against the overrides of THIS context's parser (the id
+	 * Parser::make_config stamped into the config) and cached by (parser id, set
+	 * type) inside the regex-source holder — the same discipline as
+	 * @ref selectors. The getter names only the set type.
+	 * @tparam T Pattern set type exposing `static T create(const RegexSource&)`
+	 * @return Shared handle to the built set; hold it for the whole operation so a
+	 *         concurrent catalog swap cannot free it underneath
+	 */
+	template <class T>
+	[[nodiscard]] std::shared_ptr<const T> patterns() const {
+		return patterns<T>(config_->parser_id);
+	}
+
+	/**
+	 * @brief Build a pattern set @p T scoped to an explicitly given @p id.
+	 *
+	 * This overload exists for video extractors (via VideoExtractor::patterns),
+	 * which carry no stamped ParserConfig and so name their own stable identifier
+	 * as the override scope. Parsers must call the no-argument @ref patterns()
+	 * instead: their overrides are scoped by the parser identity
+	 * Parser::make_config stamped into the config, and naming an id by hand can
+	 * only mis-scope them.
+	 * @tparam T Pattern set type exposing `static T create(const RegexSource&)`
+	 * @param id The extractor's stable identifier (@see VideoExtractor::identifier).
+	 * @return Shared handle to the built set; hold it for the whole operation.
+	 */
+	template <class T>
+	[[nodiscard]] std::shared_ptr<const T> patterns(std::string_view id) const {
+		if (services_ && services_->patterns) {
+			return services_->patterns->set_for<T>(id);
+		}
+		// No pattern holder (tests, minimal hosts): every pattern falls back to
+		// its built-in literal, cached by bare type in the shared resource cache.
+		auto source = pattern_source();
 		return resources().get<T>([source] { return T::create(*source); });
 	}
 

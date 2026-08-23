@@ -91,6 +91,10 @@ expected<uint64_t, CatalogError> CatalogManager::apply(std::string_view payload,
 			services_->selectors->set(
 			    std::make_shared<const html::SelectorSource>(std::move(decoded->selectors)));
 		}
+		if (services_->patterns) {
+			services_->patterns->set(
+			    std::make_shared<const RegexSource>(std::move(decoded->patterns)));
+		}
 		if (services_->resources) {
 			services_->resources->clear();
 		}
@@ -98,6 +102,10 @@ expected<uint64_t, CatalogError> CatalogManager::apply(std::string_view payload,
 	if (extractor_services_ && extractor_services_->mirrors) {
 		extractor_services_->mirrors->set(
 		    std::make_shared<const MirrorSource>(std::move(decoded->extractor_mirrors)));
+	}
+	if (extractor_services_ && extractor_services_->patterns) {
+		extractor_services_->patterns->set(
+		    std::make_shared<const RegexSource>(std::move(decoded->extractor_patterns)));
 	}
 	revision_ = new_revision;
 	return revision_;
@@ -115,12 +123,18 @@ void CatalogManager::reset() {
 		if (services_->selectors) {
 			services_->selectors->set(std::make_shared<const html::SelectorSource>());
 		}
+		if (services_->patterns) {
+			services_->patterns->set(std::make_shared<const RegexSource>());
+		}
 		if (services_->resources) {
 			services_->resources->clear();
 		}
 	}
 	if (extractor_services_ && extractor_services_->mirrors) {
 		extractor_services_->mirrors->set(std::make_shared<const MirrorSource>());
+	}
+	if (extractor_services_ && extractor_services_->patterns) {
+		extractor_services_->patterns->set(std::make_shared<const RegexSource>());
 	}
 	revision_ = 0;
 }

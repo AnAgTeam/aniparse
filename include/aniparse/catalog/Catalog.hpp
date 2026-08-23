@@ -15,7 +15,7 @@
 /**
  * @file
  * The volatile half of a source definition — domains, mirrors, canonical
- * frontend origins and selectors —
+ * frontend origins, selectors and regex patterns —
  * as signed data that can be refreshed without shipping a new binary. Sites
  * break; when they do, the fix should be a catalog push, not a release.
  *
@@ -68,7 +68,8 @@ struct SignatureVerifier {
  * extractors, keyed by extractor identifier; @c selectors maps a stable selector
  * name (e.g. "example.info.description") to
  * its override CSS, a flat table fed straight into a SelectorSource. Filters
- * join later.
+ * join later. @c patterns / @c extractor_patterns map an owner identifier to its
+ * regex overrides (short key -> pattern text), fed into a RegexSource.
  */
 struct CatalogData {
 	uint64_t revision = 0;
@@ -95,6 +96,16 @@ struct CatalogData {
 	/// @c extractor_domains the same way it does for parser mirrors.
 	std::map<std::string, std::vector<std::string>, std::less<>> extractor_mirrors;
 	std::map<std::string, std::string, std::less<>> selectors;
+	/// Per-parser regex pattern overrides: parser identifier -> short pattern key
+	/// (e.g. "info.title") -> pattern text, fed into a RegexSource (@see
+	/// aniparse/utility/RegexSource.hpp). Scoped by parser id so one parser's
+	/// hotfix cannot name another parser's pattern.
+	std::map<std::string, std::map<std::string, std::string, std::less<>>, std::less<>> patterns;
+	/// Per-extractor regex pattern overrides, keyed by extractor identifier; the
+	/// consumer feeds them to extractors through a RegexSourceHolder of its own
+	/// (@see CatalogManager). Kept separate from @c patterns for the same
+	/// anti-aliasing reason as @c extractor_domains.
+	std::map<std::string, std::map<std::string, std::string, std::less<>>, std::less<>> extractor_patterns;
 };
 
 /// The catalog schema version this build understands.

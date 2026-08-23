@@ -229,6 +229,20 @@ std::shared_ptr<const html::SelectorSource> RequestorContext::selector_source() 
 	return empty;
 }
 
+std::shared_ptr<const RegexSource> RequestorContext::pattern_source() const {
+	assert(services_);
+	if (services_->patterns) {
+		if (auto source = services_->patterns->get()) {
+			return source;
+		}
+	}
+	// No holder: a shared empty source, so every pattern falls back to its
+	// built-in literal.
+	static const std::shared_ptr<const RegexSource> empty =
+	    std::make_shared<const RegexSource>();
+	return empty;
+}
+
 size_t RequestorContext::alt_link() const {
 	assert(config_);
 	return config_->alt_link;

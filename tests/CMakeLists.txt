@@ -25,6 +25,7 @@ add_executable(aniparse-tests
 	"SearchValidationTest.cpp"
 	"CssSelectorTest.cpp"
 	"SelectorSourceTest.cpp"
+	"RegexSourceTest.cpp"
 	"JsParserTest.cpp"
 	"JsonAccessTest.cpp"
 	"ResourceCacheTest.cpp"

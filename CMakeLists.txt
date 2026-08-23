@@ -1,4 +1,4 @@
-﻿cmake_minimum_required (VERSION 3.18)
+cmake_minimum_required (VERSION 3.18)
 
 # ---- PREPARE
 
@@ -107,6 +107,7 @@ add_library(aniparse ${aniparse_library_type}
 	"include/aniparse/utility/Coroutines.hpp"
 	"include/aniparse/utility/Expected.hpp"
 	"include/aniparse/utility/Regex.hpp"
+	"src/utility/RegexSource.cpp" "include/aniparse/utility/RegexSource.hpp"
 	"include/aniparse/utility/UrlEncode.hpp"
 	"src/utility/Time.cpp" "include/aniparse/utility/Time.hpp"
 	"src/utility/HtmlText.cpp" "include/aniparse/utility/HtmlText.hpp"

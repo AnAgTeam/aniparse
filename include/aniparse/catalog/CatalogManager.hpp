@@ -34,7 +34,8 @@ public:
 	 * @param verifier The signature verifier (carries the pinned key); must outlive
 	 *                 the manager.
 	 * @param services Optional shared services; when given, a successful apply also
-	 *                 swaps the catalog's selectors into its holder and clears its
+	 *                 swaps the catalog's selectors and regex patterns into their
+	 *                 holders and clears its
 	 *                 resource cache so compiled sets rebuild. Null = domains only.
 	 * @param extractors Optional video extractor store; when given, a successful
 	 *                 apply also refreshes its routing from the catalog's
@@ -69,7 +70,8 @@ public:
 	 * @brief Discard every active volatile catalog override.
 	 *
 	 * Rebuilds parser and extractor routing from static declarations only, swaps
-	 * empty mirror and selector sources into their holders, clears compiled
+	 * empty mirror, selector and regex-pattern sources into their holders, clears
+	 * compiled
 	 * selector resources, and resets the anti-rollback revision to zero. In-flight
 	 * operations retain their old immutable snapshots; operations begun after this
 	 * call observe built-in parser and extractor fallbacks.

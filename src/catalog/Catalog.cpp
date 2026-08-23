@@ -64,13 +64,15 @@ expected<CatalogData, CatalogError> decode_catalog(
 		return out;
 	};
 
-	// Read a "<id> -> {domains, mirrors, canonical_base_url}" section into the given maps; entries
-	// without a fields object, and empty lists, are skipped. Both the "parsers"
-	// and the "extractors" sections share the domains/mirrors shape; only parsers
-	// accept canonical frontend origins.
+	// Read a "<id> -> {domains, mirrors, canonical_base_url, patterns}" section into the
+	// given maps; entries without a fields object, and empty lists, are skipped. Both
+	// the "parsers" and the "extractors" sections share the domains/mirrors/patterns
+	// shape; only parsers accept canonical frontend origins. "patterns" is a nested
+	// short-key -> pattern-text object fed into a RegexSource.
 	auto read_section = [&read_urls](
 	                        const boost::json::object& section, auto& domains, auto& mirrors,
-	                        std::map<std::string, std::string, std::less<>>* canonical_base_urls) {
+	                        std::map<std::string, std::string, std::less<>>* canonical_base_urls,
+	                        auto& patterns) {
 		for (const boost::json::key_value_pair& entry : section) {
 			const boost::json::object* fields = entry.value().if_object();
 			if (!fields) {
@@ -88,17 +90,32 @@ expected<CatalogData, CatalogError> decode_catalog(
 			if (canonical_base_urls) {
 				if (std::string canonical_base_url = json::str(*fields, "canonical_base_url");
 				    !canonical_base_url.empty()) {
-					canonical_base_urls->emplace(std::move(id), std::move(canonical_base_url));
+					// A copy: id is still needed by the patterns block below.
+					canonical_base_urls->emplace(id, std::move(canonical_base_url));
+				}
+			}
+			if (const boost::json::object* entry_patterns = json::object_field(*fields, "patterns")) {
+				std::map<std::string, std::string, std::less<>> owner_patterns;
+				for (const boost::json::key_value_pair& pattern : *entry_patterns) {
+					if (const boost::json::string* text = pattern.value().if_string()) {
+						owner_patterns.emplace(std::string(pattern.key()),
+						                       std::string(text->c_str(), text->size()));
+					}
+				}
+				if (!owner_patterns.empty()) {
+					patterns.emplace(std::move(id), std::move(owner_patterns));
 				}
 			}
 		}
 	};
 
 	if (const boost::json::object* parsers = json::object_field(*root, "parsers")) {
-		read_section(*parsers, data.domains, data.mirrors, &data.canonical_base_urls);
+		read_section(*parsers, data.domains, data.mirrors, &data.canonical_base_urls,
+		             data.patterns);
 	}
 	if (const boost::json::object* extractors = json::object_field(*root, "extractors")) {
-		read_section(*extractors, data.extractor_domains, data.extractor_mirrors, nullptr);
+		read_section(*extractors, data.extractor_domains, data.extractor_mirrors, nullptr,
+		             data.extractor_patterns);
 	}
 
 	// Selectors are a flat name -> CSS table, fed straight into a SelectorSource.
