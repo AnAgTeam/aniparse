@@ -49,7 +49,7 @@ namespace aniparse {
 	inline bool regex_search(
 		Range&& range,
 		match_results<std::ranges::iterator_t<Range>, Alloc>& results,
-		basic_regex<TChar, Traits>& reg,
+		const basic_regex<TChar, Traits>& reg,
 		regex_constants::match_flag_type flags = regex_constants::match_default) {
 		return regex_search(
 			std::begin(range), std::end(range),
@@ -66,7 +66,7 @@ namespace aniparse {
 	inline bool regex_match(
 		Range&& range,
 		match_results<std::ranges::iterator_t<Range>, Alloc>& results,
-		basic_regex<TChar, Traits>& reg,
+		const basic_regex<TChar, Traits>& reg,
 		regex_constants::match_flag_type flags = regex_constants::match_default) {
 		return regex_match(
 			std::begin(range), std::end(range),
