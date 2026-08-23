@@ -108,6 +108,7 @@ add_library(aniparse ${aniparse_library_type}
 	"include/aniparse/utility/Expected.hpp"
 	"include/aniparse/utility/Regex.hpp"
 	"src/utility/RegexSource.cpp" "include/aniparse/utility/RegexSource.hpp"
+	"src/utility/CatalogSink.cpp" "include/aniparse/utility/CatalogSink.hpp"
 	"include/aniparse/utility/UrlEncode.hpp"
 	"src/utility/Time.cpp" "include/aniparse/utility/Time.hpp"
 	"src/utility/HtmlText.cpp" "include/aniparse/utility/HtmlText.hpp"

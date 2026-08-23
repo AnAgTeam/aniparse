@@ -5,7 +5,11 @@
  */
 #include "catch_amalgamated.hpp"
 
+#include <aniparse/html/HTMLDocument.hpp>
 #include <aniparse/html/SelectorSource.hpp>
+
+#include <utility>
+#include <vector>
 
 using namespace aniparse::html;
 using namespace std::string_view_literals;
@@ -157,4 +161,65 @@ TEST_CASE("an id with no scoped overrides gets the shared source itself") {
 	CHECK(holder.view_for("parser_a") == source);
 	CHECK(holder.view_for("") == source);
 	CHECK(holder.set_for<ProbeSet>("parser_a")->css == "h1.flat");
+}
+
+namespace {
+/// A recording subclass (the catalog dumper's shape): logs every (key, fallback)
+/// pair a set declares, delegating the decision to the base implementation.
+class RecordingSelectorSource : public SelectorSource {
+public:
+	using SelectorSource::SelectorSource;
+
+	[[nodiscard]] CompiledSelector compile(SelectorCompiler& compiler,
+	                                       std::string_view key,
+	                                       std::string_view fallback) const override {
+		recorded.emplace_back(key, fallback);
+		return SelectorSource::compile(compiler, key, fallback);
+	}
+
+	mutable std::vector<std::pair<std::string, std::string>> recorded;
+};
+} // namespace
+
+TEST_CASE("a recording subclass sees exactly the (key, fallback) pairs a set declares") {
+	RecordingSelectorSource source;
+	SelectorCompiler compiler;
+	auto card = source.compile(compiler, "card.card", ".tiles .tile");
+	auto title = source.compile(compiler, "info.title", "h1.main");
+
+	CHECK(source.recorded == std::vector<std::pair<std::string, std::string>>{
+	    { "card.card", ".tiles .tile" },
+	    { "info.title", "h1.main" },
+	});
+
+	// Delegation: the compiled result matches identically to the base class's.
+	HTMLDocument document = parse_html(
+	    R"(<!DOCTYPE html><html><body><div class="tiles"><div class="tile">x</div></div><h1 class="main">t</h1></body></html>)");
+	const SelectorSource& base = SelectorSource::empty();
+	SelectorCompiler base_compiler;
+	CHECK(document.query_all(card).size() ==
+	      document.query_all(base.compile(base_compiler, "card.card", ".tiles .tile")).size());
+	CHECK(document.query_all(title).size() ==
+	      document.query_all(base.compile(base_compiler, "info.title", "h1.main")).size());
+}
+
+TEST_CASE("a recording subclass preserves the override semantics of the base") {
+	SelectorSource::Overrides overrides{ { "card.card", ".hotfix" } };
+	RecordingSelectorSource recording(overrides);
+	SelectorSource base(overrides);
+
+	SelectorCompiler recording_compiler;
+	SelectorCompiler base_compiler;
+	auto via_recording = recording.compile(recording_compiler, "card.card", ".tiles .tile");
+	auto via_base = base.compile(base_compiler, "card.card", ".tiles .tile");
+
+	// The (key, fallback) pair is still recorded verbatim even when the override wins.
+	CHECK(recording.recorded == std::vector<std::pair<std::string, std::string>>{
+	    { "card.card", ".tiles .tile" },
+	});
+
+	HTMLDocument document = parse_html(
+	    R"(<!DOCTYPE html><html><body><div class="hotfix">h</div><div class="tiles"><div class="tile">x</div></div></body></html>)");
+	CHECK(document.query_all(via_recording).size() == document.query_all(via_base).size());
+	CHECK(document.query_all(via_recording).size() == 1); // both picked the override
 }

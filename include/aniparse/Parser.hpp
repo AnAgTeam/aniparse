@@ -22,6 +22,7 @@
 namespace aniparse {
 struct ImagesGetter;
 struct AnimeRootGetter;
+class CatalogSink;
 class RequestorContext;
 
 /**
@@ -166,6 +167,27 @@ struct Parser {
 	 * @param context Context to use to add domains
 	 */
 	virtual void emplace_domains(EmplaceDomainsContext& context) const = 0;
+
+	/**
+	 * @brief Declare the parser's catalog-visible defaults into @p sink.
+	 *
+	 * The volatile catalog's authoring data comes from LIVE objects, not from
+	 * parsed source text: the dumper hands each registered parser a CatalogSink
+	 * and the parser declares what a hotfix may override — its selector sets
+	 * (`sink.emplace_set<...Selectors>()`, which strictly compiles every
+	 * built-in literal through the real engine) and, when it has one, its
+	 * canonical frontend origin (`sink.set_canonical_base_url(...)`).
+	 *
+	 * Contract: an override DECLARES only — it calls sink methods and never
+	 * stores the sink (valid only for the duration of the call). The empty
+	 * default means "no catalog sets, no canonical URL": such a parser simply
+	 * has no selector hotfix channel, discovered at first use.
+	 * @param sink The sink collecting this parser's catalog defaults
+	 * @throws std::logic_error from the sink on a cross-set key collision or a
+	 *         double canonical URL; a set's broken built-in literal likewise
+	 *         propagates (a programming error the dump must fail on)
+	 */
+	virtual void emplace_catalog(CatalogSink& /*sink*/) const {}
 
 	/**
 	 * @brief Authenticate the parser's service with the given credentials.

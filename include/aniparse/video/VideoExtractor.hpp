@@ -77,6 +77,26 @@ struct VideoExtractor {
 	 */
 	virtual void emplace_domains(EmplaceDomainsContext& context) const = 0;
 	/**
+	 * @brief Declare the extractor's catalog-visible defaults into @p sink.
+	 *
+	 * The extractor counterpart of Parser::emplace_catalog: the volatile
+	 * catalog's authoring data comes from LIVE objects — the dumper hands each
+	 * registered extractor a CatalogSink and the extractor declares its pattern
+	 * sets (`sink.emplace_set<...Patterns>()`, strictly compiling every built-in
+	 * literal). Extractors fetch from the incoming URL's own origin, so they
+	 * declare no canonical base URL.
+	 *
+	 * Contract: an override DECLARES only — it calls sink methods and never
+	 * stores the sink (valid only for the duration of the call). The empty
+	 * default means "no catalog sets": such an extractor simply has no pattern
+	 * hotfix channel, discovered at first use.
+	 * @param sink The sink collecting this extractor's catalog defaults
+	 * @throws std::logic_error from the sink on a cross-set key collision; a
+	 *         set's broken built-in literal likewise propagates (a programming
+	 *         error the dump must fail on)
+	 */
+	virtual void emplace_catalog(CatalogSink& /*sink*/) const {}
+	/**
 	 * @brief Decide whether this extractor handles one URL under a declared host.
 	 * @param url Parsed URL whose host already matched one of emplace_domains().
 	 * @return True when extract() can handle the URL; false to reject it.

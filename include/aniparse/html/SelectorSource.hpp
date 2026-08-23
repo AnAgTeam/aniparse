@@ -38,6 +38,13 @@ namespace aniparse::html {
  * compiled through a scoped view (@ref SelectorSourceHolder::view_for) reads its
  * parser's short keys; a set compiled against the raw source keeps reading the
  * flat full names, which keeps schema-v1 catalogs and tests working unchanged.
+ *
+ * The class is subclassable (virtual @ref compile and destructor) so tooling —
+ * e.g. the catalog dumper — can RECORD the (key, fallback) pairs a set declares
+ * while delegating to the base implementation. A subclass MUST preserve the
+ * fallback-first semantics: an override that changes which text wins (serving
+ * anything but the override-or-fallback the base would pick) would silently
+ * break the hotfix contract the parsers and tests rely on.
  */
 class SelectorSource {
 public:
@@ -50,6 +57,12 @@ public:
 	[[nodiscard]] static const SelectorSource& empty() noexcept;
 
 	SelectorSource() = default;
+
+	/**
+	 * @brief Destroy the source. Virtual so recording/observing subclasses (e.g.
+	 * the catalog dumper's) can be destroyed through a base pointer.
+	 */
+	virtual ~SelectorSource() = default;
 
 	/**
 	 * @brief Build from a flat name -> CSS-selector map (schema v1).
@@ -79,10 +92,13 @@ public:
 	 * @param fallback The set's built-in literal, used when the override is
 	 *        missing or invalid
 	 * @return The compiled selector (override if valid, else the default)
+	 * @note Virtual: subclasses may record or observe the (key, fallback) pair,
+	 *       but MUST delegate the decision to this base implementation — the
+	 *       fallback-first semantics are the hotfix contract.
 	 */
-	[[nodiscard]] CompiledSelector compile(SelectorCompiler& compiler,
-	                                        std::string_view key,
-	                                        std::string_view fallback) const;
+	[[nodiscard]] virtual CompiledSelector compile(SelectorCompiler& compiler,
+	                                                std::string_view key,
+	                                                std::string_view fallback) const;
 
 	/**
 	 * @brief The raw override string for @p key if present, else @p fallback.
