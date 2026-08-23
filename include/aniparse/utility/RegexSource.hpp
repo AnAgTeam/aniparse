@@ -29,18 +29,26 @@ namespace aniparse {
  * Two failure shapes degrade an override to the built-in default instead of
  * breaking the consumer:
  *  - the override text does not compile (boost::regex_error);
- *  - the override does not declare a NAMED GROUP the set's contract requires
- *    (a group the consumer reads back by name from the match). The declaration
- *    check is textual (`(?<name>` / `(?'name'`), because a compiled regex does
- *    not expose its group names.
- * The built-in literal itself is compiled strictly and must declare every group
- * its contract names: a broken default is a programming error a test must catch
- * loudly, not a runtime condition.
+ *  - the override does not declare a NAMED GROUP the built-in literal declares
+ *    (a group the consumer reads back by name from the match). The contracted
+ *    set is derived from the built-in literal itself — the literal is the
+ *    single source of truth, there is no separate declaration to keep in sync.
+ *    The check is textual (`(?<name>` / `(?'name'` / `(?P<name>`), because a
+ *    compiled regex does not expose its group names.
+ * The built-in literal itself is compiled strictly: a broken default is a
+ * programming error a test must catch loudly, not a runtime condition.
  *
  * The table is SCOPED: owner identifier (parser id or extractor identifier) ->
  * short key (e.g. "info.title") -> pattern text, so one owner's hotfix can never
  * name, let alone clobber, another owner's pattern. A set compiled through a
  * scoped view (@ref RegexSourceHolder::view_for) reads only its owner's keys.
+ *
+ * The class is subclassable (virtual @ref compile and destructor) so tooling —
+ * e.g. the catalog dumper — can RECORD the (key, fallback) pairs a set declares
+ * while delegating to the base implementation. A subclass MUST preserve the
+ * fallback-first semantics: an override that changes which text wins (serving
+ * anything but the override-or-fallback the base would pick) would silently
+ * break the hotfix contract the parsers and tests rely on.
  */
 class RegexSource {
 public:
@@ -54,6 +62,12 @@ public:
 	[[nodiscard]] static const RegexSource& empty() noexcept;
 
 	RegexSource() = default;
+
+	/**
+	 * @brief Destroy the source. Virtual so recording/observing subclasses (e.g.
+	 * the catalog dumper's) can be destroyed through a base pointer.
+	 */
+	virtual ~RegexSource() = default;
 
 	/**
 	 * @brief Build an already-scoped (flat) source, e.g. the result of scoped_to().
@@ -73,21 +87,23 @@ public:
 	/**
 	 * @brief Compile the pattern for @p key, preferring the override.
 	 *
-	 * When an override exists AND declares every group in @p required_groups AND
-	 * compiles, it wins; any failure along that chain falls back to @p fallback
-	 * (the built-in literal), which is then compiled strictly.
+	 * When an override exists AND declares every named group @p fallback declares
+	 * AND compiles, it wins; any failure along that chain falls back to
+	 * @p fallback (the built-in literal), which is then compiled strictly. The
+	 * named-group contract is derived from @p fallback itself: whatever groups
+	 * the built-in declares are the ones the consumer may read back by name, so
+	 * an override must declare the same set.
 	 * @param key Stable pattern name to look up in the flat table
 	 * @param fallback The set's built-in literal, used when the override is
-	 *        missing, undeclared-group-incomplete, or invalid
-	 * @param required_groups Named groups the consumer reads back by name; the
-	 *        override must declare each of them to be accepted
+	 *        missing, group-incomplete, or invalid
 	 * @return The compiled pattern (override if valid and complete, else the default)
-	 * @throws std::logic_error when @p fallback itself misses a required group.
 	 * @throws boost::regex_error when @p fallback itself fails to compile.
 	 * @note An invalid OVERRIDE never throws; it degrades to the built-in.
+	 * @note Virtual: subclasses may record or observe the (key, fallback) pair,
+	 *       but MUST delegate the decision to this base implementation — the
+	 *       fallback-first semantics are the hotfix contract.
 	 */
-	[[nodiscard]] regex compile(std::string_view key, std::string_view fallback,
-	                             std::span<const std::string_view> required_groups = {}) const;
+	[[nodiscard]] virtual regex compile(std::string_view key, std::string_view fallback) const;
 
 	/**
 	 * @brief The raw override string for @p key if present, else @p fallback.

@@ -7,8 +7,9 @@
 
 #include <aniparse/utility/RegexSource.hpp>
 
-#include <stdexcept>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 using namespace aniparse;
 using namespace std::string_view_literals;
@@ -48,34 +49,54 @@ TEST_CASE("RegexSource compile() degrades a broken override to the default") {
 	CHECK_NOTHROW(source.compile("info.id", "/d/def"));
 }
 
-TEST_CASE("RegexSource rejects an override missing a required named group") {
+TEST_CASE("RegexSource rejects an override missing a group the built-in declares") {
 	// The consumer reads match["id"] back; an override that compiles but does not
 	// declare (?<id>...) would silently feed it an empty capture, so compile()
-	// refuses it and falls back to the built-in.
+	// refuses it and falls back to the built-in. The contract is derived from the
+	// built-in literal itself — there is no separate group list to pass.
 	RegexSource source(RegexSource::Overrides{ { "info.id", R"(/x/(\d+))" } });
-	const std::string_view groups[] = { "id" };
-	regex compiled = source.compile("info.id", R"(/d/(?<id>\d+))", groups);
+	regex compiled = source.compile("info.id", R"(/d/(?<id>\d+))");
 	svmatch match;
 	// The built-in won: it matches /d/, not the override's /x/.
 	REQUIRE(regex_search("/d/42"sv, match, compiled));
 	CHECK(std::string_view(match["id"].first, match["id"].second) == "42"sv);
 }
 
-TEST_CASE("RegexSource accepts an override declaring the required group") {
+TEST_CASE("RegexSource accepts an override declaring the built-in's group") {
 	RegexSource source(RegexSource::Overrides{ { "info.id", R"(/x/(?<id>\d+))" } });
-	const std::string_view groups[] = { "id" };
-	regex compiled = source.compile("info.id", R"(/d/(?<id>\d+))", groups);
+	regex compiled = source.compile("info.id", R"(/d/(?<id>\d+))");
 	svmatch match;
 	REQUIRE(regex_search("/x/7"sv, match, compiled));
 	CHECK(std::string_view(match["id"].first, match["id"].second) == "7"sv);
 }
 
-TEST_CASE("RegexSource throws when the built-in misses its own contracted group") {
+TEST_CASE("RegexSource derives no contract from a group-free built-in") {
+	// A whole-match pattern declares nothing, so its override is unconstrained.
+	RegexSource source(RegexSource::Overrides{ { "video.path", R"(/v/[^/]+\.ts)" } });
+	regex compiled = source.compile("video.path", R"(/v/[^/]+\.mp4)");
+	svmatch match;
+	CHECK(regex_search("/v/abc.ts"sv, match, compiled));
+}
+
+TEST_CASE("RegexSource does not misread lookbehinds, escapes, or char classes as groups") {
+	// (?<=...)/(?!...) are lookarounds, \(\?< matches verbatim "(?<", and tokens
+	// inside [...] are literal text — none of them declares a named group, so the
+	// overrides below carry no contract and must be accepted as-is.
+	RegexSource source(RegexSource::Overrides{
+	    { "a", R"((?<=/x/)\d+)" },
+	    { "b", R"(\(\?<name>\d+\))" },
+	    { "c", R"([(?<']\d+)" },
+	});
+	svmatch match;
+	CHECK(regex_search("/x/42"sv, match, source.compile("a", R"((?<=/d/)\d+)")));
+	CHECK(regex_search("(?<name>42)"sv, match, source.compile("b", R"(\(\?<id>\d+\))")));
+	CHECK(regex_search("<7"sv, match, source.compile("c", R"([(?<']\d+)")));
+}
+
+TEST_CASE("RegexSource throws when the built-in literal itself is broken") {
 	const RegexSource& source = RegexSource::empty();
-	const std::string_view groups[] = { "id" };
-	// A default that does not declare the group its consumer reads is a
-	// programming error, not a runtime condition.
-	CHECK_THROWS_AS(source.compile("info.id", R"(/d/(\d+))", groups), std::logic_error);
+	// A broken default is a programming error, not a runtime condition.
+	CHECK_THROWS_AS(source.compile("info.id", "a["), boost::regex_error);
 }
 
 TEST_CASE("reading an undeclared named group yields an empty match") {
@@ -167,4 +188,57 @@ TEST_CASE("RegexSourceHolder gives an unscoped id the shared source itself") {
 	CHECK(holder.view_for("owner_b") == source);
 	CHECK(holder.view_for("") == source);
 	CHECK(holder.set_for<ProbeSet>("owner_b")->pattern == "/default");
+}
+
+namespace {
+/// A recording subclass (the catalog dumper's shape): logs every (key, fallback)
+/// pair a set declares, delegating the decision to the base implementation.
+class RecordingRegexSource : public RegexSource {
+public:
+	using RegexSource::RegexSource;
+
+	[[nodiscard]] regex compile(std::string_view key, std::string_view fallback) const override {
+		recorded.emplace_back(key, fallback);
+		return RegexSource::compile(key, fallback);
+	}
+
+	mutable std::vector<std::pair<std::string, std::string>> recorded;
+};
+} // namespace
+
+TEST_CASE("a recording RegexSource subclass sees exactly the (key, fallback) pairs a set declares") {
+	RecordingRegexSource source;
+	regex compiled = source.compile("video_path", R"(/v/[^/]+\.mp4)");
+	CHECK(source.recorded == std::vector<std::pair<std::string, std::string>>{
+	    { "video_path", R"(/v/[^/]+\.mp4)" },
+	});
+
+	// Delegation: the compiled result matches identically to the base class's.
+	const RegexSource& base = RegexSource::empty();
+	regex base_compiled = base.compile("video_path", R"(/v/[^/]+\.mp4)");
+	svmatch match;
+	CHECK(regex_search("/v/abc.mp4"sv, match, compiled));
+	CHECK(regex_search("/v/abc.mp4"sv, match, base_compiled));
+	CHECK(regex_search("/v/abc.txt"sv, match, compiled) ==
+	      regex_search("/v/abc.txt"sv, match, base_compiled));
+}
+
+TEST_CASE("a recording RegexSource subclass preserves the override semantics of the base") {
+	RegexSource::Overrides overrides{ { "video_path", R"(/u/[^/]+\.mp4)" } };
+	RecordingRegexSource recording(overrides);
+	RegexSource base(overrides);
+
+	regex via_recording = recording.compile("video_path", R"(/v/[^/]+\.mp4)");
+	regex via_base = base.compile("video_path", R"(/v/[^/]+\.mp4)");
+
+	// The (key, fallback) pair is still recorded verbatim even when the override wins.
+	CHECK(recording.recorded == std::vector<std::pair<std::string, std::string>>{
+	    { "video_path", R"(/v/[^/]+\.mp4)" },
+	});
+
+	svmatch match;
+	CHECK(regex_search("/u/abc.mp4"sv, match, via_recording));
+	CHECK(regex_search("/u/abc.mp4"sv, match, via_base));
+	CHECK_FALSE(regex_search("/v/abc.mp4"sv, match, via_recording));
+	CHECK_FALSE(regex_search("/v/abc.mp4"sv, match, via_base));
 }
