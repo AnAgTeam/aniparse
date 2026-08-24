@@ -75,7 +75,6 @@ public:
 	 * selector resources, and resets the anti-rollback revision to zero. In-flight
 	 * operations retain their old immutable snapshots; operations begun after this
 	 * call observe built-in parser and extractor fallbacks.
-	 * @return Nothing.
 	 * @note This method performs no I/O and does not verify or apply a new
 	 *       catalog. The caller may safely fetch and apply one afterwards.
 	 */

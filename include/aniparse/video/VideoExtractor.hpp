@@ -95,7 +95,7 @@ struct VideoExtractor {
 	 *         set's broken built-in literal likewise propagates (a programming
 	 *         error the dump must fail on)
 	 */
-	virtual void emplace_catalog(CatalogSink& /*sink*/) const {}
+	virtual void emplace_catalog([[maybe_unused]] CatalogSink& sink) const {}
 	/**
 	 * @brief Decide whether this extractor handles one URL under a declared host.
 	 * @param url Parsed URL whose host already matched one of emplace_domains().

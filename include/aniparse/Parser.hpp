@@ -187,7 +187,7 @@ struct Parser {
 	 *         double canonical URL; a set's broken built-in literal likewise
 	 *         propagates (a programming error the dump must fail on)
 	 */
-	virtual void emplace_catalog(CatalogSink& /*sink*/) const {}
+	virtual void emplace_catalog([[maybe_unused]] CatalogSink& sink) const {}
 
 	/**
 	 * @brief Authenticate the parser's service with the given credentials.

@@ -89,7 +89,7 @@ enum class AnimeSeason {
 /**
  * @brief A future episode a source schedules for an anime.
  *
- * This is deliberately not an @ref AnimeEpisodeInfo: a scheduled episode may
+ * This is deliberately not an @ref AnimeEpisodeInfo — a scheduled episode may
  * not yet exist on the source, so it has neither a fetchable identity nor
  * playable sources. Empty @ref number or @ref name means the source announced
  * only the other value or only the release time.

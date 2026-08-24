@@ -80,7 +80,8 @@ enum class RequestErrorCode {
 	/// escalation signal for when a *headless* attempt (authenticate_context with a
 	/// username/password) turns out to need that interaction after all, telling the
 	/// caller to fall back to the interactive flow auth_info describes. Distinct
-	/// from @ref InvalidCredentials (a credential was present and rejected): here
+	/// from @ref RequestErrorCode::InvalidCredentials (a credential was present
+	/// and rejected): here
 	/// there is nothing to reject yet.
 	InteractionRequired,
 };

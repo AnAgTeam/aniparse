@@ -99,7 +99,7 @@ inline constexpr MangaID invalid_manga_id = MangaID{ 0 };
 /**
  * @brief A future chapter a source schedules for a manga.
  *
- * This is deliberately not an @ref MangaChapterInfo: a scheduled chapter may
+ * This is deliberately not an @ref MangaChapterInfo — a scheduled chapter may
  * not yet exist on the source, so it has no fetchable identity or pages. Empty
  * @ref number or @ref name means the source announced only the other value or
  * only the release time.
