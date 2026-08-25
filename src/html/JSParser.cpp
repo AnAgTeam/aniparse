@@ -150,6 +150,95 @@ std::string_view scan_json_var(std::string_view variable_name, std::string_view 
 	return {};
 }
 
+/// Advance over one call argument and return its delimiter (comma or closing paren).
+size_t scan_call_argument(std::string_view text, size_t start) {
+	std::string closers;
+	for (size_t i = start; i < text.size(); ++i) {
+		const char c = text[i];
+		if (c == '"' || c == '\'' || c == '`') {
+			const char quote = c;
+			for (++i; i < text.size(); ++i) {
+				if (text[i] == '\\') { ++i; continue; }
+				if (text[i] == quote) break;
+			}
+			if (i >= text.size()) return std::string_view::npos;
+			continue;
+		}
+		if (c == '/' && i + 1 < text.size()) {
+			if (text[i + 1] == '/') {
+				i += 2;
+				while (i < text.size() && text[i] != '\n') ++i;
+				continue;
+			}
+			if (text[i + 1] == '*') {
+				i += 2;
+				while (i + 1 < text.size() && !(text[i] == '*' && text[i + 1] == '/')) ++i;
+				if (i + 1 >= text.size()) return std::string_view::npos;
+				++i;
+				continue;
+			}
+		}
+		if (c == '{' || c == '[' || c == '(') {
+			closers.push_back(c == '{' ? '}' : c == '[' ? ']' : ')');
+			continue;
+		}
+		if (c == '}' || c == ']' || c == ')') {
+			if (closers.empty()) return c == ')' ? i : std::string_view::npos;
+			if (closers.back() != c) return std::string_view::npos;
+			closers.pop_back();
+			continue;
+		}
+		if (c == ',' && closers.empty()) return i;
+	}
+	return std::string_view::npos;
+}
+
+size_t skip_call_trivia(std::string_view text, size_t pos) {
+	while (pos < text.size()) {
+		if (is_space(text[pos])) { ++pos; continue; }
+		if (text[pos] != '/' || pos + 1 >= text.size()) break;
+		if (text[pos + 1] == '/') {
+			pos += 2;
+			while (pos < text.size() && text[pos] != '\n') ++pos;
+			continue;
+		}
+		if (text[pos + 1] == '*') {
+			pos += 2;
+			while (pos + 1 < text.size() && !(text[pos] == '*' && text[pos + 1] == '/')) ++pos;
+			if (pos + 1 >= text.size()) return std::string_view::npos;
+			pos += 2;
+			continue;
+		}
+		break;
+	}
+	return pos;
+}
+
+std::string_view scan_json_call_argument(std::string_view callee, size_t argument_index,
+                                         std::string_view text) {
+	if (callee.empty()) return {};
+	for (size_t pos = 0; (pos = text.find(callee, pos)) != std::string_view::npos; ++pos) {
+		const size_t end = pos + callee.size();
+		if ((pos > 0 && is_ident_char(text[pos - 1])) || (end < text.size() && is_ident_char(text[end]))) continue;
+		size_t argument = skip_call_trivia(text, end);
+		if (argument >= text.size() || text[argument] != '(') continue;
+		++argument;
+		for (size_t index = 0; index <= argument_index; ++index) {
+			argument = skip_call_trivia(text, argument);
+			if (argument >= text.size() || text[argument] == ')') break;
+			if (index == argument_index) {
+				if (text[argument] != '{' && text[argument] != '[') break;
+				const size_t length = scan_balanced(text, argument);
+				return length == 0 ? std::string_view{} : text.substr(argument, length);
+			}
+			const size_t delimiter = scan_call_argument(text, argument);
+			if (delimiter == std::string_view::npos || text[delimiter] != ',') break;
+			argument = delimiter + 1;
+		}
+	}
+	return {};
+}
+
 /// Transcode a JS object/array literal into JSON: single-quoted strings become
 /// double-quoted (embedded double quotes escaped, \' unescaped), while
 /// double-quoted strings and comments are copied through untouched.
@@ -265,6 +354,24 @@ std::optional<boost::json::value> parse_json_var(std::string_view variable_name,
 		return std::nullopt;
 	}
 	return value;
+}
+
+std::string_view find_json_call_argument(std::string_view callee, size_t argument_index,
+                                         std::string_view text) {
+	return scan_json_call_argument(callee, argument_index, text);
+}
+
+std::optional<boost::json::value> parse_json_call_argument(std::string_view callee,
+                                                            size_t argument_index, std::string_view text) {
+	const std::string_view slice = scan_json_call_argument(callee, argument_index, text);
+	if (slice.empty()) return std::nullopt;
+	const std::string normalized = normalize_js_to_json(slice);
+	boost::json::parse_options options;
+	options.allow_comments = true;
+	options.allow_trailing_commas = true;
+	boost::system::error_code ec;
+	boost::json::value value = boost::json::parse(normalized, ec, {}, options);
+	return ec ? std::nullopt : std::optional<boost::json::value>(std::move(value));
 }
 
 } // namespace aniparse::html

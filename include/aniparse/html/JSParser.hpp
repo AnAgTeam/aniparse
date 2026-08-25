@@ -4,6 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
+#include <cstddef>
 #include <string>
 #include <string_view>
 #include <optional>
@@ -58,5 +59,29 @@ extern std::string_view find_json_var(std::string_view variable_name, std::strin
  * @return The parsed value, or std::nullopt if not found or not valid JSON
  */
 extern std::optional<boost::json::value> parse_json_var(std::string_view variable_name, std::string_view text);
+
+/**
+ * @brief Find an object/array literal supplied at a function-call argument position.
+ *
+ * Locates a call to @p callee, skips arguments before @p argument_index while
+ * respecting nested expressions, strings, template literals, and comments, then
+ * returns the selected argument when it starts with @c { or @c [. The returned
+ * view borrows from @p text.
+ * @param callee Complete function name, for example @c "Player.init".
+ * @param argument_index Zero-based argument position.
+ * @param text JavaScript source to search.
+ * @return The balanced JSON-like literal, or an empty view.
+ */
+extern std::string_view find_json_call_argument(std::string_view callee, std::size_t argument_index,
+                                                std::string_view text);
+
+/**
+ * @brief Find and parse a JSON-like literal supplied to a function call.
+ *
+ * Equivalent to @ref find_json_call_argument followed by the same JS-to-JSON
+ * normalisation used by @ref parse_json_var.
+ */
+extern std::optional<boost::json::value> parse_json_call_argument(
+    std::string_view callee, std::size_t argument_index, std::string_view text);
 
 } // namespace aniparse::html

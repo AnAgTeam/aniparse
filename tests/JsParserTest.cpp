@@ -194,5 +194,21 @@ TEST_CASE("parse_json_var returns nullopt when the literal is not valid JSON") {
     // Balanced braces, so the scan yields a slice, but an unquoted key keeps
     // Boost.JSON from parsing it even with comments/trailing commas allowed.
     std::string js = "var v = { a: 1 };";
-    CHECK_FALSE(parse_json_var("v", js).has_value());
+	CHECK_FALSE(parse_json_var("v", js).has_value());
+}
+
+TEST_CASE("find_json_call_argument selects a JSON literal by argument position") {
+	std::string js = R"(Player.init(options, build({ "unused": true }), /* config */ { 'quality': 720, }, []);)";
+	CHECK(find_json_call_argument("Player.init", 0, js).empty());
+	CHECK(find_json_call_argument("Player.init", 1, js).empty());
+	CHECK(find_json_call_argument("Player.init", 2, js) == R"({ 'quality': 720, })");
+	CHECK(find_json_call_argument("Player.init", 3, js) == "[]");
+}
+
+TEST_CASE("parse_json_call_argument tolerates nested expressions and JS syntax") {
+	std::string js = R"(Player.init(call(")", /* , */ [1, 2]), { 'name': 'it\'s fine', });)";
+	auto value = parse_json_call_argument("Player.init", 1, js);
+	REQUIRE(value.has_value());
+	REQUIRE(value->is_object());
+	CHECK(std::string_view(value->as_object().at("name").as_string()) == "it's fine");
 }
