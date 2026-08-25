@@ -112,6 +112,7 @@ add_library(aniparse ${aniparse_library_type}
 	"include/aniparse/utility/UrlEncode.hpp"
 	"src/utility/Time.cpp" "include/aniparse/utility/Time.hpp"
 	"src/utility/HtmlText.cpp" "include/aniparse/utility/HtmlText.hpp"
+	"src/utility/Number.cpp" "include/aniparse/utility/Number.hpp"
 
 	"include/aniparse/types/Ids.hpp"
 	"include/aniparse/types/Flags.hpp"
