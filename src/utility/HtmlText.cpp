@@ -163,4 +163,26 @@ AttributedText from_html(std::string_view html) {
 
 	return out;
 }
+
+AttributedText from_html(const html::DOMElementView& element) {
+	AttributedText out;
+	if (!element) {
+		return out;
+	}
+
+	try {
+		walk(DOMNodeView(element), out);
+	} catch (...) {
+		out.text.clear();
+		out.attributes.clear();
+		return out;
+	}
+
+	// Keep this in sync with the string-fragment overload: trailing whitespace is
+	// safe to remove because it cannot invalidate existing UTF-8 byte offsets.
+	while (!out.text.empty() && (out.text.back() == '\n' || out.text.back() == ' ' || out.text.back() == '\t'))
+		out.text.pop_back();
+
+	return out;
+}
 } // namespace aniparse::text

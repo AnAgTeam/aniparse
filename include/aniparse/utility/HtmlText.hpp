@@ -7,6 +7,10 @@
 #include "aniparse/types/Text.hpp"
 #include <string_view>
 
+namespace aniparse::html {
+class DOMElementView;
+}
+
 namespace aniparse::text {
 /**
  * @brief Convert an HTML fragment into normalised AttributedText.
@@ -24,4 +28,18 @@ namespace aniparse::text {
  * @return AttributedText with UTF-8 byte-offset runs into @c text.
  */
 AttributedText from_html(std::string_view html);
+
+/**
+ * @brief Convert an already-parsed element's contents into normalised AttributedText.
+ *
+ * This is the DOM counterpart of @ref from_html(std::string_view). It walks the
+ * element's child nodes directly, preserving the same inline styles, links, colours,
+ * and block breaks without serialising the fragment and parsing it a second time.
+ * The element and its owning HTMLDocument only need to outlive this call; the returned
+ * text and attributes own all retained data.
+ *
+ * @param element Parsed element whose child nodes form the HTML fragment.
+ * @return AttributedText with UTF-8 byte-offset runs into @c text.
+ */
+AttributedText from_html(const html::DOMElementView& element);
 } // namespace aniparse::text

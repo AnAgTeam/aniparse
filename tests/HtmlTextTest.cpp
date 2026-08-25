@@ -5,6 +5,8 @@
  */
 #include "catch_amalgamated.hpp"
 
+#include <aniparse/html/CompiledSelector.hpp>
+#include <aniparse/html/HTMLParser.hpp>
 #include <aniparse/utility/HtmlText.hpp>
 
 #include <string>
@@ -125,6 +127,20 @@ TEST_CASE("from_html on a real AniList-shaped description", "[htmltext]") {
 			if (const auto* s = std::get_if<TextStyle>(&a.data); s && s->kind == TextStyle::Kind::Italic)
 				notes_italic = true;
 	REQUIRE(notes_italic);
+}
+
+TEST_CASE("from_html converts a parsed element without re-parsing its contents", "[htmltext]") {
+	aniparse::html::HTMLParser parser;
+	auto document = parser.try_parse(R"(<!doctype html><html><body><div id="description">A <i>styled</i> <a href="https://x.test">link</a></div></body></html>)");
+	REQUIRE(document.has_value());
+	auto description = document->query(aniparse::html::SelectorCompiler{}.compile("#description"));
+	REQUIRE(description.has_value());
+
+	const AttributedText r = from_html(*description);
+	REQUIRE(r.text == "A styled link");
+	REQUIRE(r.attributes.size() == 2);
+	CHECK(covered(r, r.attributes[0]) == "styled");
+	CHECK(covered(r, r.attributes[1]) == "link");
 }
 
 TEST_CASE("from_html never throws on malformed input", "[htmltext]") {
