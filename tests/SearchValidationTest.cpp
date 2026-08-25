@@ -109,6 +109,22 @@ TEST_CASE("Search validation rejects malformed values") {
 	REQUIRE(has_error(errors, SearchQueryError::Reason::InvalidValue, "language"));
 }
 
+TEST_CASE("Search validation rejects multiple values on a single-selection axis") {
+	SearchItems supported = make_supported();
+	auto& language = std::get<ItemSelection>(supported.at("language"));
+	language.single_selection = true;
+	SearchRequestQuery query{
+		.filters = { { "language", ItemSelection{
+			{ "en", {} },
+			{ "ru", {} },
+		} } },
+	};
+
+	auto errors = validate_search_query(supported, query);
+	REQUIRE(errors.size() == 1);
+	REQUIRE(has_error(errors, SearchQueryError::Reason::MultipleSelectionNotSupported, "language"));
+}
+
 TEST_CASE("Search validation rejects interval below the declared minimum") {
 	SearchRequestQuery query{
 		.filters = { { std::string(search_keys::pages), IntInterval{ .from = 0 } } },

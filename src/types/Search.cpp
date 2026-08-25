@@ -55,6 +55,10 @@ bool exclusion_denied(const ItemSelection& descriptor, const ItemSelection& valu
 	});
 }
 
+bool multiple_selection_denied(const ItemSelection& descriptor, const ItemSelection& value) {
+	return descriptor.single_selection && value.size() > 1;
+}
+
 bool value_invalid(const TextQuery&, const TextQuery& value) {
 	return value.text.empty();
 }
@@ -99,6 +103,8 @@ std::string_view reason_text(SearchQueryError::Reason reason) noexcept {
 		return "wrong value type for filter";
 	case SearchQueryError::Reason::ExclusionNotSupported:
 		return "exclusion is not supported for filter";
+	case SearchQueryError::Reason::MultipleSelectionNotSupported:
+		return "multiple selections are not supported for filter";
 	case SearchQueryError::Reason::InvalidValue:
 		return "invalid value for filter";
 	case SearchQueryError::Reason::UnknownSortKey:
@@ -132,6 +138,11 @@ std::vector<SearchQueryError> validate_search_query(
 			}
 			if (value_invalid(descriptor, typed)) {
 				errors.push_back({ .reason = SearchQueryError::Reason::InvalidValue, .key = key });
+			}
+			if constexpr (std::is_same_v<std::remove_cvref_t<decltype(descriptor)>, ItemSelection>) {
+				if (multiple_selection_denied(descriptor, typed)) {
+					errors.push_back({ .reason = SearchQueryError::Reason::MultipleSelectionNotSupported, .key = key });
+				}
 			}
 		}, found->second);
 	}

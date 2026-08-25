@@ -131,9 +131,18 @@ struct ItemSelectionValue {
  *       Then any token is accepted: @ref aniparse::validate_search_query checks membership
  *       only against a non-empty (closed) option set. Use TextQuery instead when the
  *       axis is genuine free-text/substring search, not a token identity.
+ * @note @ref single_selection is meaningful only in a support table: it limits
+ *       a query on this axis to one token. Queries carry the same type as the
+ *       support table, but leave it at its default value.
  * @see ItemSelectionValue
  */
-using ItemSelection = std::map<std::string, ItemSelectionValue, std::less<>>;
+struct ItemSelection : std::map<std::string, ItemSelectionValue, std::less<>> {
+	using Options = std::map<std::string, ItemSelectionValue, std::less<>>;
+	using Options::Options;
+
+	/// Whether this declared axis accepts at most one included or excluded token.
+	bool single_selection = false;
+};
 
 /**
  * @brief Switch/checkmark. If presented means true
@@ -183,6 +192,8 @@ struct SearchQueryError {
 		TypeMismatch,
 		/// The filter requests exclusion, but the descriptor does not allow it
 		ExclusionNotSupported,
+		/// The filter selects multiple tokens, but the descriptor accepts only one
+		MultipleSelectionNotSupported,
 		/// The value itself is malformed: empty text, inverted or out-of-bounds
 		/// interval, selection of an undeclared item
 		InvalidValue,
@@ -285,10 +296,12 @@ struct SearchSuggestion {
 namespace aniparse::search_keys {
 /// Filter by Series. Usually TextQuery. @see Series
 inline constexpr std::string_view series          = "series";
-/// Filter by item count (chapters/pages, or episodes). Usually IntInterval.
-inline constexpr std::string_view pages           = "icount";
-/// Alias of @ref pages for anime sources: same "item count" axis, same key.
-inline constexpr std::string_view episodes        = pages;
+/// Filter by page count. Usually IntInterval.
+inline constexpr std::string_view pages           = "page_count";
+/// Filter by episode count. Usually IntInterval.
+inline constexpr std::string_view episodes        = "episode_count";
+/// Filter by voice-over or subtitle track. Usually ItemSelection or TextQuery.
+inline constexpr std::string_view voice           = "voice";
 /// Filter by Tag. TextQuery for free-text sources; ItemSelection where the
 /// source enumerates its tags, keyed by the opaque token that equals Tag::ref
 /// so a tag from MangaInfo searches directly. @see ItemSelection
