@@ -100,9 +100,11 @@ private:
  * @brief Parse HTML document from string
  * Simply just shortcut to @ref HTMLParser::parse
  * @param text Full HTML text to parse
- * @note Returns valid HTMLDocument even if some tags
- *       are invalid.
- * @throw HTMLParseError if parsing failed: invalid DOCTYPE
+ * @note Input need not be a complete or valid HTML document. Lexbor applies
+ *       browser-style HTML recovery: it may repair or discard malformed
+ *       markup, synthesize document elements, and place plain text in BODY.
+ *       Callers must validate the source-specific elements they require.
+ * @throw HTMLParseError if Lexbor cannot parse the document
  * @return Parsed HTML document
  */
 extern HTMLDocument parse_html(std::string_view text);

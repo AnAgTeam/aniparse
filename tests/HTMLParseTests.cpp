@@ -49,42 +49,24 @@ bool element_contains_tags(Iter first, Iter last, const std::vector<std::string_
     }) && i == range.size();
 }
 
-TEST_CASE("HTML parse") {
-    constexpr std::string_view invalid_doctype_html = R"(
-    <html><!DOCTYPE html>
-        <head></head>
-        <body class="class1 class2"></body>
-    </html>)";
-
-    constexpr std::string_view invalid_unclosed_html = R"(<!DOCTYPE html>
-    <html>
-        <
-        <body class="class1 class2"></body>
-    <html>)";
-
-    constexpr std::string_view invalid_no_html = R"(<!DOCTYPE html>
-        <>
-        <body class="class1 class2"></body>)";
-    
-    HTMLParser parser;
-    REQUIRE_THROWS_AS(parser.parse(invalid_doctype_html), HTMLParseError);
-}
-
-TEST_CASE("HTML try_parse reports failure as a value, not an exception") {
-    constexpr std::string_view invalid_doctype_html = R"(
-    <html><!DOCTYPE html>
-        <head></head>
-        <body class="class1 class2"></body>
-    </html>)";
-
+TEST_CASE("HTML parser recovers an omitted document structure") {
+    constexpr std::string_view fragment = R"(
+        <div class="playerCode">embedded player</div>)";
     HTMLParser parser;
 
-    auto failed = parser.try_parse(invalid_doctype_html);
-    REQUIRE_FALSE(failed.has_value());
-
-    auto parsed = parser.try_parse(iterator_test_html);
+    auto parsed = parser.try_parse(fragment);
     REQUIRE(parsed.has_value());
-    REQUIRE(parsed->body().contains_class("class1"));
+    CHECK(parsed->as_element().tag_name() == "HTML");
+    CHECK(parsed->head().tag_name() == "HEAD");
+    CHECK(parsed->body().tag_name() == "BODY");
+    CHECK(parsed->body().contains_class("playerCode"));
+
+    auto recovered = parser.try_parse("<html><!DOCTYPE html><body></body></html>");
+    REQUIRE(recovered.has_value());
+
+    auto text_page = parser.try_parse("temporarily unavailable");
+    REQUIRE(text_page.has_value());
+    CHECK(text_page->body().text() == "temporarily unavailable");
 }
 
 TEST_CASE("HTMLDocument title returns the <title> text") {

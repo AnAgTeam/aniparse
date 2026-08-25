@@ -56,18 +56,21 @@ public:
 	 * @brief Parse HTML document from string
 	 * @param text Full HTML text to parse
 	 * @param remove_bom Strip a leading UTF-8 BOM from @p text before parsing
-	 * @note Returns valid HTMLDocument even if some tags
-	 *       are invalid.
-	 * @throw HTMLParseError if parsing failed: invalid DOCTYPE
+	 * @note Input need not be a complete or valid HTML document. Lexbor applies
+	 *       browser-style HTML recovery: it may repair or discard malformed
+	 *       markup, synthesize document elements, and place plain text in BODY.
+	 *       Callers must validate the source-specific elements they require.
+	 * @throw HTMLParseError if Lexbor cannot parse the document
 	 * @return Parsed HTML document
 	 */
 	HTMLDocument parse(std::string_view text, bool remove_bom = true);
 
 	/**
 	 * @brief Parse HTML document from string without throwing.
-	 * Same result as @ref parse, but a malformed document is reported as an
-	 * error value instead of an exception, so callers can stay in the expected
-	 * channel (e.g. map it to RequestErrorCode::UnexpectedResponse).
+	 * Same result as @ref parse, but a parser failure is reported as an error
+	 * value instead of an exception, so callers can stay in the expected channel
+	 * (e.g. map it to RequestErrorCode::UnexpectedResponse). Input is subject to
+	 * the same browser-style HTML recovery as parse().
 	 * @param text Full HTML text to parse
 	 * @param remove_bom Strip a leading UTF-8 BOM from @p text before parsing
 	 * @return Parsed document, or HTMLParseError if parsing failed

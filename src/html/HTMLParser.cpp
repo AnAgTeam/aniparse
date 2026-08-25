@@ -6,7 +6,6 @@
 #include "aniparse/html/HTMLParser.hpp"
 
 #include <lexbor/html/parser.h>
-#include <lexbor/html/interfaces/document.h>
 
 namespace aniparse::html {
 HTMLParser::HTMLParser() : parser_(lxb_html_parser_create()) {
@@ -44,24 +43,10 @@ expected<HTMLDocument, HTMLParseError> HTMLParser::try_parse(std::string_view te
 		return unexpected(HTMLParseError("Failed to parse HTML"));
 	}
 
-	// From here the document is ours to own; wrap it now so every early return
-	// below frees it instead of leaking.
-	HTMLDocument parsed(document);
-
-	if (!lxb_dom_interface_document(document)->doctype) {
-		return unexpected(HTMLParseError("Invalid DOCTYPE for HTML"));
-	}
-
-	// The first child is doctype, probably
-	lxb_dom_node_t* node = lxb_dom_interface_node(document);
-	if (!node->first_child || !node->first_child->next || node->first_child->next->type != LXB_DOM_NODE_TYPE_ELEMENT) {
-		return unexpected(HTMLParseError("Missing <HTML> tag for document"));
-	}
-	if (!document->body || !document->head) {
-		return unexpected(HTMLParseError("Missing <HEAD> or <BODY> tag for document"));
-	}
-
-	return parsed;
+	// Lexbor follows HTML's document-recovery rules: a doctype and explicit
+	// html/head/body elements are optional in source and are synthesized when
+	// absent. Expose that browser-equivalent DOM to callers.
+	return HTMLDocument(document);
 }
 
 HTMLDocument HTMLParser::parse(std::string_view text, bool remove_bom) {
