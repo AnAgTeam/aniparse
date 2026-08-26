@@ -4,6 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #include "aniparse/video/VideoExtractor.hpp"
+#include "aniparse/media/ResourceAdapter.hpp"
 
 #include <stdexcept>
 #include <string>
@@ -40,6 +41,11 @@ NetworkRequestTask<VideoExtraction> extract_routed(
 		}
 		auto followed = co_await extract_routed(context, std::move(*next), store, depth + 1, max_depth);
 		if (followed && !followed->streams.empty()) {
+			// A delegated stream passes through the current extractor before it
+			// reaches the delegated provider. Preserve that nesting for both the
+			// transport defaults and any byte/resource transformations.
+			followed->headers.merge_missing(extraction->headers);
+			followed->adapter = ResourceAdapter::compose({ extraction->adapter, followed->adapter });
 			co_return std::move(*followed);
 		}
 	}

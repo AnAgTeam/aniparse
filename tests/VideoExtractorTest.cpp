@@ -5,6 +5,7 @@
  */
 #include "catch_amalgamated.hpp"
 #include "CoroTest.hpp"
+#include <aniparse/media/ResourceAdapter.hpp>
 #include <aniparse/video/VideoExtractor.hpp>
 
 namespace {
@@ -56,6 +57,20 @@ aniparse::RequestorContext make_context() {
 aniparse::VideoStream test_stream(std::string url, int quality) {
 	return aniparse::VideoStream{ .url = std::move(url), .quality = quality, .is_hls = true };
 }
+
+class NoopAdapter final : public aniparse::ResourceAdapter {
+public:
+	aniparse::NetworkRequestTask<aniparse::OpenedResource> open(
+	    aniparse::RequestorContext,
+	    aniparse::ResourceContext resource) const override {
+		co_return aniparse::OpenedResource{
+		    .request = {
+		        .url = std::move(resource.resource.url),
+		        .headers = std::move(resource.resource.headers),
+		    },
+		};
+	}
+};
 
 } // namespace
 
@@ -174,8 +189,12 @@ CORO_TEST_CASE("VideoExtractorStore extract chases delegated links to the first 
 	VideoExtractorStore store;
 	auto first = std::make_shared<TestExtractor>("First", "first.example", "/");
 	first->outcome.links.push_back({ .url = "https://second.example/video", .extractor_id = std::nullopt });
+	first->outcome.headers.set("Referer", "https://first.example/");
+	first->outcome.adapter = std::make_shared<NoopAdapter>();
 	auto second = std::make_shared<TestExtractor>("Second", "second.example", "/");
 	second->outcome.streams.push_back(test_stream("https://cdn.second.example/v/720.mp4", 720));
+	second->outcome.headers.set("Origin", "https://second.example");
+	second->outcome.adapter = std::make_shared<NoopAdapter>();
 	store.add_extractor(std::move(first));
 	store.add_extractor(std::move(second));
 
@@ -183,6 +202,9 @@ CORO_TEST_CASE("VideoExtractorStore extract chases delegated links to the first 
 	REQUIRE(result);
 	REQUIRE(result->streams.size() == 1);
 	CHECK(result->streams.front().url == "https://cdn.second.example/v/720.mp4");
+	CHECK(result->headers.get("Referer") == "https://first.example/");
+	CHECK(result->headers.get("Origin") == "https://second.example");
+	CHECK(result->adapter);
 }
 
 CORO_TEST_CASE("VideoExtractorStore extract caps a delegated-link cycle") {

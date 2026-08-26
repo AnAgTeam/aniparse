@@ -15,6 +15,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <vector>
 
 namespace aniparse {
 
@@ -206,6 +207,20 @@ public:
 	[[nodiscard]] virtual NetworkRequestTask<OpenedResource> open(
 	    RequestorContext context,
 	    ResourceContext resource) const = 0;
+
+	/**
+	 * @brief Combine nested resource policies into one adapter.
+	 * @param adapters Policies ordered from the outer source to the innermost
+	 *        resource provider; null entries are ignored.
+	 * @return Null when every entry is null, the sole non-null entry unchanged,
+	 *         or an adapter that opens policies in order and applies their response
+	 *         transforms in reverse order.
+	 * @note The returned adapter is immutable and safe to share. A response flows
+	 *       from the innermost provider back through the outer policies, so inner
+	 *       response transformations run before outer ones.
+	 */
+	[[nodiscard]] static std::shared_ptr<const ResourceAdapter> compose(
+	    std::vector<std::shared_ptr<const ResourceAdapter>> adapters);
 };
 
 } // namespace aniparse

@@ -20,6 +20,8 @@
 
 namespace aniparse {
 
+class ResourceAdapter;
+
 /**
  * @brief A URL handed to another extractor after the current extractor resolves it.
  *
@@ -48,6 +50,11 @@ struct VideoExtraction {
 	std::vector<VideoExtractionLink> links;
 	/// Headers required when requesting any entry of @ref streams.
 	Headers headers;
+	/// Optional policy for preparing and transforming every resource fetched from
+	/// @ref streams. When a delegated extraction resolves to direct streams, the
+	/// store composes this policy with the delegated result's policy so both
+	/// source layers stay in effect.
+	std::shared_ptr<const ResourceAdapter> adapter;
 };
 
 /**
