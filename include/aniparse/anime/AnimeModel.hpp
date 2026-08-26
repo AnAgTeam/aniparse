@@ -208,8 +208,10 @@ struct AnimeEpisodeInfo {
 	/// Numeric hint for grouping/ordering in UI; not the episode's identity.
 	/// Whole part only, 0 = unnumbered (a special), so not a usable sort key alone.
 	long episode = 0;
-	/// Episode number exactly as the source spells it: "7.5", "Special".
-	/// Empty = render from @ref episode.
+	/// Source episode number without a generic presentation label: "7.5", "10",
+	/// or a non-numeric special marker such as "OVA". Do not include words such
+	/// as "episode", "series", or their localized equivalents: those belong to
+	/// the consuming UI. Empty = render from @ref episode.
 	std::string number;
 	/// Opaque episode handle, understood only by the getter that produced this
 	/// info; round-trips into episode_sources() via ref().
