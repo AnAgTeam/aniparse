@@ -61,6 +61,10 @@ public:
 		};
 	}
 
+	std::string canonical_url(RequestorContext) const override {
+		return private_url_;
+	}
+
 	// Fetch the manga's translation information; there can be several
 	NetworkRequestTask<PageResults<MangaTranslationInfo>> translation_info(
 		RequestorContext context,

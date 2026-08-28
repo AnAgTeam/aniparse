@@ -52,6 +52,9 @@ struct StubMangaGetter : MangaGetter {
 	    RequestorContext, MangaChapterRef, GetFilters, std::optional<MangaTranslationID>) const override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
+	std::string canonical_url(RequestorContext) const override {
+		return "https://example.com/manga/stub";
+	}
 	NetworkRequestTask<SerializedGetterData> serialize() const override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
