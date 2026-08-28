@@ -346,6 +346,12 @@ struct AnimeRootGetter {
 	 * getter must implement it, and it must keep accepting every form this parser has
 	 * ever emitted (@see SerializedGetterData). The restored getter carries identity
 	 * only, no cached info.
+	 *
+	 * This remains coroutine-returning to preserve one asynchronous compatibility
+	 * boundary for every identity format a parser has shipped. Normal restoration
+	 * must be local: it decodes @p data, performs no network request, and does not
+	 * populate preview data. A parser that must migrate or resolve a legacy identity
+	 * may suspend, but that is an exception rather than a reason to fetch a record.
 	 * @param data The blob a previous serialize() returned, verbatim
 	 * @return A getter addressing the same anime, or a RequestError
 	 *         (RequestErrorCode::InvalidArguments when the blob does not decode)
