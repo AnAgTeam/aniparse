@@ -33,6 +33,11 @@ bool has_error(const std::vector<SearchQueryError>& errors, SearchQueryError::Re
 
 } // namespace
 
+TEST_CASE("Search vocabulary includes common anime facets") {
+	CHECK(search_keys::season == "season");
+	CHECK(search_keys::episode_duration == "episode_duration");
+}
+
 TEST_CASE("Search validation accepts a query matching the declaration") {
 	SearchRequestQuery query{
 		.query = "school",
