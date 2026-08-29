@@ -300,6 +300,8 @@ inline constexpr std::string_view series          = "series";
 inline constexpr std::string_view pages           = "page_count";
 /// Filter by episode count. Usually IntInterval.
 inline constexpr std::string_view episodes        = "episode_count";
+/// Filter by episode duration in minutes. Usually IntInterval.
+inline constexpr std::string_view episode_duration = "episode_duration";
 /// Filter by voice-over or subtitle track. Usually ItemSelection or TextQuery.
 inline constexpr std::string_view voice           = "voice";
 /// Filter by Tag. TextQuery for free-text sources; ItemSelection where the
@@ -326,6 +328,8 @@ inline constexpr std::string_view status          = "status";
 inline constexpr std::string_view rating          = "rating";
 /// Filter by year. Usually IntInterval.
 inline constexpr std::string_view year            = "year";
+/// Filter by an anime's broadcast season. Usually ItemSelection.
+inline constexpr std::string_view season          = "season";
 /// Filter by AgeRestriction. Usually IntInterval or ItemSelection.
 inline constexpr std::string_view age_restriction = "age_res";
 
