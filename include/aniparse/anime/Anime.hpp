@@ -232,6 +232,19 @@ struct AnimeGetter {
 	    VideoSource source) const;
 
 	/**
+	 * @brief Return this anime's stable, public URL.
+	 *
+	 * The returned absolute URL must route through ParserStore::route_url() and
+	 * reconstruct an equivalent getter through AnimeRootGetter::parse_url(). This
+	 * method performs no I/O: @p context is supplied only to read the immutable
+	 * volatile-catalog snapshot (in particular canonical_base_url), never to make a
+	 * request. The getter's own identity supplies the remaining path/query data.
+	 * @param context Context carrying the parser-scoped catalog snapshot.
+	 * @return An absolute public URL that identifies this anime.
+	 */
+	[[nodiscard]] virtual std::string canonical_url(RequestorContext context) const = 0;
+
+	/**
 	 * @brief This getter's identity in a form that survives the process, so a
 	 * consumer can store the anime in a library and rebuild the getter later with
 	 * AnimeRootGetter::from_serialized(). Every getter must implement it.
