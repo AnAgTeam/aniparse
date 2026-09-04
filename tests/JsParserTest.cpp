@@ -206,7 +206,7 @@ TEST_CASE("find_json_call_argument selects a JSON literal by argument position")
 }
 
 TEST_CASE("parse_json_call_argument tolerates nested expressions and JS syntax") {
-	std::string js = R"(Player.init(call(")", /* , */ [1, 2]), { 'name': 'it\'s fine', });)";
+	std::string js = R"js(Player.init(call(")", /* , */ [1, 2]), { 'name': 'it\'s fine', });)js";
 	auto value = parse_json_call_argument("Player.init", 1, js);
 	REQUIRE(value.has_value());
 	REQUIRE(value->is_object());
