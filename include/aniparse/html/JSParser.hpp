@@ -78,8 +78,8 @@ extern std::string_view find_json_call_argument(std::string_view callee, std::si
 /**
  * @brief Find and parse a JSON-like literal supplied to a function call.
  *
- * Equivalent to @ref find_json_call_argument followed by the same JS-to-JSON
- * normalisation used by @ref parse_json_var.
+ * Equivalent to @c find_json_call_argument followed by the same JS-to-JSON
+ * normalisation used by @c parse_json_var.
  */
 extern std::optional<boost::json::value> parse_json_call_argument(
     std::string_view callee, std::size_t argument_index, std::string_view text);
