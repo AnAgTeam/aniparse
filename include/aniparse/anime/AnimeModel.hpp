@@ -131,13 +131,17 @@ struct AnimeInfo {
 	/// not image bytes. @see Image
 	std::vector<Image> screenshots;
 
+	/// @deprecated Use MediaInfo::release_time with DatePrecision::Quarter for an
+	/// actual premiere, or UpcomingEpisodeInfo::release_time for an announced one.
 	/// The broadcast season it premiered in. nullopt = the source has no season axis
 	/// at all; AnimeSeason::Unknown = it has one but states no value for this anime.
 	/// Only meaningful together with @ref year. @see AnimeSeason
 	std::optional<AnimeSeason> season;
-	/// The year it premiered. A default-constructed year (year 0) = the source states
-	/// none — compare against `std::chrono::year{}`, since year 0 is otherwise a
-	/// well-formed value.
+	/// @deprecated Use MediaInfo::release_time with DatePrecision::Year or
+	/// DatePrecision::Quarter for an actual premiere, or
+	/// UpcomingEpisodeInfo::release_time for an announced one. A default-constructed
+	/// year (year 0) = the source states none — compare against
+	/// `std::chrono::year{}`, since year 0 is otherwise a well-formed value.
 	std::chrono::year year{};
 
 	/// Episodes actually available now (a running airing exposes fewer than

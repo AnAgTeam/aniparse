@@ -677,8 +677,11 @@ struct MediaInfo {
 	/// @c nullopt = the source does not state it. Sources differ on what counts as an
 	/// update, so this orders items within one source only.
 	std::optional<ModelDate> update_time;
-	/// When the item was first published/aired. @c nullopt = the source does not state
-	/// it — common when only a year is known. @see ModelDate for coarse precisions.
+	/// When the item first became available to read, watch, or otherwise consume.
+	/// @c nullopt = the source does not state an actual availability date, including
+	/// when it only announces a future premiere. A planned installment belongs in
+	/// the domain-specific upcoming-installment field instead. @see ModelDate for
+	/// coarse precisions.
 	std::optional<ModelDate> release_time;
 	/// Publication/airing state (ongoing / released / announced / source-specific). A
 	/// default-constructed status (empty name) = the source states none, and reads as
