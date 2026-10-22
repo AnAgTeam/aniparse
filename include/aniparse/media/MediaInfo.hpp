@@ -8,8 +8,20 @@
 #include "aniparse/media/Publication.hpp"
 #include "aniparse/media/Rating.hpp"
 #include "aniparse/media/Community.hpp"
+#include <algorithm>
+#include <utility>
 
 namespace aniparse {
+
+/**
+ * @brief Another name for a work, optionally labelled by the source.
+ * Labels are display text (a language, abbreviation, or other source wording),
+ * not machine-readable language codes.
+ */
+struct AlternativeTitle {
+	std::string title; ///< Non-empty alternative name.
+	std::optional<std::string> label; ///< Source label, or nullopt when unstated.
+};
 
 /**
  * @brief The metadata every domain's item shares — the fields a manga, an anime and
@@ -24,7 +36,7 @@ namespace aniparse {
  * Swift bridge imports them the same way.
  *
  * A few members here have no meaning in every domain — an image container states no
- * @ref external_ids, @ref original_title or @ref status. A domain that does not carry
+ * @ref external_ids, @ref canonical_title or @ref status. A domain that does not carry
  * one simply leaves it defaulted (empty / @c nullopt); the field's absence reads,
  * as everywhere else in the model, as "the source did not state it".
  */
@@ -42,10 +54,13 @@ struct MediaInfo {
 	/// Empty only when the source does not name the item at all — some domains (a
 	/// tag-only image catalog) always synthesize a stable non-empty title instead.
 	std::string title;
-	/// The title in the work's original language/script, when the source carries one
-	/// AND it differs from @ref title. @c nullopt = no separate original title, or it
-	/// is the same string — so a consumer never renders the title twice.
-	std::optional<std::string> original_title;
+	/// The source's commonly recognized name for matching across sources, often
+	/// romanized for Japanese works. May equal title. nullopt = the source does not
+	/// provide one; consumers must not treat a name as a unique work identity.
+	std::optional<std::string> canonical_title;
+	/// Other names, including native-script names, translations and abbreviations.
+	/// Preserve source order; omit empty names, duplicates, title and canonical_title.
+	std::vector<AlternativeTitle> alternative_titles;
 	/// Synopsis, plain text plus any links the source marked up. Empty = the source
 	/// gives none here (usual for a listing card, and some works simply have none).
 	/// Not HTML: markup is flattened into the text or lifted into the attributes.
@@ -117,6 +132,21 @@ struct MediaInfo {
 	/// which is a weaker statement than "safe": sources differ on where the line sits,
 	/// and one that has no adult flag at all leaves this false throughout.
 	bool is_hentai = false;
+
+	/**
+	 * @brief Append a distinct alternative name in source order.
+	 * @param name Candidate name; empty, display, canonical and repeated names are skipped.
+	 * @param label Optional source-provided display label.
+	 */
+	void add_alternative_title(std::string name, std::optional<std::string> label = std::nullopt) {
+		if (name.empty() || name == title || (canonical_title && name == *canonical_title)) return;
+		if (std::ranges::any_of(alternative_titles, [&](const AlternativeTitle& value) {
+			return value.title == name;
+		})) return;
+		if (label && label->empty()) label.reset();
+		alternative_titles.push_back({ .title = std::move(name), .label = std::move(label) });
+	}
+
 };
 
 } // namespace aniparse

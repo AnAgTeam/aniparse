@@ -96,7 +96,7 @@ struct ImageContainerInfo {
 	/// The metadata shared with every other domain — title, description, dates, tags,
 	/// series, previews, rating, and the rest. An image container leaves the members
 	/// that have no meaning for it (@ref MediaInfo::external_ids,
-	/// @ref MediaInfo::original_title, @ref MediaInfo::status) defaulted. Note that
+	/// @ref MediaInfo::canonical_title, @ref MediaInfo::status) defaulted. Note that
 	/// @ref MediaInfo::title is never empty here — a tag-only catalog whose posts have
 	/// no name gets a stable synthesized title (built from its most telling tags, or
 	/// its id), which is not necessarily something the source itself would display and

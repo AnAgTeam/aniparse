@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace aniparse {
 
@@ -26,35 +27,29 @@ struct ImageResolution {
 };
 
 /**
- * @brief Everything needed to fetch one image: the URL, the headers it may
- * require, and the dimensions when the source states them.
- *
- * The library models a picture as a fetch descriptor rather than bytes: nothing
- * here is downloaded, the consumer performs the request itself. Used for cover
- * art and thumbnails (the @c previews lists) as well as for content pages.
+ * @brief One size of an image, with its own URL and optional pixel dimensions.
+ * Variants represent the same artwork and crop. Different artwork belongs in a
+ * separate Image. Missing dimensions mean the source did not state them.
+ */
+struct ImageVariant {
+	std::string url; ///< Absolute URL to fetch.
+	std::optional<ImageResolution> size; ///< Source-reported dimensions, if known.
+};
+
+/**
+ * @brief An image and its available size variants, sharing one fetch policy.
+ * The first variant is the source's recommended default. A single known URL
+ * becomes one variant; no variants means the source offers no image. Headers
+ * and adapter apply to every variant. Descriptors contain no downloaded bytes.
  */
 struct Image {
-	/// Source-local numeric handle, when the producing parser has one it wants to
-	/// carry alongside the URL; 0 = none, and that is the usual case. It is not an
-	/// identity a consumer can address anything by and it is not stable across
-	/// sources — the URL is what identifies the image.
+	/// Optional source-local numeric handle; 0 means absent. Not a cross-source ID.
 	ImageID id{0};
-	/// Absolute URL the image is fetched from.
-	std::string url;
-	/// Pixel dimensions, when the source reports them. nullopt = the source does not
-	/// state them (many listing endpoints omit dimensions for thumbnails); it never
-	/// means the image is empty, and the dimensions can only be learned by decoding
-	/// the fetched bytes.
-	std::optional<ImageResolution> size;
-	/// Extra request headers the consumer must send when fetching @ref Image::url — e.g.
-	/// a Referer that some sources require to serve their images (a bare GET 403s
-	/// otherwise). Empty when the plain URL suffices; set by the producing parser.
+	/// Available sizes of the same artwork, recommended default first.
+	std::vector<ImageVariant> variants;
+	/// Extra headers required when fetching any variant (for example Referer).
 	Headers headers;
-	/// Optional parser-provided policy for preparing and transforming this image's
-	/// bytes. Null when a consumer may fetch @ref url directly. The adapter is
-	/// shared because the same immutable policy can serve previews, pages, and
-	/// concurrent loads; the concrete type is forward-declared here so this data
-	/// model does not import transport or coroutine declarations.
+	/// Shared optional byte transformation policy; null means fetch directly.
 	std::shared_ptr<const ResourceAdapter> adapter;
 };
 

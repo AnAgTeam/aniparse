@@ -74,3 +74,17 @@ TEST_CASE("UserList::to_enum maps every known name and falls back to Other") {
 	REQUIRE(UserList{.name = std::string(user_list_read)}.to_enum() == DefaultUserLists::Read);
 	REQUIRE(UserList{.name = "unknown"}.to_enum() == DefaultUserLists::Other);
 }
+
+TEST_CASE("Alternative names omit display, canonical, empty and repeated values") {
+	MediaInfo info{ .title = "Display", .canonical_title = "Canonical" };
+	info.add_alternative_title("");
+	info.add_alternative_title("Display", "English");
+	info.add_alternative_title("Canonical");
+	info.add_alternative_title("Alias", "Japanese");
+	info.add_alternative_title("Alias", "Duplicate");
+	info.add_alternative_title("Another", "");
+	REQUIRE(info.alternative_titles.size() == 2);
+	CHECK(info.alternative_titles[0].title == "Alias");
+	CHECK(info.alternative_titles[0].label == "Japanese");
+	CHECK_FALSE(info.alternative_titles[1].label);
+}

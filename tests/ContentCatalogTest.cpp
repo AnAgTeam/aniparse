@@ -40,14 +40,14 @@ struct ReadingGetter : MangaGetter {
         MangaInfo info{};
         info.id = "1";
         info.common.title = "Reading card";
-        info.common.previews.push_back(Image{.url = "https://example.org/card.jpg"});
+        info.common.previews.push_back(Image{.variants = { ImageVariant{ .url = "https://example.org/card.jpg" } }});
         return info;
     }
     RequestTask<MangaInfo> load_info(RequestContext) const override {
         MangaInfo info{};
         info.id = "1";
         info.common.title = catalog + "Reading detail";
-        info.common.previews.push_back(Image{.url = "https://example.org/detail.jpg"});
+        info.common.previews.push_back(Image{.variants = { ImageVariant{ .url = "https://example.org/detail.jpg" } }});
         co_return info;
     }
     RequestTask<PageResults<MangaPage>> load_chapter_pages(RequestContext, MangaChapterRef, GetFilters, std::optional<MangaTranslationID>) const override {
@@ -353,8 +353,8 @@ CORO_TEST_CASE("Detail metadata does not overwrite a listing preview", "[content
     CatalogEntry entry{std::make_unique<ReadingGetter>()};
     auto detail = co_await entry.manga->load_info(context());
     REQUIRE(detail);
-    CHECK(detail->common.previews.front().url == "https://example.org/detail.jpg");
-    CHECK(entry.preview_info()->previews.front().url == "https://example.org/card.jpg");
+    CHECK(detail->common.previews.front().variants.front().url == "https://example.org/detail.jpg");
+    CHECK(entry.preview_info()->previews.front().variants.front().url == "https://example.org/card.jpg");
 }
 
 CORO_TEST_CASE("URL routing selects catalog ID independently of media kind", "[content-catalog]") {
