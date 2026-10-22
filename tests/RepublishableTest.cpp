@@ -33,7 +33,7 @@ auto ok_fetch(int& calls, std::string value) {
 auto failing_fetch(int& calls) {
 	return [&calls]() -> RequestTask<std::shared_ptr<const std::string>> {
 		++calls;
-		co_return make_response_error(RequestErrorCode::NetworkError, "boom");
+		co_return make_request_error(RequestErrorCode::NetworkError, "boom");
 	};
 }
 

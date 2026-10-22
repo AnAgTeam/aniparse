@@ -3,6 +3,7 @@
  *
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
+#include "TestRequestContext.hpp"
 #include "CoroTest.hpp"
 
 #include <aniparse/catalog/CatalogRootGetter.hpp>
@@ -18,13 +19,13 @@ namespace {
 // client only needs to exist; its request paths are never taken.
 struct NullClient : HttpClient {
 	RequestTask<HttpResponse> do_request(ConfiguredGetRequest) override {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "");
+		co_return make_request_error(RequestErrorCode::NotImplemented, "");
 	}
 	RequestTask<HttpResponse> do_request(ConfiguredPostRequest) override {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "");
+		co_return make_request_error(RequestErrorCode::NotImplemented, "");
 	}
 	RequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest) override {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "");
+		co_return make_request_error(RequestErrorCode::NotImplemented, "");
 	}
 	void apply_client_config(HttpClientConfig) override {
 	}
@@ -34,7 +35,7 @@ struct NullClient : HttpClient {
 };
 
 RequestContext make_context() {
-	return RequestContext(std::make_shared<NullClient>(), nullptr, std::make_shared<ParserConfig>());
+	return test_context(std::make_shared<NullClient>(), nullptr, std::make_shared<ParserConfig>());
 }
 
 // Implements only the pure-virtual surface; every optional override keeps its
@@ -50,13 +51,13 @@ struct StubMangaGetter : MangaGetter {
 	}
 	RequestTask<PageResults<MangaPage>> load_chapter_pages(
 	    RequestContext, MangaChapterRef, GetFilters, std::optional<MangaTranslationID>) const override {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "");
+		co_return make_request_error(RequestErrorCode::NotImplemented, "");
 	}
 	std::string canonical_url(RequestContext) const override {
 		return "https://example.com/manga/stub";
 	}
 	RequestTask<SerializedGetterData> serialize() const override {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "");
+		co_return make_request_error(RequestErrorCode::NotImplemented, "");
 	}
 };
 

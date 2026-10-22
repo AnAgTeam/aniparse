@@ -77,18 +77,14 @@ std::optional<UrlRoute> ParserStore::route_url(std::string_view url) {
 	if (!found_parser) {
 		return std::nullopt;
 	}
-	auto suggestion = found_parser->suggest_getter(*parsed);
-	const auto scopes = found_parser->scopes();
-	// A type hint cannot choose between two catalogues with the same media kind.
-	if (!suggestion.scope_id && !scopes.empty()
-	    && suggestion.type != GetterSuggestionType::Images
-	    && suggestion.type != GetterSuggestionType::Video) return std::nullopt;
-	if (suggestion.scope_id) {
-		const bool declared = std::any_of(scopes.begin(), scopes.end(),
-		    [&suggestion](const CatalogInfo& scope) { return scope.id == *suggestion.scope_id; });
+	auto suggestion = found_parser->suggest_catalog(*parsed);
+	const auto catalogs = found_parser->catalogs();
+	if (suggestion) {
+		const bool declared = std::any_of(catalogs.begin(), catalogs.end(),
+		    [&suggestion](const CatalogInfo& catalog) { return catalog.id == *suggestion; });
 		if (!declared) return std::nullopt;
 	}
-	return UrlRoute{ std::move(found_parser), suggestion.type, std::move(*parsed), std::move(suggestion.scope_id) };
+	return UrlRoute{ std::move(found_parser), std::move(*parsed), std::move(suggestion) };
 }
 
 std::shared_ptr<Parser> ParserStore::find_by_key(std::string_view key) const {

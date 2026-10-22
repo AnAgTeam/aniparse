@@ -16,32 +16,32 @@ std::optional<MangaInfo> MangaGetter::preview_info() const noexcept {
 RequestTask<PageResults<MangaTranslationInfo>> MangaGetter::load_translations(
     RequestContext,
     GetFilters) const {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get translation info");
+	co_return make_request_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get translation info");
 }
 
 RequestTask<PageResults<Comment>> MangaGetter::load_comments(
     RequestContext,
     GetFilters) const {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get comments");
+	co_return make_request_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get comments");
 }
 
 RequestTask<PageResults<MangaChapterInfo>> MangaGetter::load_chapters(
     RequestContext,
     GetFilters,
     std::optional<MangaTranslationID>) const {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get chapters info");
+	co_return make_request_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get chapters info");
 }
 
 RequestTask<PageResults<RelatedWork>> MangaGetter::load_related(
     RequestContext,
     GetFilters) const {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get related info");
+	co_return make_request_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get related info");
 }
 
 RequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaGetter::load_similar(
     RequestContext,
     GetFilters) const {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get similar info");
+	co_return make_request_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get similar info");
 }
 
 

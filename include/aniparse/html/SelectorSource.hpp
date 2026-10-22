@@ -213,7 +213,7 @@ public:
 	/**
 	 * @brief Build (once per parser id, cached) the selector set @p T from that
 	 * parser's scoped source view.
-	 * @tparam T Selector set type exposing `static T create(const SelectorSource&)`
+	 * @tparam T Selector set type exposing `static T make(const SelectorSource&)`
 	 * @param parser_id The parser identifier stamped into the calling context
 	 * @return Shared handle to the built set; hold it for the whole operation so a
 	 *         concurrent set() cannot free it underneath
@@ -234,7 +234,7 @@ public:
 		// Compile outside the lock, off the scoped view: expensive and in need of
 		// no shared state. A losing build race drops our copy for the stored winner.
 		auto view = view_for(parser_id);
-		auto built = std::make_shared<const T>(T::create(*view));
+		auto built = std::make_shared<const T>(T::make(*view));
 		std::unique_lock write_lock(mutex_);
 		auto [it, inserted] = sets_[std::string(parser_id)].try_emplace(type_key, std::move(built));
 		return std::static_pointer_cast<const T>(it->second);

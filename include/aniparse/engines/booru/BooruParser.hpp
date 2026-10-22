@@ -24,27 +24,27 @@ public:
 	ParserInfo info() const override;
 	std::string identifier() const override;
 	/**
-	 * @copydoc aniparse::Parser::suggest_getter
+	 * @copydoc aniparse::Parser::valid_for_url
 	 */
-	GetterSuggestionResult suggest_getter(const ParsedUrl& url) const override;
+	bool valid_for_url(const ParsedUrl& url) const override;
 	/**
 	 * @brief What the source declares it can do.
 	 * The descriptor's own flags plus supports_images_store, which is always set: a
-	 * booru parser hands out an images getter unconditionally (@see images_getter),
+	 * booru parser hands out an images getter unconditionally (@see make_images_getter),
 	 * so the bit follows from the engine rather than from a descriptor that could
 	 * forget it.
 	 * @return The site's capability flags, with the image-library bit added
 	 */
 	ParserCapabilities capabilities() const override;
-	void emplace_domains(EmplaceDomainsContext& context) const override;
+	void emplace_domains(EmplaceDomainsSink& sink) const override;
 
-	std::unique_ptr<ImagesGetter> images_getter() const override;
+	std::unique_ptr<ImagesGetter> make_images_getter() const override;
 
 protected:
     /**
-     * @copydoc Parser::make_profile
+     * @copydoc Parser::make_profile_impl
      */
-    std::unique_ptr<ParserProfile> make_profile(ProfileInfo info) const override;
+    std::unique_ptr<ParserProfile> make_profile_impl(ProfileInfo info) const override;
 
 	const BooruSite& site_;
 };

@@ -29,7 +29,7 @@ constexpr bool protected_interfaces = (
      std::is_destructible_v<Bases>) && ...);
 
 static_assert(protected_interfaces<
-    Parser, ParserProfile, EmplaceDomainsContext, CatalogRootGetter,
+    Parser, ParserProfile, EmplaceDomainsSink, CatalogRootGetter,
     MangaGetter, AnimeGetter, ImagesGetter, ImageContainerGetter,
     CookieJar, HttpClient, Logger, VideoExtractor, engines::BooruEngine,
     SignatureVerifier, ResourceOutput, ResourceHandle, ResourceAdapter,

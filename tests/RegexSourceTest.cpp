@@ -132,7 +132,7 @@ namespace {
 /// A probe set that records which override text it was built with.
 struct ProbeSet {
 	std::string pattern;
-	static ProbeSet create(const RegexSource& source) {
+	static ProbeSet make(const RegexSource& source) {
 		return { std::string(source.get("info.id", "/default")) };
 	}
 };

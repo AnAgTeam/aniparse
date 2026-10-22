@@ -19,7 +19,7 @@ struct Counter {
 
 	static int build_count;
 
-	static Counter create() {
+	static Counter make() {
 		++build_count;
 		return { 42 };
 	}
@@ -29,7 +29,7 @@ int Counter::build_count = 0;
 // A second, unrelated set: proves keys never collide across types.
 struct Other {
 	int value;
-	static Other create() { return { 7 }; }
+	static Other make() { return { 7 }; }
 };
 
 // A real selector set: proves the CSS path works through the generic cache.
@@ -37,7 +37,7 @@ struct PageSelectors {
 	html::CompiledSelector thumbs;
 	html::CompiledSelector content_script;
 
-	static PageSelectors create() {
+	static PageSelectors make() {
 		html::SelectorCompiler compiler;
 		return {
 			compiler.compile("#thumbs"),

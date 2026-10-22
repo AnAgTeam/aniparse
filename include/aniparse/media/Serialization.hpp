@@ -32,6 +32,16 @@ namespace aniparse {
  *          drop the old one — reading it must keep working, or every stored item
  *          silently loses its binding. Version the payload (a reserved @c params
  *          key) if that ever gets hard to do by inspection.
+ *
+ * A parser can emit a format version in @c params (for example,
+ * @c format_version). Its from_serialized() implementation interprets an absent
+ * version as the legacy format, validates known versions, and translates old
+ * addressing data into a getter using the current representation. The restored
+ * getter's serialize() emits the current format; the consumer must explicitly
+ * persist that result to finish the migration. Unknown versions must produce an
+ * error rather than be guessed at. A version describes the identity encoding,
+ * not the parser release or the fetched metadata revision. Conversion requires
+ * a reliable mapping; a version alone cannot recover a renamed source key.
  */
 struct SerializedGetterData {
 	/// The item's addressing handle: whatever the parser identifies by — an id, a

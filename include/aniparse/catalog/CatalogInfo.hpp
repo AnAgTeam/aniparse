@@ -40,17 +40,17 @@ struct CatalogCapabilities {
 /**
  * @brief One independently selectable catalog supplied by a parser.
  *
- * IDs are stable and unique within a parser; multiple scopes may advertise the
- * same kinds. Persist the scope ID alongside the parser ID, format and item
- * identity. A mixed scope declares both bits without requiring both in each card.
+ * IDs are stable and unique within a parser; multiple catalogs may advertise the
+ * same kinds. Persist the catalog ID alongside the parser ID, format and item
+ * identity. A mixed catalog declares both bits without requiring both in each card.
  * The selected root owns a copy, so it remains valid after this vector is gone.
  */
 struct CatalogInfo {
 	std::string id; ///< Opaque stable selection key, not a content-type name.
 	std::string name; ///< Human-readable catalog name.
 	CatalogKinds kinds; ///< Formats this catalog may return; UI metadata only.
-	CatalogCapabilities capabilities; ///< Capabilities of this particular scope.
-	std::string profile_id{default_profile_id}; ///< Request profile selected through Parser::profile.
+	CatalogCapabilities capabilities; ///< Capabilities of this particular catalog.
+	std::string profile_id{default_profile_id}; ///< Request profile selected through Parser::make_profile.
 };
 
 } // namespace aniparse

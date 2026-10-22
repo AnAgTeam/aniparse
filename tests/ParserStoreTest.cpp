@@ -26,9 +26,9 @@ struct TestParser : aniparse::Parser {
 		};
 	}
 
-	void emplace_domains(aniparse::EmplaceDomainsContext& context) const override {
-		context.add_domain("www.youtube.com");
-		context.add_domain("youtu.be");
+	void emplace_domains(aniparse::EmplaceDomainsSink& sink) const override {
+		sink.add_domain("www.youtube.com");
+		sink.add_domain("youtu.be");
 	}
 };
 
@@ -39,7 +39,7 @@ struct NamedParser : aniparse::Parser {
 	aniparse::ParserInfo info() const override { return { .name = id_ }; }
 	std::string identifier() const override { return id_; }
 	aniparse::ParserCapabilities capabilities() const override { return {}; }
-	void emplace_domains(aniparse::EmplaceDomainsContext&) const override {}
+	void emplace_domains(aniparse::EmplaceDomainsSink&) const override {}
 	std::string id_;
 };
 
@@ -48,9 +48,9 @@ struct CountingDomainsParser : aniparse::Parser {
 	std::string identifier() const override { return "CountingDomains"; }
 	bool valid_for_url(const aniparse::ParsedUrl&) const override { return true; }
 	aniparse::ParserCapabilities capabilities() const override { return {}; }
-	void emplace_domains(aniparse::EmplaceDomainsContext& context) const override {
+	void emplace_domains(aniparse::EmplaceDomainsSink& sink) const override {
 		++calls;
-		context.add_domain("static.example");
+		sink.add_domain("static.example");
 	}
 
 	mutable int calls = 0;

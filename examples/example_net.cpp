@@ -15,7 +15,7 @@
 // Unlike example_parse this one needs network access; each call reports its own
 // error through the expected channel, so a failure just prints and moves on.
 #include <aniparse/net/backends/curl/CurlHttpClient.hpp>
-#include <aniparse/runtime/RequestContext.hpp>
+#include <aniparse/source/ParserProfile.hpp>
 #include <aniparse/html/HTMLDocument.hpp>
 
 #include <boost/json.hpp>
@@ -29,7 +29,7 @@ int main() {
 	// The default client is curl-backed. Wrapping it in a RequestContext is all
 	// a parser ever sees; no logger or config is needed for a plain request.
 	auto client = std::make_shared<CurlHttpClient>();
-	RequestContext context(client, nullptr, nullptr);
+	auto context = ParserProfile("Example", {"main", "Example"}).make_context(client);
 
 	// 1. Raw request: the escape hatch for the low-level response. Note that the
 	//    status, response headers and effective_url are all available here.

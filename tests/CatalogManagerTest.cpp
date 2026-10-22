@@ -33,14 +33,14 @@ struct CatalogParser : Parser {
 	std::string identifier() const override { return id; }
 	bool valid_for_url(const ParsedUrl&) const override { return true; }
 	ParserCapabilities capabilities() const override { return {}; }
-	void emplace_domains(EmplaceDomainsContext&) const override {}
+	void emplace_domains(EmplaceDomainsSink&) const override {}
 };
 
 struct StaticCatalogParser final : CatalogParser {
 	using CatalogParser::CatalogParser;
 
-	void emplace_domains(EmplaceDomainsContext& context) const override {
-		context.add_domain("builtin.example");
+	void emplace_domains(EmplaceDomainsSink& sink) const override {
+		sink.add_domain("builtin.example");
 	}
 };
 
@@ -51,7 +51,7 @@ struct CatalogExtractor : VideoExtractor {
 	explicit CatalogExtractor(std::string id) : id(std::move(id)) {}
 
 	std::string identifier() const override { return id; }
-	void emplace_domains(EmplaceDomainsContext&) const override {}
+	void emplace_domains(EmplaceDomainsSink&) const override {}
 	bool valid_for_url(const ParsedUrl&) const override { return true; }
 	RequestTask<VideoExtraction> extract(RequestContext, ParsedUrl) const override {
 		co_return VideoExtraction{};

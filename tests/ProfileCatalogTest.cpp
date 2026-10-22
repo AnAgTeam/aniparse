@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026 Toilettrauma
  */
+#include "TestRequestContext.hpp"
 #include "catch_amalgamated.hpp"
 #include <aniparse/source/overrides/SourceOverridesManager.hpp>
 
@@ -20,13 +21,13 @@ struct Verifier : SignatureVerifier {
 
 struct NoNetwork : HttpClient {
 	RequestTask<HttpResponse> do_request(ConfiguredGetRequest) override {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "");
+		co_return make_request_error(RequestErrorCode::NotImplemented, "");
 	}
 	RequestTask<HttpResponse> do_request(ConfiguredPostRequest) override {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "");
+		co_return make_request_error(RequestErrorCode::NotImplemented, "");
 	}
 	RequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest) override {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "");
+		co_return make_request_error(RequestErrorCode::NotImplemented, "");
 	}
 	void apply_client_config(HttpClientConfig) override {}
 	std::shared_ptr<CookieJar> make_cookie_jar() override { return nullptr; }
@@ -48,12 +49,6 @@ constexpr std::string_view payload = R"({
 })";
 
 constexpr std::array<std::string_view, 1> builtin{"https://builtin-api.example"};
-std::shared_ptr<ParserConfig> config(std::string profile, std::string parser = "Example") {
-	auto result = std::make_shared<ParserConfig>();
-	result->parser_id = std::move(parser);
-	result->profile_id = std::move(profile);
-	return result;
-}
 std::shared_ptr<RuntimeServices> services() {
 	auto result = std::make_shared<RuntimeServices>();
 	result->client = std::make_shared<NoNetwork>();
@@ -95,12 +90,12 @@ TEST_CASE("SourceOverridesManager applies isolated profile settings and keeps ol
 	Verifier verifier;
 	auto state = services();
 	SourceOverridesManager manager(store, verifier, state);
-	RequestContext before(state, config("reader"));
+	auto before = ParserProfile("Example", {"reader", "Test"}).make_context(state);
 	REQUIRE(manager.apply(payload, "signature"));
-	RequestContext main(state, config("main"));
-	RequestContext reader(state, config("reader"));
-	RequestContext other(state, config("other"));
-	RequestContext foreign(state, config("reader", "OtherParser"));
+	auto main = ParserProfile("Example", {"main", "Test"}).make_context(state);
+	auto reader = ParserProfile("Example", {"reader", "Test"}).make_context(state);
+	auto other = ParserProfile("Example", {"other", "Test"}).make_context(state);
+	auto foreign = ParserProfile("OtherParser", {"reader", "Test"}).make_context(state);
 	CHECK(before.base_url(builtin) == builtin.front());
 	CHECK(main.base_url(builtin) == "https://main-api.example");
 	CHECK(main.canonical_base_url("https://builtin-front.example") == "https://main-front.example");
@@ -123,7 +118,7 @@ TEST_CASE("SourceOverridesManager applies isolated profile settings and keeps ol
 	CHECK(manager.revision() == 7);
 	verifier.accepted = true;
 	REQUIRE(manager.apply(newer, "signature"));
-	RequestContext fresh(state, config("reader"));
+	auto fresh = ParserProfile("Example", {"reader", "Test"}).make_context(state);
 	CHECK(fresh.base_url(builtin) == "https://new-reader-api.example");
 	CHECK(reader.base_url(builtin) == "https://reader-api.example");
 
@@ -135,7 +130,7 @@ TEST_CASE("SourceOverridesManager applies isolated profile settings and keeps ol
 	CHECK(state->mirrors->get() == pinned);
 	CHECK(manager.revision() == 8);
 	manager.reset();
-	RequestContext reset(state, config("reader"));
+	auto reset = ParserProfile("Example", {"reader", "Test"}).make_context(state);
 	CHECK(reset.base_url(builtin) == builtin.front());
 	CHECK(reset.canonical_base_url("https://builtin-front.example") == "https://builtin-front.example");
 	CHECK(fresh.base_url(builtin) == "https://new-reader-api.example");
@@ -149,15 +144,15 @@ TEST_CASE("Obsolete parser-wide origins are ignored and empty profile mirrors us
 	SourceOverridesManager manager(store, verifier, state);
 	REQUIRE(manager.apply(R"({"schema_version":1,"revision":1,"parsers":{"Example":{
 	    "mirrors":["https://legacy.example"],"canonical_base_url":"https://legacy-front.example"}}})", "signature"));
-	RequestContext legacy(state, config("main"));
+	auto legacy = ParserProfile("Example", {"main", "Test"}).make_context(state);
 	CHECK(legacy.base_url(builtin) == builtin.front());
 	CHECK(legacy.canonical_base_url("https://builtin-front.example") == "https://builtin-front.example");
 	REQUIRE(manager.apply(R"({"schema_version":1,"revision":2,"parsers":{"Example":{
 	    "mirrors":["https://legacy.example"],"profiles":{"main":{"mirrors":[]}}}}})", "signature"));
-	RequestContext cleared(state, config("main"));
+	auto cleared = ParserProfile("Example", {"main", "Test"}).make_context(state);
 	CHECK(cleared.base_url(builtin) == builtin.front());
 	CHECK(legacy.base_url(builtin) == builtin.front());
-	RequestContext unstamped(state, config(""));
+	auto unstamped = ParserProfile("Example", {"missing", "Test"}).make_context(state);
 	CHECK(unstamped.base_url(builtin) == builtin.front());
 	CHECK(unstamped.canonical_base_url("https://builtin-front.example") == "https://builtin-front.example");
 }

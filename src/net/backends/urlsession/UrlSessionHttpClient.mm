@@ -555,7 +555,7 @@ NetworkTask<Result<HttpResponse>> perform_once(NSURLSession* session,
 	asyncnet::NetworkPromise<Result<HttpResponse>>& promise = co_await asyncnet::awaitables::get_self;
 
 	if (promise.stop_requested()) {
-		co_return make_response_error(RequestErrorCode::Cancelled, "request cancelled");
+		co_return make_request_error(RequestErrorCode::Cancelled, "request cancelled");
 	}
 
 	// The block captures the state by shared_ptr, so it stays valid even if this
@@ -566,7 +566,7 @@ NetworkTask<Result<HttpResponse>> perform_once(NSURLSession* session,
 	    dataTaskWithRequest:request
 	      completionHandler:^(NSData* data, NSURLResponse* response, NSError* error) {
 		      if (error != nil) {
-			      state->complete(make_response_error(ns_error_to_code(error),
+			      state->complete(make_request_error(ns_error_to_code(error),
 			                                          from_ns(error.localizedDescription)));
 			      return;
 		      }
@@ -600,7 +600,7 @@ NetworkTask<Result<HttpResponse>> perform_with_retry(NSURLSession* session,
                                                        uint32_t max_retries) {
 	asyncnet::NetworkPromise<Result<HttpResponse>>& promise = co_await asyncnet::awaitables::get_self;
 
-	Result<HttpResponse> result = make_response_error(RequestErrorCode::NetworkError, "no attempt made");
+	Result<HttpResponse> result = make_request_error(RequestErrorCode::NetworkError, "no attempt made");
 	for (uint32_t attempt = 0; attempt <= max_retries; ++attempt) {
 		result = co_await perform_once(session, request, jar).connect_with(promise);
 		if (result || result.error().code == RequestErrorCode::Cancelled) {
@@ -615,12 +615,12 @@ NetworkTask<Result<HttpResponse>> perform_with_retry(NSURLSession* session,
 RequestTask<HttpResponse> UrlSessionHttpClient::do_request(ConfiguredGetRequest configured) {
 	NSString* method = to_http_method(configured.request.method);
 	if (method == nil) {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "unsupported HTTP method");
+		co_return make_request_error(RequestErrorCode::NotImplemented, "unsupported HTTP method");
 	}
 
 	NSURL* url = [NSURL URLWithString:to_ns(build_url(configured.request.url, configured.request.url_params))];
 	if (url == nil) {
-		co_return make_response_error(RequestErrorCode::InvalidArguments,
+		co_return make_request_error(RequestErrorCode::InvalidArguments,
 		                              "malformed request URL: " + configured.request.url);
 	}
 
@@ -638,12 +638,12 @@ RequestTask<HttpResponse> UrlSessionHttpClient::do_request(ConfiguredGetRequest 
 RequestTask<HttpResponse> UrlSessionHttpClient::do_request(ConfiguredPostRequest configured) {
 	NSString* method = to_http_method(configured.request.method);
 	if (method == nil) {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "unsupported HTTP method");
+		co_return make_request_error(RequestErrorCode::NotImplemented, "unsupported HTTP method");
 	}
 
 	NSURL* url = [NSURL URLWithString:to_ns(build_url(configured.request.url, configured.request.url_params))];
 	if (url == nil) {
-		co_return make_response_error(RequestErrorCode::InvalidArguments,
+		co_return make_request_error(RequestErrorCode::InvalidArguments,
 		                              "malformed request URL: " + configured.request.url);
 	}
 
@@ -663,12 +663,12 @@ RequestTask<HttpResponse> UrlSessionHttpClient::do_request(ConfiguredPostRequest
 RequestTask<HttpResponse> UrlSessionHttpClient::do_request(ConfiguredPostMultipartRequest configured) {
 	NSString* method = to_http_method(configured.request.method);
 	if (method == nil) {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "unsupported HTTP method");
+		co_return make_request_error(RequestErrorCode::NotImplemented, "unsupported HTTP method");
 	}
 
 	NSURL* url = [NSURL URLWithString:to_ns(build_url(configured.request.url, configured.request.url_params))];
 	if (url == nil) {
-		co_return make_response_error(RequestErrorCode::InvalidArguments,
+		co_return make_request_error(RequestErrorCode::InvalidArguments,
 		                              "malformed request URL: " + configured.request.url);
 	}
 

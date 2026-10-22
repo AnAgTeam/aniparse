@@ -42,12 +42,16 @@ namespace aniparse {
 struct MangaGetter;
 
 /**
- * The source's own numeric id for a manga. Meaningful only within the one source
- * that issued it — never compare ids across parsers (that is what ExternalId is
- * for), and never treat it as this library's handle on the manga (that is the
- * getter). @see MangaInfo::id
+ * The source's opaque identity key for a manga: a numeric ID encoded as text,
+ * a slug, or another stable source-local key. Prefer the most stable part of the
+ * source identity; exclude mirror hosts, mutable title text, and URL decoration
+ * when a durable key is available. Never hash a slug merely to obtain a number.
+ * Meaningful only within the issuing source, catalog and media kind, never
+ * across parsers (@see ExternalId). Consumers must not parse it or infer ordering from it.
+ * Persist the getter's serialized data to restore access, not this key alone.
+ * @see MangaInfo::id
  */
-using MangaID            = int;
+using MangaID = std::string;
 /**
  * The source's own id for one translation of a manga, as advertised by
  * @ref aniparse::MangaTranslationInfo::id. Meaningful only within that source, and only
@@ -91,11 +95,6 @@ struct MangaType {
 	std::string name;
 };
 
-/// The MangaID that addresses nothing: the value @ref aniparse::MangaInfo::id carries when
-/// the source has no numeric id for the manga (it addresses works by slug, say).
-/// It is not an error marker — the manga is still fully usable through its getter.
-inline constexpr MangaID invalid_manga_id = MangaID{ 0 };
-
 /**
  * @brief A future chapter a source schedules for a manga.
  *
@@ -128,11 +127,11 @@ struct UpcomingChapterInfo {
  * fetched in full.
  */
 struct MangaInfo {
-	/// The source's own numeric id, when it has one. @ref aniparse::invalid_manga_id (0) = it
-	/// does not — which is not an error. This is a display/debugging convenience and
-	/// a source-local key; it is neither a cross-source identity (@ref MediaInfo::external_ids)
-	/// nor the handle to fetch with (@see MangaGetter::serialize).
-	MangaID id = invalid_manga_id;
+	/// Opaque source-local identity; numeric IDs are represented as decimal text.
+	/// Use the most stable source key available, including a slug when no numeric
+	/// key exists. Empty = identity unavailable in this response; never use an
+	/// empty key for deduplication. Not a fetch handle (@see MangaGetter::serialize).
+	MangaID id;
 
 	/// The metadata shared with every other domain — title, description, dates, tags,
 	/// series, previews, rating, external ids, and the rest. @see aniparse::MediaInfo

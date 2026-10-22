@@ -17,7 +17,7 @@ namespace {
 struct ProbeSelectors {
 	html::CompiledSelector card;
 	html::CompiledSelector title;
-	static ProbeSelectors create(const html::SelectorSource& source) {
+	static ProbeSelectors make(const html::SelectorSource& source) {
 		html::SelectorCompiler compiler;
 		return {
 		    source.compile(compiler, "card.card", ".tiles .tile"),
@@ -29,7 +29,7 @@ struct ProbeSelectors {
 /// A probe pattern set declaring one key.
 struct ProbePatterns {
 	regex video_path;
-	static ProbePatterns create(const RegexSource& source) {
+	static ProbePatterns make(const RegexSource& source) {
 		return { source.compile("video_path", R"(/v/[^/]+\.mp4)") };
 	}
 };
@@ -37,7 +37,7 @@ struct ProbePatterns {
 /// A second selector set sharing one key with ProbeSelectors.
 struct CollidingSelectors {
 	html::CompiledSelector card;
-	static CollidingSelectors create(const html::SelectorSource& source) {
+	static CollidingSelectors make(const html::SelectorSource& source) {
 		html::SelectorCompiler compiler;
 		return { source.compile(compiler, "card.card", ".other .tile") };
 	}
@@ -46,7 +46,7 @@ struct CollidingSelectors {
 /// A probe set whose built-in literal does not compile.
 struct BrokenSelectors {
 	html::CompiledSelector bad;
-	static BrokenSelectors create(const html::SelectorSource& source) {
+	static BrokenSelectors make(const html::SelectorSource& source) {
 		html::SelectorCompiler compiler;
 		return { source.compile(compiler, "bad.key", "a[") };
 	}

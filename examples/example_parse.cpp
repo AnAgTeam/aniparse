@@ -12,7 +12,7 @@
 // Pair it with example_net, which shows how such a page is fetched in the first
 // place. Keeping the input on disk makes this example deterministic and offline.
 #include "ExampleClient.hpp"
-#include <aniparse/runtime/RequestContext.hpp>
+#include <aniparse/source/ParserProfile.hpp>
 #include <aniparse/cache/ResourceCache.hpp>
 #include <aniparse/html/HTMLParser.hpp>
 #include <aniparse/html/DOMElement.hpp>
@@ -36,7 +36,7 @@ static std::string read_file(const std::string& path) {
 
 // A group of selectors, compiled once and cached by type. A getter reaches its
 // set through context.resources().get<T>() — the set is built on first use via
-// create() and reused afterwards, so selectors are never re-parsed per call.
+// make() and reused afterwards, so selectors are never re-parsed per call.
 struct CardSelectors {
 	CompiledSelector title;
 	CompiledSelector card;
@@ -44,7 +44,7 @@ struct CardSelectors {
 	CompiledSelector tag;
 	CompiledSelector rating;
 
-	static CardSelectors create() {
+	static CardSelectors make() {
 		SelectorCompiler compiler; // transient, one per set
 		return {
 			compiler.compile("title"),
@@ -110,7 +110,7 @@ int main() {
 	// A RequestContext is what a parser's getters receive; here we build one only
 	// to reach its selector cache via resources(). No request is made — the HTML
 	// already came from the fixture on disk.
-	RequestContext context(examples::make_client(), nullptr, nullptr);
+	auto context = ParserProfile("Example", {"main", "Example"}).make_context(examples::make_client());
 	extract_cards(context, document);
 
 	// Many sites ship data as a JS literal rather than as markup. parse_json_var

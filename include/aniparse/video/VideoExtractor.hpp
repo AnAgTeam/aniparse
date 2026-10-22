@@ -65,6 +65,14 @@ struct VideoExtraction {
  * links that another extractor can resolve.
  */
 struct VideoExtractor {
+	/**
+	 * @brief Create an independent context for external video extraction.
+	 * @param services Shared extractor services with a valid HTTP client.
+	 * @return A context with empty request settings and a fresh backend jar.
+	 * @throws std::invalid_argument If services or its client is null.
+	 */
+	[[nodiscard]] RequestContext make_context(std::shared_ptr<const RuntimeServices> services) const;
+
 	virtual ~VideoExtractor() = default;
 
 	/**
@@ -76,13 +84,13 @@ struct VideoExtractor {
 	[[nodiscard]] virtual std::string identifier() const = 0;
 	/**
 	 * @brief Declare every static host this extractor can receive.
-	 * @param context A transient sink owned by the store; call add_domain() once
+	 * @param sink A transient sink owned by the store; call add_domain() once
 	 * for each bare host, without a scheme or path.
-	 * @note The context is valid only for this call and must not be retained. The
+	 * @note The sink is valid only for this call and must not be retained. The
 	 * declarations are a coarse routing prefilter; valid_for_url() remains the
 	 * exact path/query gate.
 	 */
-	virtual void emplace_domains(EmplaceDomainsContext& context) const = 0;
+	virtual void emplace_domains(EmplaceDomainsSink& sink) const = 0;
 	/**
 	 * @brief Declare the extractor's catalog-visible defaults into @p sink.
 	 *
@@ -159,7 +167,7 @@ struct VideoExtractor {
 	 * the override scope. Overrides reach the extractor only when the consumer
 	 * builds its context on a RuntimeServices whose pattern holder carries the
 	 * extractor pattern source.
-	 * @tparam T Pattern set type exposing `static T create(const RegexSource&)`.
+	 * @tparam T Pattern set type exposing `static T make(const RegexSource&)`.
 	 * @param context Request context holding the pattern snapshot.
 	 * @return Shared handle to the built set; hold it for the whole extraction so
 	 * a concurrent catalog swap cannot free it underneath.
@@ -209,12 +217,20 @@ inline constexpr int default_max_extraction_depth = 4;
  */
 class VideoExtractorStore {
 public:
+	/**
+	 * @brief Create an independent context for external video extraction.
+	 * @param services Shared extractor services with a valid HTTP client.
+	 * @return A context with empty request settings and a fresh backend jar.
+	 * @throws std::invalid_argument If services or its client is null.
+	 */
+	[[nodiscard]] RequestContext make_context(std::shared_ptr<const RuntimeServices> services) const;
+
 	struct ExtractorDomainEmitter {
-		void operator()(const VideoExtractor& extractor, EmplaceDomainsContext& context) const {
+		void operator()(const VideoExtractor& extractor, EmplaceDomainsSink& context) const {
 			extractor.emplace_domains(context);
 		}
 	};
-	using Domains = detail::DomainStore<VideoExtractor, EmplaceDomainsContext, ExtractorDomainEmitter>;
+	using Domains = detail::DomainStore<VideoExtractor, EmplaceDomainsSink, ExtractorDomainEmitter>;
 	using DomainEdit = Domains::Edit;
 
 	class Edit {

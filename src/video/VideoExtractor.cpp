@@ -11,6 +11,15 @@
 #include <utility>
 
 namespace aniparse {
+
+RequestContext VideoExtractor::make_context(std::shared_ptr<const RuntimeServices> services) const {
+	return RequestContext::make(std::move(services), {}, identifier(), {});
+}
+
+RequestContext VideoExtractorStore::make_context(std::shared_ptr<const RuntimeServices> services) const {
+	return RequestContext::make(std::move(services), {}, {}, {});
+}
+
 namespace {
 
 /**
@@ -153,7 +162,7 @@ RequestTask<VideoExtraction> VideoExtractorStore::extract(
 	const std::string href(url.href());
 	auto route = route_url(std::move(url));
 	if (!route) {
-		co_return make_response_error(RequestErrorCode::NotImplemented,
+		co_return make_request_error(RequestErrorCode::NotImplemented,
 		    "No video extractor handles " + href);
 	}
 	auto extraction = co_await extract_routed(std::move(context), std::move(*route), *this, 0, max_depth);
@@ -164,7 +173,7 @@ RequestTask<VideoExtraction> VideoExtractorStore::extract(
     RequestContext context, std::string url, int max_depth) const {
 	auto parsed = ParsedUrl::parse(url);
 	if (!parsed) {
-		co_return make_response_error(RequestErrorCode::InvalidArguments,
+		co_return make_request_error(RequestErrorCode::InvalidArguments,
 		    "Malformed video URL: " + url);
 	}
 	auto extraction = co_await extract(std::move(context), std::move(*parsed), max_depth);

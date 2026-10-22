@@ -18,10 +18,10 @@ struct CatalogLatestCapabilities {
 };
 
 /**
- * @brief One catalog interface bound to a parser-selected scope at construction.
+ * @brief One catalog interface bound to a parser-selected catalog at construction.
  *
- * Select the scope once through Parser::catalog_getter. Search, latest, filter
- * discovery, suggestions and opening then use that same catalog. The scope's
+ * Select the catalog once through Parser::make_catalog_getter. Search, latest, filter
+ * discovery, suggestions and opening then use that same catalog. The catalog's
  * kinds and capabilities are metadata; they do not gate calls or filter results.
  * Successful operations return nonempty cards with native pagination unchanged.
  */
@@ -31,16 +31,16 @@ public:
 
 	/**
 	 * @brief Bind this root to a concrete catalog.
-	 * @param scope Owned copy of the parser's selected scope descriptor.
+	 * @param catalog Owned copy of the parser's selected catalog descriptor.
 	 *              The default creates a standalone root with unknown metadata.
 	 */
-	explicit CatalogRootGetter(CatalogInfo scope = { .id = "main" });
+	explicit CatalogRootGetter(CatalogInfo catalog = { .id = "main" });
 
 	/**
-	 * @brief Read the selected scope without I/O.
+	 * @brief Read the selected catalog without I/O.
 	 * @return Descriptor owned by this root, valid for its lifetime.
 	 */
-	[[nodiscard]] const CatalogInfo& scope() const noexcept { return scope_; }
+	[[nodiscard]] const CatalogInfo& info() const noexcept { return info_; }
 
 	/**
 	 * @brief Fetch the selected catalog's filter declaration.
@@ -109,9 +109,9 @@ public:
 	/**
 	 * @brief Restore an item's durable identity within the selected catalog.
 	 * @param data Unchanged parser-owned blob emitted by an item getter.
-	 * @param kind Format stored alongside the scope ID and blob.
+	 * @param kind Format stored alongside the catalog ID and blob.
 	 * @return A card containing the requested format, or an error.
-	 * @note Equal numeric IDs in different formats or scopes remain independent.
+	 * @note Equal IDs in different formats or catalogs remain independent.
 	 * Normal restoration decodes identity locally without network requests or
 	 * populating preview data. Resolving a legacy identity may suspend when the
 	 * parser must migrate an older format.
@@ -122,7 +122,7 @@ public:
 
 protected:
 	/**
-	 * @brief Implement filter discovery for the bound scope.
+	 * @brief Implement filter discovery for the bound catalog.
 	 * @param context Request context.
 	 * @return Support, or an error; empty by default.
 	 * @note Keep this object alive until the returned task completes or is destroyed;
@@ -131,13 +131,13 @@ protected:
 	virtual RequestTask<SearchCapabilities> load_search_capabilities_for(RequestContext context) const;
 
 	/**
-	 * @brief Implement latest declarations for the bound scope.
+	 * @brief Implement latest declarations for the bound catalog.
 	 * @return Accepted sorts and flags; empty by default.
 	 */
 	virtual CatalogLatestCapabilities latest_capabilities_for() const noexcept;
 
 	/**
-	 * @brief Implement native search in the bound scope.
+	 * @brief Implement native search in the bound catalog.
 	 * @param context Request context.
 	 * @param query Search values.
 	 * @param filters Pagination and ordering.
@@ -148,7 +148,7 @@ protected:
 	virtual RequestTask<PageResults<CatalogEntry>> search_items(RequestContext context, SearchRequestQuery query, GetFilters filters) const;
 
 	/**
-	 * @brief Implement native latest in the bound scope.
+	 * @brief Implement native latest in the bound catalog.
 	 * @param context Request context.
 	 * @param filters Pagination and ordering.
 	 * @return A page, or an error; NotImplemented by default.
@@ -158,7 +158,7 @@ protected:
 	virtual RequestTask<PageResults<CatalogEntry>> latest_items(RequestContext context, GetFilters filters) const;
 
 	/**
-	 * @brief Implement autocomplete in the bound scope.
+	 * @brief Implement autocomplete in the bound catalog.
 	 * @param context Request context.
 	 * @param partial Partial token.
 	 * @param kind Optional search-filter axis.
@@ -169,7 +169,7 @@ protected:
 	virtual RequestTask<std::vector<SearchSuggestion>> suggest_items(RequestContext context, std::string partial, std::optional<std::string> kind) const;
 
 	/**
-	 * @brief Implement URL opening in the bound scope.
+	 * @brief Implement URL opening in the bound catalog.
 	 * @param context Request context.
 	 * @param url Source URL.
 	 * @return A card, or an error; NotImplemented by default.
@@ -179,7 +179,7 @@ protected:
 	virtual RequestTask<CatalogEntry> parse_entry_url(RequestContext context, ParsedUrl url) const;
 
 	/**
-	 * @brief Implement identity restoration in the bound scope.
+	 * @brief Implement identity restoration in the bound catalog.
 	 * @param data Parser-owned identity.
 	 * @param kind Requested format.
 	 * @return A card, or an error; NotImplemented by default.
@@ -195,7 +195,7 @@ protected:
 	CatalogRootGetter& operator=(CatalogRootGetter&&) = default;
 
 private:
-	CatalogInfo scope_;
+	CatalogInfo info_;
 };
 
 } // namespace aniparse

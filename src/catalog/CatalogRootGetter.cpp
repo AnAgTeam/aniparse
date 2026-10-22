@@ -5,7 +5,7 @@
 
 namespace aniparse {
 
-CatalogRootGetter::CatalogRootGetter(CatalogInfo scope) : scope_(std::move(scope)) {}
+CatalogRootGetter::CatalogRootGetter(CatalogInfo catalog) : info_(std::move(catalog)) {}
 
 RequestTask<SearchCapabilities> CatalogRootGetter::load_search_capabilities(RequestContext context) const {
 	co_return co_await load_search_capabilities_for(std::move(context));
@@ -23,7 +23,7 @@ namespace {
 Result<PageResults<CatalogEntry>> checked_page(Result<PageResults<CatalogEntry>> page) {
 	if (page) {
 		for (const auto& row : page->results) {
-			if (row.item.empty()) return make_response_error(RequestErrorCode::UnexpectedResponse, "Catalog card has no content getter");
+			if (row.item.empty()) return make_request_error(RequestErrorCode::UnexpectedResponse, "Catalog card has no content getter");
 		}
 	}
 	return page;
@@ -44,35 +44,35 @@ RequestTask<std::vector<SearchSuggestion>> CatalogRootGetter::suggest(RequestCon
 
 RequestTask<CatalogEntry> CatalogRootGetter::parse_url(RequestContext context, ParsedUrl url) const {
 	auto entry = co_await parse_entry_url(std::move(context), std::move(url));
-	if (entry && entry->empty()) co_return make_response_error(RequestErrorCode::UnexpectedResponse, "Catalog card has no content getter");
+	if (entry && entry->empty()) co_return make_request_error(RequestErrorCode::UnexpectedResponse, "Catalog card has no content getter");
 	co_return entry;
 }
 
 RequestTask<CatalogEntry> CatalogRootGetter::from_serialized(SerializedGetterData data, MediaKind kind) const {
 	if (kind != MediaKind::Manga && kind != MediaKind::Anime) {
-		co_return make_response_error(RequestErrorCode::InvalidArguments, "Unsupported serialized media kind");
+		co_return make_request_error(RequestErrorCode::InvalidArguments, "Unsupported serialized media kind");
 	}
 	auto entry = co_await restore_entry(std::move(data), kind);
-	if (entry && !entry->has(kind)) co_return make_response_error(RequestErrorCode::UnexpectedResponse, "Restored card has no requested getter");
+	if (entry && !entry->has(kind)) co_return make_request_error(RequestErrorCode::UnexpectedResponse, "Restored card has no requested getter");
 	co_return entry;
 }
 
 RequestTask<SearchCapabilities> CatalogRootGetter::load_search_capabilities_for(RequestContext) const { co_return SearchCapabilities{}; }
 CatalogLatestCapabilities CatalogRootGetter::latest_capabilities_for() const noexcept { return {}; }
 RequestTask<PageResults<CatalogEntry>> CatalogRootGetter::search_items(RequestContext, SearchRequestQuery, GetFilters) const {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "The catalog cannot search");
+	co_return make_request_error(RequestErrorCode::NotImplemented, "The catalog cannot search");
 }
 RequestTask<PageResults<CatalogEntry>> CatalogRootGetter::latest_items(RequestContext, GetFilters) const {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "The catalog cannot list latest items");
+	co_return make_request_error(RequestErrorCode::NotImplemented, "The catalog cannot list latest items");
 }
 RequestTask<std::vector<SearchSuggestion>> CatalogRootGetter::suggest_items(RequestContext, std::string, std::optional<std::string>) const {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "The catalog cannot suggest tokens");
+	co_return make_request_error(RequestErrorCode::NotImplemented, "The catalog cannot suggest tokens");
 }
 RequestTask<CatalogEntry> CatalogRootGetter::parse_entry_url(RequestContext, ParsedUrl) const {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "The catalog cannot open URLs");
+	co_return make_request_error(RequestErrorCode::NotImplemented, "The catalog cannot open URLs");
 }
 RequestTask<CatalogEntry> CatalogRootGetter::restore_entry(SerializedGetterData, MediaKind) const {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "The catalog cannot restore entries");
+	co_return make_request_error(RequestErrorCode::NotImplemented, "The catalog cannot restore entries");
 }
 
 } // namespace aniparse

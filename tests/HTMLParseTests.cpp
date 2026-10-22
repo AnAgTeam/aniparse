@@ -59,7 +59,11 @@ TEST_CASE("HTML parser recovers an omitted document structure") {
     CHECK(parsed->as_element().tag_name() == "HTML");
     CHECK(parsed->head().tag_name() == "HEAD");
     CHECK(parsed->body().tag_name() == "BODY");
-    CHECK(parsed->body().contains_class("playerCode"));
+    auto player = parsed->body().find("class", "playerCode");
+    REQUIRE(player.has_value());
+    CHECK(player->tag_name() == "DIV");
+    CHECK(player->text() == "embedded player");
+    CHECK_FALSE(parsed->body().contains_class("playerCode"));
 
     auto recovered = parser.try_parse("<html><!DOCTYPE html><body></body></html>");
     REQUIRE(recovered.has_value());

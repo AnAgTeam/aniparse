@@ -11,6 +11,9 @@
 namespace aniparse {
 
 namespace html { class HTMLDocument; }
+class ParserProfile;
+struct VideoExtractor;
+class VideoExtractorStore;
 
 /**
  * @brief General context for parsers with client, its config and logger
@@ -26,46 +29,19 @@ namespace html { class HTMLDocument; }
  * Copies of a context, and contexts derived through @ref new_with_config /
  * @ref new_with_logger, share the same services and hence the same cache and client.
  *
- * The config a context carries must be one derived by ParserProfile::make_config for the
- * parser whose getter is about to run — @see new_with_config for the contract.
+ * Create parser contexts through ParserProfile::make_context. The parser/profile
+ * binding is private and survives configuration replacement. Extractor contexts
+ * are created through VideoExtractor or VideoExtractorStore instead.
  * @see ParserConfig
  */
 class RequestContext {
 public:
-	/**
-	 * @brief Construct a context over a bundle of shared services and a config.
-	 * @param services Shared services; must be valid and carry a valid client. A
-	 *        null resources is filled with a fresh cache; a null selector source
-	 *        reads as empty. New shared services are added to RuntimeServices, not here.
-	 * @param config Optional per-parser config; a null one is replaced by a default.
-	 * @note Even if @p config is nullptr, config() always returns a valid config.
-	 * @throws std::invalid_argument if @p services or its client is nullptr
-	 */
-	explicit RequestContext(std::shared_ptr<const RuntimeServices> services,
-	                          std::shared_ptr<ParserConfig> config = nullptr);
-
-	/**
-	 * @brief Convenience overload for the common "just a client (and maybe a
-	 * logger)" case; bundles them into a RuntimeServices and delegates.
-	 * @param client Client for HTTP requests. Should be valid
-	 * @param logger Optional message logger
-	 * @param config Optional per-parser config
-	 * @throws std::invalid_argument if @p client is nullptr
-	 */
-	RequestContext(std::shared_ptr<HttpClient> client,
-	                 std::shared_ptr<Logger> logger = nullptr,
-	                 std::shared_ptr<ParserConfig> config = nullptr);
-
 	/**
 	 * @brief Perform HTTP GET request with respect to client config
 	 *
 	 * The config is applied on the way out: its headers fill in the names the request
 	 * left unset (an explicit request header always wins), its url params are appended,
 	 * its cookie jar carries the session, and its modifiers run last.
-	 * @note Only meaningful on a context carrying a config derived by ParserProfile::make_config
-	 *       (adopted via @ref new_with_config): an underived config has none of the
-	 *       parser's default headers/cookies, and sources answer such a request with a
-	 *       4xx rather than data.
 	 * @param request HTTP request
 	 * @return Task with response
 	 * @note Keep this object alive until the returned task completes or is destroyed;
@@ -76,8 +52,7 @@ public:
 	/**
 	 * @brief Perform HTTP POST request with respect to client config
 	 *
-	 * Applies the config exactly like the GET overload, including its requirement that
-	 * the config be a derived one.
+	 * Applies the config exactly like the GET overload.
 	 * @param request HTTP request
 	 * @return Task with response
 	 * @note Keep this object alive until the returned task completes or is destroyed;
@@ -88,8 +63,7 @@ public:
 	/**
 	 * @brief Perform HTTP POST multipart/form-data request with respect to client config
 	 *
-	 * Applies the config exactly like the GET overload, including its requirement that
-	 * the config be a derived one.
+	 * Applies the config exactly like the GET overload.
 	 * @param request HTTP request
 	 * @return Task with response
 	 * @note Keep this object alive until the returned task completes or is destroyed;
@@ -227,8 +201,8 @@ public:
 	}
 
 	/**
-	 * @brief Returns HTTP client configuration. Always valid
-	 * @return HTTP client configuration
+	 * @brief Read this context's profile settings without exposing its identity.
+	 * @return A non-null shared view retaining the settings and cookie jar.
 	 */
 	std::shared_ptr<const ParserConfig> config() const;
 
@@ -273,12 +247,12 @@ public:
 	 * literals.
 	 *
 	 * The set is compiled against the overrides of THIS context's parser (the id
-	 * ParserProfile::make_config stamped into the config) and cached by (parser id, set
+	 * ParserProfile::make_context binds privately) and cached by (parser id, set
 	 * type) inside the selector-source holder — so two parsers sharing one set
 	 * type (an engine family) each get their own copy with their own overrides,
 	 * never a neighbour's. The getter names only the set type; it names neither
 	 * its id nor the override.
-	 * @tparam T Selector set type exposing `static T create(const html::SelectorSource&)`
+	 * @tparam T Selector set type exposing `static T make(const html::SelectorSource&)`
 	 * @return Shared handle to the built set; hold it for the whole operation so a
 	 *         concurrent catalog swap cannot free it underneath
 	 */
@@ -290,7 +264,7 @@ public:
 		// No selector holder (tests, minimal hosts): every selector falls back to
 		// its built-in literal, cached by bare type in the shared resource cache.
 		auto source = selector_source();
-		return resources().get<T>([source] { return T::create(*source); });
+		return resources().get<T>([source] { return T::make(*source); });
 	}
 
 	/**
@@ -309,10 +283,10 @@ public:
 	 * context's scoped regex source, falling back to the set's built-in literals.
 	 *
 	 * The set is compiled against the overrides of THIS context's parser (the id
-	 * ParserProfile::make_config stamped into the config) and cached by (parser id, set
+	 * ParserProfile::make_context binds privately) and cached by (parser id, set
 	 * type) inside the regex-source holder — the same discipline as
 	 * @ref selectors. The getter names only the set type.
-	 * @tparam T Pattern set type exposing `static T create(const RegexSource&)`
+	 * @tparam T Pattern set type exposing `static T make(const RegexSource&)`
 	 * @return Shared handle to the built set; hold it for the whole operation so a
 	 *         concurrent catalog swap cannot free it underneath
 	 */
@@ -325,12 +299,12 @@ public:
 	 * @brief Build a pattern set @p T scoped to an explicitly given @p id.
 	 *
 	 * This overload exists for video extractors (via VideoExtractor::patterns),
-	 * which carry no stamped ParserConfig and so name their own stable identifier
+	 * which name their own stable identifier
 	 * as the override scope. Parsers must call the no-argument @ref patterns()
 	 * instead: their overrides are scoped by the parser identity
-	 * ParserProfile::make_config stamped into the config, and naming an id by hand can
+	 * ParserProfile::make_context binds privately, and naming an id by hand can
 	 * only mis-scope them.
-	 * @tparam T Pattern set type exposing `static T create(const RegexSource&)`
+	 * @tparam T Pattern set type exposing `static T make(const RegexSource&)`
 	 * @param id The extractor's stable identifier (@see VideoExtractor::identifier).
 	 * @return Shared handle to the built set; hold it for the whole operation.
 	 */
@@ -342,15 +316,15 @@ public:
 		// No pattern holder (tests, minimal hosts): every pattern falls back to
 		// its built-in literal, cached by bare type in the shared resource cache.
 		auto source = pattern_source();
-		return resources().get<T>([source] { return T::create(*source); });
+		return resources().get<T>([source] { return T::make(*source); });
 	}
 
 	/**
 	 * @brief A mirror view for this context's parser: the catalog override for it
 	 * (if any) combined with the getter's built-in @p builtin fallback.
 	 *
-	 * The override is looked up by the parser identity stamped into the config by
-	 * ParserProfile::make_config, against a mirror snapshot taken once when this context
+	 * The override is looked up by the private parser/profile binding established by
+	 * ParserProfile::make_context, against a mirror snapshot taken once when this context
 	 * was built — so the whole operation reads one consistent mirror set even if
 	 * the catalog swaps mid-request. The getter passes only its own built-in list;
 	 * it names neither its id nor the override.
@@ -368,10 +342,10 @@ public:
 	 * override for it (if any) combined with the @p builtin fallback.
 	 *
 	 * This overload exists for video extractors (via VideoExtractor::mirrors),
-	 * which carry no stamped ParserConfig and so name their own stable
+	 * which name their own stable
 	 * identifier as the override key. Parsers must call the single-argument
 	 * @ref mirrors() instead: their override is keyed by the parser identity
-	 * ParserProfile::make_config stamped into the config, and naming an id by hand can
+	 * ParserProfile::make_context binds privately, and naming an id by hand can
 	 * only mis-key it.
 	 * @param id The extractor's stable identifier (@see VideoExtractor::identifier).
 	 * @param builtin The caller's built-in fallback base URLs.
@@ -427,8 +401,9 @@ public:
 	 *
 	 * Writes through to the shared config, so every context holding that config sees
 	 * the new selection — this is a user-facing switch ("use this mirror"), not a
-	 * per-request one. An index past the end of the mirror view resolves to an empty
-	 * base URL, so a caller should pick from ParserProfile::mirror_choices.
+	 * per-request one. An index past the end of the mirror view selects the first
+	 * mirror; the base URL is empty only when no mirrors are available. A caller
+	 * should pick from ParserProfile::mirror_choices.
 	 * @param alt_link Index into the resolved mirror view
 	 */
 	void set_alt_link(size_t alt_link);
@@ -444,38 +419,34 @@ public:
 	RequestContext new_with_logger(std::shared_ptr<Logger> logger) const;
 
 	/**
-	 * @brief Make new context for parsers with new client
-	 * @return New context with inherited properties and new client
+	 * @brief Create a context with replacement settings and the same profile binding.
+	 * @param config Settings copied into independent storage; must not be null.
+	 *        An existing cookie jar is retained, or a fresh backend jar is created.
+	 * @return A context sharing services and the current mirror snapshot. Later
+	 *         edits to the supplied settings do not modify the returned context.
+	 * @throws std::invalid_argument If config is null.
 	 */
-	//RequestContext new_with_client(std::shared_ptr<HttpClient> client) const;
-
-	/**
-	 * @brief Make new context for parsers with new HTTP client config
-	 *
-	 * The adoption half of the mandatory config derivation, and the step callers most
-	 * often skip. Before calling any getter of a parser, a caller must derive that
-	 * parser's config and adopt it here:
-	 * @code
-	 * auto config  = parser.profile(default_profile_id)->make_config();
-	 * auto ready   = context.new_with_config(config);
-	 * auto results = co_await parser.catalog_getter("main")->latest(ready, filters);
-	 * @endcode
-	 * make_config is what stamps the parser's identity (without which request-time
-	 * services keyed by parser — a catalog's mirror overrides — cannot find the
-	 * parser's entry) and seeds the parser's default headers, url params and fresh
-	 * cookie jar. Handing a getter a context whose config never went through
-	 * make_config is not a compile error and not an exception: the requests simply go
-	 * out stripped of what the source expects and come back 4xx.
-	 *
-	 * Cheap: only the config handle changes, the shared services are passed on as-is.
-	 * @param config Derived config to adopt; nullptr yields a default (underived) config
-	 * @return New context with inherited properties and new HTTP client config
-	 */
-	RequestContext new_with_config(std::shared_ptr<ParserConfig> config) const;
+	RequestContext new_with_config(std::shared_ptr<const ParserConfig> config) const;
 
 private:
+	friend class ParserProfile;
+	friend struct VideoExtractor;
+	friend class VideoExtractorStore;
+
+	// Settings and their private binding share one allocation and ownership handle.
+	struct ProfileState : ParserConfig {
+		std::string parser_id;
+		std::string profile_id;
+	};
+
+	RequestContext(std::shared_ptr<const RuntimeServices> services,
+	               std::shared_ptr<ProfileState> config);
+	static RequestContext make(std::shared_ptr<const RuntimeServices> services,
+	                             ParserConfig config, std::string parser_id,
+	                             std::string profile_id);
+
 	std::shared_ptr<const RuntimeServices> services_;
-	std::shared_ptr<ParserConfig> config_;
+	std::shared_ptr<ProfileState> config_;
 	/// Mirror and canonical-origin overrides snapshotted once at construction, so
 	/// an operation reads a consistent source definition even across a concurrent
 	/// catalog swap. Null when the services carry no mirror holder (every parser

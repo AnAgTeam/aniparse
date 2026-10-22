@@ -3,6 +3,7 @@
  *
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
+#include "TestRequestContext.hpp"
 #include "catch_amalgamated.hpp"
 #include "CoroTest.hpp"
 
@@ -32,21 +33,21 @@ private:
 class NullClient final : public aniparse::HttpClient {
 public:
 	aniparse::RequestTask<aniparse::HttpResponse> do_request(aniparse::ConfiguredGetRequest) override {
-		co_return aniparse::make_response_error(aniparse::RequestErrorCode::NotImplemented, "");
+		co_return aniparse::make_request_error(aniparse::RequestErrorCode::NotImplemented, "");
 	}
 	aniparse::RequestTask<aniparse::HttpResponse> do_request(aniparse::ConfiguredPostRequest) override {
-		co_return aniparse::make_response_error(aniparse::RequestErrorCode::NotImplemented, "");
+		co_return aniparse::make_request_error(aniparse::RequestErrorCode::NotImplemented, "");
 	}
 	aniparse::RequestTask<aniparse::HttpResponse> do_request(
 	    aniparse::ConfiguredPostMultipartRequest) override {
-		co_return aniparse::make_response_error(aniparse::RequestErrorCode::NotImplemented, "");
+		co_return aniparse::make_request_error(aniparse::RequestErrorCode::NotImplemented, "");
 	}
 	void apply_client_config(aniparse::HttpClientConfig) override {}
 	std::shared_ptr<aniparse::CookieJar> make_cookie_jar() override { return nullptr; }
 };
 
 aniparse::RequestContext make_context() {
-	return aniparse::RequestContext(std::make_shared<NullClient>(), nullptr,
+	return test_context(std::make_shared<NullClient>(), nullptr,
 	                                  std::make_shared<aniparse::ParserConfig>());
 }
 

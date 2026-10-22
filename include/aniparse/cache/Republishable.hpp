@@ -16,7 +16,7 @@ namespace aniparse {
  *        published, then serves the snapshot — atomically, via @ref AtomicSharedPtr.
  *
  * Meant to live in @ref ResourceCache as a plain value: cached by type, built
- * once via @ref create (or a factory), handed out as a const handle. That const
+ * once via @ref make (or a factory), handed out as a const handle. That const
  * handle can still @ref publish a refreshed snapshot because the payload sits
  * behind an @ref AtomicSharedPtr cell reached through the (logically const) object.
  *
@@ -65,7 +65,7 @@ public:
 
 	/// Factory for the no-argument `ResourceCache::get`: an empty seed. Seeded
 	/// values are built through the factory overload of `get` (see the class docs).
-	static Republishable create() { return Republishable{}; }
+	static Republishable make() { return Republishable{}; }
 
 	/// The published snapshot if one exists, otherwise the construction seed (which
 	/// may itself be null when none was given). Never blocks meaningfully.

@@ -16,16 +16,15 @@
 namespace aniparse {
 
 /**
- * @brief A routed URL with its provider, selected scope and optional kind hint.
+ * @brief A routed URL with its provider, selected catalog.
  *
- * Use scope_id to select a unified catalog root. The type hint is retained for
- * legacy sources; it cannot disambiguate multiple scopes with the same kind.
+ * Use catalog_id to select a unified catalog root. Catalog selection is independent of media kind. Sources with an image-container
+ * API may accept URLs through valid_for_url() without selecting a catalog.
  */
 struct UrlRoute {
 	std::shared_ptr<Parser> parser; ///< Provider that owns the URL.
-	GetterSuggestionType    type; ///< Optional hint or legacy routing category.
 	ParsedUrl                 url; ///< Parsed URL passed to the selected root.
-	std::optional<std::string> scope_id; ///< Selected catalog ID; absent on legacy routes.
+	std::optional<std::string> catalog_id; ///< Selected catalog ID; absent for image-container routes.
 };
 
 /**
@@ -34,11 +33,11 @@ struct UrlRoute {
 class ParserStore {
 public:
 	struct ParserDomainEmitter {
-		void operator()(const Parser& parser, EmplaceDomainsContext& context) const {
+		void operator()(const Parser& parser, EmplaceDomainsSink& context) const {
 			parser.emplace_domains(context);
 		}
 	};
-	using Domains = detail::DomainStore<Parser, EmplaceDomainsContext, ParserDomainEmitter>;
+	using Domains = detail::DomainStore<Parser, EmplaceDomainsSink, ParserDomainEmitter>;
 	using DomainEdit = Domains::Edit;
 
 	class Edit {
@@ -109,11 +108,11 @@ public:
 	[[nodiscard]] std::vector<std::shared_ptr<Parser>> parsers() const;
 
 	/**
-	 * @brief Route a URL to its provider and catalog scope in one step.
+	 * @brief Route a URL to its provider and catalog in one step.
 	 * Parses the URL once, finds the owning parser (domain match + valid_for_url),
-	 * and asks it which getter category the URL is (suggest_getter). The caller
-	 * then selects catalog_getter(*route.scope_id) and calls parse_url(route.url).
-	 * A legacy route without scope_id still uses its typed factory.
+	 * and asks it which catalog the URL selects (suggest_catalog). The caller
+	 * then selects make_catalog_getter(*route.catalog_id) and calls parse_url(route.url).
+	 * An image-container route without catalog_id uses make_images_getter().
 	 * @param url The URL to route
 	 * @return The route, or nullopt if the URL is unparsable or no parser handles it
 	 */

@@ -37,7 +37,7 @@ std::vector<Cookie> pick_named_cookies(const std::vector<Cookie>& cookies,
 
 RequestTask<std::shared_ptr<const ParserConfig>> ParserProfile::authenticate(
 	RequestContext, AuthenticationData) const {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot auth");
+	co_return make_request_error(RequestErrorCode::NotImplemented, "The parser cannot auth");
 }
 
 ParserProfile::ParserProfile(std::string parser_id, ProfileInfo info)
@@ -49,10 +49,27 @@ ParserProfile::ParserProfile(std::string parser_id, ProfileInfo info)
 
 std::shared_ptr<ParserConfig> ParserProfile::make_config() const {
 	auto config = std::make_shared<ParserConfig>();
-	config->parser_id = parser_id_;
-	config->profile_id = info_.id;
 	configure(*config);
 	return config;
+}
+
+RequestContext ParserProfile::make_context(std::shared_ptr<const RuntimeServices> services) const {
+	ParserConfig config;
+	configure(config);
+	return RequestContext::make(std::move(services), std::move(config), parser_id_, info_.id);
+}
+
+RequestContext ParserProfile::make_context(std::shared_ptr<HttpClient> client,
+                                          std::shared_ptr<Logger> logger) const {
+	return make_context(std::make_shared<RuntimeServices>(RuntimeServices{
+	    .client = std::move(client), .logger = std::move(logger)}));
+}
+
+RequestContext ParserProfile::make_context(std::shared_ptr<const RuntimeServices> services,
+                                          const AuthState& auth) const {
+	auto context = make_context(std::move(services));
+	import_auth(*context.config_, auth);
+	return context;
 }
 
 void ParserProfile::configure(ParserConfig&) const {}

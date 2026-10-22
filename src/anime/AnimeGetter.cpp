@@ -17,32 +17,32 @@ std::optional<AnimeInfo> AnimeGetter::preview_info() const noexcept {
 RequestTask<PageResults<AnimeTrackInfo>> AnimeGetter::load_tracks(
     RequestContext,
     GetFilters) const {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot list tracks");
+	co_return make_request_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot list tracks");
 }
 
 RequestTask<PageResults<AnimeEpisodeInfo>> AnimeGetter::load_episodes(
     RequestContext,
     GetFilters,
     std::optional<AnimeTrackID>) const {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot get episodes info");
+	co_return make_request_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot get episodes info");
 }
 
 RequestTask<PageResults<Comment>> AnimeGetter::load_comments(
     RequestContext,
     GetFilters) const {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot get comments");
+	co_return make_request_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot get comments");
 }
 
 RequestTask<PageResults<RelatedWork>> AnimeGetter::load_related(
     RequestContext,
     GetFilters) const {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot get related info");
+	co_return make_request_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot get related info");
 }
 
 RequestTask<PageResults<std::unique_ptr<AnimeGetter>>> AnimeGetter::load_similar(
     RequestContext,
     GetFilters) const {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot get similar info");
+	co_return make_request_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot get similar info");
 }
 
 RequestTask<VideoSource> AnimeGetter::resolve_video(

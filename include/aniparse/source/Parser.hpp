@@ -38,8 +38,8 @@ class RequestContext;
  * out of them; another consumer could just list them). The reference is valid only
  * for the duration of the emplace_domains call — a parser must not retain it.
  */
-struct EmplaceDomainsContext {
-	virtual ~EmplaceDomainsContext() = default;
+struct EmplaceDomainsSink {
+	virtual ~EmplaceDomainsSink() = default;
 
 	/**
 	 * @brief Declare one host the parser answers for.
@@ -53,38 +53,11 @@ struct EmplaceDomainsContext {
 	virtual void add_domain(std::string_view domain) = 0;
 
 protected:
-	EmplaceDomainsContext() = default;
-	EmplaceDomainsContext(const EmplaceDomainsContext&) = default;
-	EmplaceDomainsContext(EmplaceDomainsContext&&) = default;
-	EmplaceDomainsContext& operator=(const EmplaceDomainsContext&) = default;
-	EmplaceDomainsContext& operator=(EmplaceDomainsContext&&) = default;
-};
-
-/**
- * @brief Optional content-type hints and legacy typed URL-routing categories.
- *
- * Scoped catalogues are selected by GetterSuggestionResult::scope_id, not this
- * enum. Mixed URLs may have a valid scope and no single content-type hint.
- * @see Parser::suggest_getter, ParserStore::route_url
- */
-enum class GetterSuggestionType {
-	Unknown, ///< No single kind hint; a scope ID can still identify a known catalog.
-	Anime,   ///< An anime hint; open the selected catalog scope.
-	Images,  ///< An image container (a post, a pool, a gallery): route to Parser::images_getter.
-	Manga,   ///< A manga hint; open the selected catalog scope.
-	Video    ///< A standalone video, outside an anime catalog.
-};
-
-/**
- * @brief A URL's selected catalog and optional legacy content-type hint.
- *
- * A scope ID selects the root factory, even when several scopes have the same
- * kind or a mixed scope has no single type hint. With neither scope nor type the
- * URL is unrecognized. Legacy image/video sources can return type only.
- */
-struct GetterSuggestionResult {
-	GetterSuggestionType type = GetterSuggestionType::Unknown; ///< Optional kind hint; never selects a scoped root.
-	std::optional<std::string> scope_id; ///< Owned ID passed to Parser::catalog_getter.
+	EmplaceDomainsSink() = default;
+	EmplaceDomainsSink(const EmplaceDomainsSink&) = default;
+	EmplaceDomainsSink(EmplaceDomainsSink&&) = default;
+	EmplaceDomainsSink& operator=(const EmplaceDomainsSink&) = default;
+	EmplaceDomainsSink& operator=(EmplaceDomainsSink&&) = default;
 };
 
 /**
@@ -96,20 +69,20 @@ struct GetterSuggestionResult {
  * work:
  *
  * - **Identity and presentation** — @ref identifier (the stable key everything
- *   else is keyed by: registration, config, catalog overrides) and @ref info
+ *   else is keyed by: registration, config, remote overrides) and @ref info
  *   (name and artwork for a source list).
  * - **Reach** — @ref emplace_domains declares the hosts the source answers for,
- *   and @ref suggest_getter classifies a URL under them, which together let
+ *   and @ref suggest_catalog classifies a URL under them, which together let
  *   ParserStore route an arbitrary URL to this parser and to the right kind of
  *   getter. ParserProfile::mirrors declares the base URLs its requests actually go to.
- * - **Catalogs** — @ref scopes lists stable catalog IDs, possible formats and
- *   per-catalog UI metadata. @ref catalog_getter binds a common root to one ID.
+ * - **Catalogs** — @ref catalogs lists stable catalog IDs, possible formats and
+ *   per-catalog UI metadata. @ref make_catalog_getter binds a common root to one ID.
  *   @ref capabilities supplies an aggregate summary for legacy consumers.
  * - **Configuration** — @ref profiles declares independent configuration and login
  *   profiles. Each catalog selects its profile by ID; user state lives outside
  *   the parser in ParserConfig / RequestContext.
- * - **Getters** — @ref catalog_getter selects a manga/anime scope;
- *   @ref images_getter retains the separate image-container API —
+ * - **Getters** — @ref make_catalog_getter selects a manga/anime catalog;
+ *   @ref make_images_getter retains the separate image-container API —
  *   the root objects that search, list and fetch. A parser implements only the
  *   categories its source has; the rest stay null.
  *
@@ -126,7 +99,7 @@ struct GetterSuggestionResult {
  * @ref emplace_domains — then override the getter factory
  * for each category the source offers, returning a root getter that performs the
  * requests. Everything else has a working default: URL entry is opt-in
- * (@ref suggest_getter), as are per-request defaults (ParserProfile::configure), mirrors
+ * (@ref suggest_catalog), as are per-request defaults (ParserProfile::configure), mirrors
  * (ParserProfile::mirrors) and login (ParserProfile::authenticate). Registering the finished
  * parser with a ParserStore is what makes it routable.
  */
@@ -148,45 +121,45 @@ struct Parser {
 	 * @brief Check whether the parser can handle the given URL.
 	 * A coarse per-parser gate ("is this URL mine?"), consulted during URL
 	 * routing after the domain matches. By default it is derived from
-	 * @ref suggest_getter (true when a scope or legacy category is suggested), so a parser with
-	 * URL entry only overrides suggest_getter. Override this for exotic gating.
+	 * @ref suggest_catalog (true when a catalog is selected), so a parser with
+	 * URL entry only overrides suggest_catalog. Override this for exotic gating.
 	 * @param url Parsed URL to check
 	 * @return true if the parser handles the URL, false otherwise
 	 */
 	virtual bool valid_for_url(const ParsedUrl& url) const;
 
 	/**
-	 * @brief Select the catalog for a URL and optionally supply a content-type hint.
+	 * @brief Select the catalog for a URL.
 	 * The parser knows its own path/query scheme, so it classifies the URL to
 	 * route parse_url to the right getter. Classify on whatever the URL carries —
 	 * path, query (e.g. YouTube's ?v=), or host. The default is an empty suggestion.
 	 * @param url Parsed URL
-	 * @return Scope selection and optional kind hint, or an empty result when unrecognized.
+	 * @return An owned catalog ID, or std::nullopt when the URL does not select a catalog.
 	 */
-	virtual GetterSuggestionResult suggest_getter(const ParsedUrl& url) const;
+	virtual std::optional<std::string> suggest_catalog(const ParsedUrl& url) const;
 
 	/**
 	 * @brief Read provider-wide summary metadata for legacy source-list consumers.
-	 * @return The union of scope flags and legacy store-kind bits by default.
-	 * @note New consumers inspect scopes() for catalog-specific kinds and
-	 *       capabilities. Reading and watching are scope-local metadata fields.
+	 * @return The union of catalog flags and legacy store-kind bits by default.
+	 * @note New consumers inspect catalogs() for catalog-specific kinds and
+	 *       capabilities. Reading and watching are catalog-local metadata fields.
 	 */
 	virtual ParserCapabilities capabilities() const;
 
 	/**
-	 * @see EmplaceDomainsContext
-	 * Add parser domains to the context
+	 * @see EmplaceDomainsSink
+	 * Add parser domains to the sink
 	 * This function is called whenever someone wants
 	 * to add the parser domains to store
-	 * @param context Context to use to add domains
+	 * @param sink Sink that receives the declared domains
 	 */
-	virtual void emplace_domains(EmplaceDomainsContext& context) const = 0;
+	virtual void emplace_domains(EmplaceDomainsSink& sink) const = 0;
 
 	/**
-	 * @brief Declare the parser's catalog-visible defaults into @p sink.
+	 * @brief Declare the parser's overridable defaults into @p sink.
 	 *
-	 * The volatile catalog's authoring data comes from LIVE objects, not from
-	 * parsed source text: the dumper hands each registered parser a OverridesSink
+	 * The remote overrides' authoring data comes from LIVE objects, not from
+	 * parsed source text: the dumper hands each registered parser an OverridesSink
 	 * and the parser declares what a hotfix may override — its selector sets
 	 * (`sink.emplace_set<...Selectors>()`, which strictly compiles every
 	 * built-in literal through the real engine); request origins are
@@ -194,11 +167,11 @@ struct Parser {
 	 *
 	 * Contract: an override DECLARES only — it calls sink methods and never
 	 * stores the sink (valid only for the duration of the call). The empty
-	 * default means "no catalog sets": such a parser simply
+	 * default means "no override sets": such a parser simply
 	 * has no selector hotfix channel, discovered at first use.
-	 * @param sink The sink collecting this parser's catalog defaults
+	 * @param sink The sink collecting this parser's override defaults
 	 * @throws std::logic_error On a cross-set key collision or a broken built-in
-	 * literal; these programming errors must fail catalog generation.
+	 * literal; these programming errors must fail overrides generation.
 	 */
 	virtual void emplace_overrides([[maybe_unused]] OverridesSink& sink) const {}
 
@@ -212,13 +185,13 @@ struct Parser {
 
 	/**
 	 * @brief Create an independently owned profile without performing network requests.
-	 * @param profile_id Stable ID obtained from profiles() or a catalog scope.
+	 * @param profile_id Stable ID obtained from profiles() or a catalog.
 	 * @return A fresh profile owned by the caller, or nullptr for an unknown ID.
 	 * @note The caller decides how long to retain or share the profile; the parser
 	 * does not cache instances or impose singleton lifetime.
 	 * @throws std::logic_error On invalid descriptors or a mismatched factory result.
 	 */
-	std::unique_ptr<ParserProfile> profile(std::string_view profile_id) const;
+	std::unique_ptr<ParserProfile> make_profile(std::string_view profile_id) const;
 
 	/**
 	 * @brief The root of the source's image library: image containers (posts,
@@ -226,31 +199,31 @@ struct Parser {
 	 *
 	 * A fresh getter, owned by the caller; getters are cheap and stateless, so one
 	 * may be made per use rather than cached. It carries no config — the caller
-	 * passes a RequestContext (derived through ParserProfile::make_config) into each call.
+	 * passes a RequestContext (created through ParserProfile::make_context) into each call.
 	 * Default: nullptr.
 	 * @return The root images getter, or nullptr if the source has no image library.
 	 */
-	virtual std::unique_ptr<ImagesGetter> images_getter() const;
+	virtual std::unique_ptr<ImagesGetter> make_images_getter() const;
 
 	/**
 	 * @brief Enumerate this provider's independently selectable catalogues.
-	 * @return Scope descriptors with stable, nonempty, provider-local IDs.
-	 * @note Multiple scopes can advertise the same format. This is metadata only;
+	 * @return Catalog descriptions with stable, nonempty, provider-local IDs.
+	 * @note Multiple catalogs can advertise the same format. This is metadata only;
 	 *       enumeration performs no requests. Sources without catalogs return an empty list.
 	 * @throws std::logic_error If IDs are empty or duplicated, profile descriptors
-	 * are invalid, or a scope references an undeclared profile.
+	 * are invalid, or a catalog references an undeclared profile.
 	 */
-	std::vector<CatalogInfo> scopes() const;
+	std::vector<CatalogInfo> catalogs() const;
 
 	/**
 	 * @brief Create a common root bound to one explicitly selected catalog.
-	 * @param scope_id Opaque ID obtained from scopes(), copied before returning.
-	 * @return A fresh root, or nullptr for an unknown scope.
+	 * @param catalog_id Opaque ID obtained from catalogs(), copied before returning.
+	 * @return A fresh root, or nullptr for an unknown catalog.
 	 * @throws std::logic_error On invalid descriptors, a null factory result, or
-	 * a root bound to another scope or request profile.
+	 * a root bound to another catalog or request profile.
 	 * @note No format or capability metadata is used to disable operations.
 	 */
-	std::unique_ptr<CatalogRootGetter> catalog_getter(std::string_view scope_id) const;
+	std::unique_ptr<CatalogRootGetter> make_catalog_getter(std::string_view catalog_id) const;
 
 protected:
 	Parser() = default;
@@ -269,21 +242,21 @@ protected:
 	 * @brief Declare independently selectable catalogs without I/O.
 	 * @return Descriptors referencing declared profiles; empty by default.
 	 */
-	virtual std::vector<CatalogInfo> scope_descriptors() const;
+	virtual std::vector<CatalogInfo> catalog_descriptors() const;
 
 	/**
 	 * @brief Construct the behavior of a declared profile.
 	 * @param info Owned descriptor selected from profiles().
 	 * @return A fresh profile belonging to this parser with the selected descriptor.
 	 */
-	virtual std::unique_ptr<ParserProfile> make_profile(ProfileInfo info) const;
+	virtual std::unique_ptr<ParserProfile> make_profile_impl(ProfileInfo info) const;
 
 	/**
-	 * @brief Construct the implementation for an already selected scope.
-	 * @param scope Owned descriptor selected from this provider's scopes().
+	 * @brief Construct the implementation for an already selected catalog.
+	 * @param catalog Owned descriptor selected from this provider's catalogs().
 	 * @return A non-null root constructed with that descriptor.
 	 */
-	virtual std::unique_ptr<CatalogRootGetter> make_catalog_getter(CatalogInfo scope) const;
+	virtual std::unique_ptr<CatalogRootGetter> make_catalog_getter_impl(CatalogInfo catalog) const;
 };
 
 //using ParserProvider = std::function<

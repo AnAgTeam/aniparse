@@ -9,13 +9,13 @@ namespace aniparse::examples {
 class OfflineClient final : public HttpClient {
 public:
 	RequestTask<HttpResponse> do_request(ConfiguredGetRequest) override {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "No HTTP backend selected");
+		co_return make_request_error(RequestErrorCode::NotImplemented, "No HTTP backend selected");
 	}
 	RequestTask<HttpResponse> do_request(ConfiguredPostRequest) override {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "No HTTP backend selected");
+		co_return make_request_error(RequestErrorCode::NotImplemented, "No HTTP backend selected");
 	}
 	RequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest) override {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "No HTTP backend selected");
+		co_return make_request_error(RequestErrorCode::NotImplemented, "No HTTP backend selected");
 	}
 	void apply_client_config(HttpClientConfig) override {}
 	std::shared_ptr<CookieJar> make_cookie_jar() override { return nullptr; }

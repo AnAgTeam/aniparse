@@ -12,17 +12,17 @@
 
 namespace aniparse {
 
-GetterSuggestionResult Parser::suggest_getter(const ParsedUrl&) const {
-	return GetterSuggestionResult{ .type = GetterSuggestionType::Unknown };
+std::optional<std::string> Parser::suggest_catalog(const ParsedUrl&) const {
+	return std::nullopt;
 }
 
 bool Parser::valid_for_url(const ParsedUrl& url) const {
 	// A URL is ours when we can route it to a getter category.
-	const auto suggestion = suggest_getter(url);
-	return suggestion.scope_id.has_value() || suggestion.type != GetterSuggestionType::Unknown;
+	const auto suggestion = suggest_catalog(url);
+	return suggestion.has_value();
 }
 
-std::unique_ptr<ImagesGetter> Parser::images_getter() const {
+std::unique_ptr<ImagesGetter> Parser::make_images_getter() const {
 	return nullptr;
 }
 
@@ -44,34 +44,34 @@ std::vector<ProfileInfo> Parser::profiles() const {
 	return available;
 }
 
-std::unique_ptr<ParserProfile> Parser::profile(std::string_view profile_id) const {
+std::unique_ptr<ParserProfile> Parser::make_profile(std::string_view profile_id) const {
 	const auto available = profiles();
 	const auto selected = std::find_if(available.begin(), available.end(),
 		[profile_id](const auto& value) { return value.id == profile_id; });
 	if (selected == available.end()) return nullptr;
-	auto result = make_profile(*selected);
+	auto result = make_profile_impl(*selected);
 	if (!result || result->info().id != selected->id || result->parser_id() != identifier()) {
 		throw std::logic_error("Profile factory returned a mismatched profile");
 	}
 	return result;
 }
 
-std::unique_ptr<ParserProfile> Parser::make_profile(ProfileInfo info) const {
+std::unique_ptr<ParserProfile> Parser::make_profile_impl(ProfileInfo info) const {
 	return std::make_unique<ParserProfile>(identifier(), std::move(info));
 }
 
-std::vector<CatalogInfo> Parser::scope_descriptors() const { return {}; }
+std::vector<CatalogInfo> Parser::catalog_descriptors() const { return {}; }
 
-std::vector<CatalogInfo> Parser::scopes() const {
-	auto available = scope_descriptors();
+std::vector<CatalogInfo> Parser::catalogs() const {
+	auto available = catalog_descriptors();
 	const auto declared_profiles = profiles();
 	std::set<std::string_view> identifiers;
-	for (const auto& scope : available) {
-		if (scope.id.empty() || !identifiers.insert(scope.id).second) {
-			throw std::logic_error("Catalog scope IDs must be nonempty and unique within a provider");
+	for (const auto& catalog : available) {
+		if (catalog.id.empty() || !identifiers.insert(catalog.id).second) {
+			throw std::logic_error("Catalog IDs must be nonempty and unique within a provider");
 		}
 		if (std::none_of(declared_profiles.begin(), declared_profiles.end(),
-				[&scope](const auto& profile) { return profile.id == scope.profile_id; })) {
+				[&catalog](const auto& profile) { return profile.id == catalog.profile_id; })) {
 			throw std::logic_error("Catalog references an unknown profile");
 		}
 	}
@@ -80,28 +80,28 @@ std::vector<CatalogInfo> Parser::scopes() const {
 
 ParserCapabilities Parser::capabilities() const {
 	ParserCapabilities summary;
-	for (const auto& scope : scopes()) {
-		summary.flags |= scope.capabilities.flags;
+	for (const auto& catalog : catalogs()) {
+		summary.flags |= catalog.capabilities.flags;
 		// Preserve the old store summary for legacy source-list consumers.
 		// Reading/watching are catalog metadata and have no global flag bits.
-		if (scope.kinds.has(catalog_kinds::manga)) summary.flags |= capabilities_flags::supports_manga_store;
-		if (scope.kinds.has(catalog_kinds::anime)) summary.flags |= capabilities_flags::supports_anime_store;
+		if (catalog.kinds.has(catalog_kinds::manga)) summary.flags |= capabilities_flags::supports_manga_store;
+		if (catalog.kinds.has(catalog_kinds::anime)) summary.flags |= capabilities_flags::supports_anime_store;
 	}
 	return summary;
 }
 
-std::unique_ptr<CatalogRootGetter> Parser::catalog_getter(std::string_view scope_id) const {
-	auto available = scopes();
+std::unique_ptr<CatalogRootGetter> Parser::make_catalog_getter(std::string_view catalog_id) const {
+	auto available = catalogs();
 	const auto selected = std::find_if(available.begin(), available.end(),
-		[scope_id](const CatalogInfo& scope) { return scope.id == scope_id; });
+		[catalog_id](const CatalogInfo& catalog) { return catalog.id == catalog_id; });
 	if (selected == available.end()) return nullptr;
-	auto root = make_catalog_getter(*selected);
-	if (!root || root->scope().id != selected->id || root->scope().profile_id != selected->profile_id) {
-		throw std::logic_error("Catalog factory returned a root bound to another scope");
+	auto root = make_catalog_getter_impl(*selected);
+	if (!root || root->info().id != selected->id || root->info().profile_id != selected->profile_id) {
+		throw std::logic_error("Catalog factory returned a root bound to another catalog");
 	}
 	return root;
 }
 
-std::unique_ptr<CatalogRootGetter> Parser::make_catalog_getter(CatalogInfo) const { return nullptr; }
+std::unique_ptr<CatalogRootGetter> Parser::make_catalog_getter_impl(CatalogInfo) const { return nullptr; }
 
 } // namespace aniparse

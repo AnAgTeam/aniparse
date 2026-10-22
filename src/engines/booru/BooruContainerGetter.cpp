@@ -36,7 +36,7 @@ RequestTask<BooruContainerGetter::Post> BooruContainerGetter::fetch_post(
 
 	const boost::json::object* post = engine.single_post(*json_result);
 	if (!post) {
-		co_return make_response_error(RequestErrorCode::NotFound, "booru post not found");
+		co_return make_request_error(RequestErrorCode::NotFound, "booru post not found");
 	}
 
 	co_return Post{

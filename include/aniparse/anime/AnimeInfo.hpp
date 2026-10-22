@@ -46,13 +46,16 @@
 namespace aniparse {
 
 /**
- * The source's own numeric id for an anime. Meaningful only within the one source
- * that issued it — never compare ids across parsers (that is what ExternalId is
- * for), and never treat it as this library's handle on the anime (that is the
- * getter). Wider than MangaID because some catalogs mint ids past 32 bits.
+ * The source's opaque identity key for an anime: a numeric ID encoded as text,
+ * a slug, or another stable source-local key. Prefer the most stable part of the
+ * source identity; exclude mirror hosts, mutable title text, and URL decoration
+ * when a durable key is available. Never hash a slug merely to obtain a number.
+ * Meaningful only within the issuing source, catalog and media kind, never
+ * across parsers (@see ExternalId). Consumers must not parse it or infer ordering from it.
+ * Persist the getter's serialized data to restore access, not this key alone.
  * @see AnimeInfo::id
  */
-using AnimeID      = int64_t;
+using AnimeID = std::string;
 /**
  * The source's handle for one (team × player) track of an anime, as advertised by
  * @ref aniparse::AnimeTrackInfo::id. Meaningful only within that source and that anime; it is
@@ -64,10 +67,6 @@ using EpisodeCount = int;
 
 struct AnimeGetter;
 
-/// The AnimeID that addresses nothing: the value @ref aniparse::AnimeInfo::id carries when the
-/// source has no numeric id for the anime (it addresses works by slug, say). Not an
-/// error marker — the anime is still fully usable through its getter.
-inline constexpr AnimeID invalid_anime_id     = AnimeID{ 0 };
 /// The AnimeTrackID that addresses no particular track — the default of
 /// @ref aniparse::AnimeTrackInfo::id, and what an episode-first source (which has no track
 /// axis at all) leaves it at. Getters express the same "no track chosen" by passing
@@ -117,10 +116,11 @@ struct UpcomingEpisodeInfo {
  * in this response", not "the anime does not have it".
  */
 struct AnimeInfo {
-	/// The source's own numeric id, when it has one. @ref aniparse::invalid_anime_id (0) = it
-	/// does not, which is not an error. Neither a cross-source identity
-	/// (@ref MediaInfo::external_ids) nor the handle to fetch with (@see AnimeGetter::serialize).
-	AnimeID id = invalid_anime_id;
+	/// Opaque source-local identity; numeric IDs are represented as decimal text.
+	/// Use the most stable source key available, including a slug when no numeric
+	/// key exists. Empty = identity unavailable in this response; never use an
+	/// empty key for deduplication. Not a fetch handle (@see AnimeGetter::serialize).
+	AnimeID id;
 
 	/// The metadata shared with every other domain — title, description, dates, tags,
 	/// series, previews, rating, external ids, and the rest. @see aniparse::MediaInfo

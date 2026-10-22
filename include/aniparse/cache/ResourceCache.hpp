@@ -35,7 +35,7 @@ namespace aniparse {
  * @code
  * struct CardSelectors {
  *     html::CompiledSelector card, link;
- *     static CardSelectors create() {
+ *     static CardSelectors make() {
  *         html::SelectorCompiler c;                 // transient, one per set
  *         return { c.compile(".card"), c.compile(".card > a") };
  *     }
@@ -54,14 +54,14 @@ public:
 	ResourceCache& operator=(const ResourceCache&) = delete;
 
 	/**
-	 * @brief Get resource set T, building it once on first request via T::create().
-	 * @tparam T Resource set type exposing `static T create()`.
+	 * @brief Get resource set T, building it once on first request via T::make().
+	 * @tparam T Resource set type exposing `static T make()`.
 	 * @return Shared handle to the built set. Hold it for the whole operation so
 	 *         a concurrent evict/clear cannot free it underneath.
 	 */
 	template <class T>
 	[[nodiscard]] std::shared_ptr<const T> get() {
-		return get<T>([] { return T::create(); });
+		return get<T>([] { return T::make(); });
 	}
 
 	/**

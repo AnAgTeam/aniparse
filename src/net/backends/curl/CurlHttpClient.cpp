@@ -185,7 +185,7 @@ RequestTask<HttpResponse> CurlHttpClient::do_request(ConfiguredGetRequest config
 	get_request.set_url_parameters(to_asyncnet_params(request.url_params));
 	apply_cookie_share(get_request, configured_request.cookies);
 	if (auto method_error = apply_method(get_request, request.method)) {
-		co_return make_response_error(*method_error, "HTTP method not supported by this client");
+		co_return make_request_error(*method_error, "HTTP method not supported by this client");
 	}
 
 	// Okay to hold references (ref to frame variable), because we will wait for next coroutine end
@@ -195,7 +195,7 @@ RequestTask<HttpResponse> CurlHttpClient::do_request(ConfiguredGetRequest config
 		});
 		co_return to_response_data(std::move(response));
 	} catch (const asyncnet::NetworkRuntimeError& error) {
-		co_return make_response_error(curl_error_to_code(error.whatCode()), error.what());
+		co_return make_request_error(curl_error_to_code(error.whatCode()), error.what());
 	}
 }
 
@@ -209,7 +209,7 @@ RequestTask<HttpResponse> CurlHttpClient::do_request(ConfiguredPostRequest confi
 	post_request.set_url_parameters(to_asyncnet_params(request.url_params));
 	apply_cookie_share(post_request, configured_request.cookies);
 	if (auto method_error = apply_method(post_request, request.method)) {
-		co_return make_response_error(*method_error, "HTTP method not supported by this client");
+		co_return make_request_error(*method_error, "HTTP method not supported by this client");
 	}
 
 	// Okay to hold references (ref to frame variable), because we will wait for next coroutine end
@@ -219,7 +219,7 @@ RequestTask<HttpResponse> CurlHttpClient::do_request(ConfiguredPostRequest confi
 		});
 		co_return to_response_data(std::move(response));
 	} catch (const asyncnet::NetworkRuntimeError& error) {
-		co_return make_response_error(curl_error_to_code(error.whatCode()), error.what());
+		co_return make_request_error(curl_error_to_code(error.whatCode()), error.what());
 	}
 }
 
@@ -236,7 +236,7 @@ RequestTask<HttpResponse> CurlHttpClient::do_request(ConfiguredPostMultipartRequ
 	multipart_request.set_url_parameters(to_asyncnet_params(request.url_params));
 	apply_cookie_share(multipart_request, configured_request.cookies);
 	if (auto method_error = apply_method(multipart_request, request.method)) {
-		co_return make_response_error(*method_error, "HTTP method not supported by this client");
+		co_return make_request_error(*method_error, "HTTP method not supported by this client");
 	}
 
 	// Okay to hold references (ref to frame variable), because we will wait for next coroutine end
@@ -246,7 +246,7 @@ RequestTask<HttpResponse> CurlHttpClient::do_request(ConfiguredPostMultipartRequ
 		});
 		co_return to_response_data(std::move(response));
 	} catch (const asyncnet::NetworkRuntimeError& error) {
-		co_return make_response_error(curl_error_to_code(error.whatCode()), error.what());
+		co_return make_request_error(curl_error_to_code(error.whatCode()), error.what());
 	}
 }
 

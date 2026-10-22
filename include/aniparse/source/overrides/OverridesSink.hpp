@@ -50,7 +50,7 @@ public:
 		}
 	}
 
-	/// Every (key, fallback) pair recorded so far; valid to read after T::create.
+	/// Every (key, fallback) pair recorded so far; valid to read after T::make.
 	mutable RecordedSet recorded;
 };
 
@@ -84,7 +84,7 @@ public:
 		}
 	}
 
-	/// Every (key, fallback) pair recorded so far; valid to read after T::create.
+	/// Every (key, fallback) pair recorded so far; valid to read after T::make.
 	mutable RecordedSet recorded;
 };
 
@@ -121,8 +121,8 @@ public:
 	 *
 	 * Each literal is STRICTLY compiled through the real engine, so a broken
 	 * built-in fails the dump loudly. The set type selects the channel by its
-	 * create() signature: `create(const html::SelectorSource&)` records into
-	 * @ref selectors, `create(const RegexSource&)` into @ref patterns.
+	 * make() signature: `make(const html::SelectorSource&)` records into
+	 * @ref selectors, `make(const RegexSource&)` into @ref patterns.
 	 * @tparam T A selector or pattern set type.
 	 * @throws std::logic_error when a recorded key collides with one already
 	 *         recorded for this owner (a cross-set key collision), or when the
@@ -131,22 +131,22 @@ public:
 	template <class T>
 	void emplace_set() {
 		try {
-			if constexpr (requires(const html::SelectorSource& source) { T::create(source); }) {
+			if constexpr (requires(const html::SelectorSource& source) { T::make(source); }) {
 				RecordingSelectorSource source;
-				[[maybe_unused]] const T set = T::create(source);
+				[[maybe_unused]] const T set = T::make(source);
 				record_all(selectors_, source.recorded, "selectors");
-			} else if constexpr (requires(const RegexSource& source) { T::create(source); }) {
+			} else if constexpr (requires(const RegexSource& source) { T::make(source); }) {
 				RecordingRegexSource source;
-				[[maybe_unused]] const T set = T::create(source);
+				[[maybe_unused]] const T set = T::make(source);
 				record_all(patterns_, source.recorded, "patterns");
 			} else {
 				static_assert(detail::always_false<T>,
-				              "T::create must take a const html::SelectorSource& "
+				              "T::make must take a const html::SelectorSource& "
 				              "or a const RegexSource&");
 			}
 		} catch (const std::exception& error) {
 			throw std::logic_error(
-			    fmt::format("catalog defaults of '{}': {}", owner_id_, error.what()));
+			    fmt::format("override defaults of '{}': {}", owner_id_, error.what()));
 		}
 	}
 

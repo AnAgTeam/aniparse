@@ -14,22 +14,22 @@ implementation declares `main` with no authentication or source-specific default
 - `auth_keys` and `export_auth` select durable credentials for persistence.
 - `mirrors` declares this profile's built-in fetch origins.
 
-The parser implements `make_profile(ProfileInfo)` to construct the appropriate
+The parser implements `make_profile_impl(ProfileInfo)` to construct the appropriate
 profile class. It need not override `profile_descriptors()` when the default `main` descriptor
 is sufficient. Public `profiles()` validates a nonempty list and nonempty unique
-IDs. Public `scopes()` validates `scope_descriptors()` IDs and their profile
-references, without constructing profiles; an empty scope list is valid.
+IDs. Public `catalogs()` validates `catalog_descriptors()` IDs and their profile
+references, without constructing profiles; an empty catalog list is valid.
 Invalid declarations throw `std::logic_error` during enumeration.
 
-`profile(id)` and `catalog_getter(id)` return nullptr only for unknown IDs.
+`make_profile(id)` and `make_catalog_getter(id)` return nullptr only for unknown IDs.
 For a declared ID, a null or mismatched factory result throws `std::logic_error`.
 Profiles must match their parser and profile IDs; roots must match their selected
-scope and profile IDs. These exceptions identify implementation defects, rather
+catalog and profile IDs. These exceptions identify implementation defects, rather
 than network errors. Both factories continue returning independent owned objects.
 
 ## Factory ownership
 
-`Parser::profile(id)` returns a fresh `std::unique_ptr<ParserProfile>`, matching
+`Parser::make_profile(id)` returns a fresh `std::unique_ptr<ParserProfile>`, matching
 the ownership model of catalog-root factories. The caller chooses whether to
 retain it for one operation, a screen, or the entire application session. Parsers
 do not cache profile instances or return hidden singletons. A consumer needing
@@ -39,22 +39,29 @@ boundary. Concurrent use must still respect each object's documented contract.
 ## Consumer flow
 
 ```cpp
-auto scope = parser->scopes().front();
-auto profile = parser->profile(scope.profile_id);
-auto config = profile->make_config();
-auto context = base_context.new_with_config(config);
+auto catalog = parser->catalogs().front();
+auto profile = parser->make_profile(catalog.profile_id);
+auto context = profile->make_context(services);
 
-// Restore saved authentication after the context has provisioned a cookie jar.
-// import_auth(*config, saved_auth);
+// Or restore saved authentication into a fresh backend jar:
+// auto context = profile->make_context(services, saved_auth);
 
-auto root = parser->catalog_getter(scope.id);
+auto root = parser->make_catalog_getter(catalog.id);
 auto page = co_await root->latest(context, paging);
 ```
 
-`make_config()` accepts no base configuration. Each call creates independent
-source settings stamped with `parser_id` and `profile_id`, without inheriting
-another account's headers or cookies. The context provisions a new cookie jar
-when adopting a configuration that does not already have one.
+`make_context()` is the parser-facing construction path. Each call applies fresh
+profile defaults and provisions a backend cookie jar. Parser and profile IDs
+live beside the settings in private context storage, with no extra ownership
+handle. `ParserConfig` contains settings only; copying or replacing it cannot
+change the context's binding. `new_with_config()` copies settings, retains an
+existing jar, and rejects null. It preserves the context's override snapshot.
+
+Contexts remain operation arguments, so existing getters can use a newly created
+context after transport settings change. Matching a context to the correct
+getter remains the caller's responsibility; the common type does not encode a
+particular parser identity. Extractors create contexts through `make_context()`
+on their extractor or extractor store, using extractor-facing services.
 
 For authentication, pass a context created from the selected profile:
 
@@ -63,8 +70,7 @@ auto authenticated = co_await profile->authenticate(context, credentials);
 if (authenticated) {
     auto saved = profile->export_auth(**authenticated);
     // Persist saved under (parser->identifier(), profile->info().id).
-    context = context.new_with_config(
-        std::make_shared<ParserConfig>(**authenticated));
+    context = context.new_with_config(*authenticated);
 }
 ```
 
@@ -151,5 +157,5 @@ verification and schema version are unchanged.
 
 `SourceOverridesManager` registers hosts from profile mirrors and frontend origins with
 the owning parser's domain routing. The parser still owns URL classification
-into catalog scopes through `Parser::suggest_getter`; profile IDs are not
-implicitly treated as scope IDs.
+into catalogs through `Parser::suggest_catalog`; profile IDs are not
+implicitly treated as catalog IDs.

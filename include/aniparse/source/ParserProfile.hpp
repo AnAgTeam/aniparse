@@ -53,7 +53,7 @@ public:
 	 * the result via RequestContext::new_with_config. By default reports
 	 * NotImplemented.
 	 * @param context Request context with this parser/profile identity (left unmodified)
-	 * @param data Credentials to authenticate with
+	 * @param credentials Credentials to authenticate with
 	 * @return Task with a new authenticated config for the caller to adopt.
 	 * @note The caller must keep this profile alive until the returned task has
 	 * completed or been destroyed. The task borrows this; it does not own the
@@ -61,7 +61,7 @@ public:
 	 */
 	virtual RequestTask<std::shared_ptr<const ParserConfig>> authenticate(
 	    RequestContext context,
-	    AuthenticationData data) const;
+	    AuthenticationData credentials) const;
 
 	/**
 	 * @see AuthInfo
@@ -80,8 +80,8 @@ public:
 	 * @brief Resolve this source's sign-in descriptor against a request context.
 	 *
 	 * The default returns the static descriptor from @ref auth_info. Sources with
-	 * a catalog-controlled frontend origin may override it to select a login URL
-	 * from the context's immutable catalog snapshot.
+	 * a frontend origin controlled by overrides may override it to select a login URL
+	 * from the context's immutable overrides snapshot.
 	 * @param context Parser-configured request context; implementations must not
 	 * perform network I/O or mutate it.
 	 * @return The resolved sign-in descriptor, or nullopt when the source is
@@ -119,9 +119,38 @@ public:
 	virtual AuthState export_auth(const ParserConfig& config) const;
 
 	/**
+	 * @brief Create an independent request context configured for this profile.
+	 * @param services Shared runtime services with a valid HTTP client.
+	 * @return A context with profile defaults, private identity, and a backend jar.
+	 * @throws std::invalid_argument If services or its client is null.
+	 * @note The context does not borrow this profile and may outlive it.
+	 */
+	[[nodiscard]] RequestContext make_context(std::shared_ptr<const RuntimeServices> services) const;
+
+	/**
+	 * @brief Create a configured context over a client and optional logger.
+	 * @param client HTTP backend; must not be null.
+	 * @param logger Optional logger; null disables logging.
+	 * @return An independent context configured for this profile.
+	 * @throws std::invalid_argument If client is null.
+	 */
+	[[nodiscard]] RequestContext make_context(std::shared_ptr<HttpClient> client,
+	                                         std::shared_ptr<Logger> logger = nullptr) const;
+
+	/**
+	 * @brief Restore authentication over fresh defaults and a new backend jar.
+	 * @param services Shared runtime services with a valid HTTP client.
+	 * @param auth Previously exported authentication state for this profile.
+	 * @return A context privately bound to this profile with restored credentials.
+	 * @throws std::invalid_argument If services or its client is null.
+	 */
+	[[nodiscard]] RequestContext make_context(std::shared_ptr<const RuntimeServices> services,
+	                                         const AuthState& auth) const;
+
+	/**
 	 * @brief Create a fresh configuration for this profile.
-	 * @return An independent config with parser/profile identity and configured
-	 * defaults; the context provisions its cookie jar when adopted.
+	 * @return Independent settings with configured defaults and no cookie jar.
+	 *         Use make_context to create a context with a private profile binding.
 	 * @note Does not inherit credentials or client request defaults. Restore saved
 	 * authentication explicitly with import_auth after creation.
 	 */
@@ -131,7 +160,7 @@ public:
 	 * @brief Seed parser-specific defaults onto a freshly derived config.
 	 *
 	 * Called by @ref make_config after the common derivation (fresh session,
-	 * identity stamp), so a parser need not repeat these per request. Default:
+	 * profile defaults), so a parser need not repeat these per request. Default:
 	 * no-op. Override to set constant headers/params a parser needs on every
 	 * request (e.g. an API's fixed headers). These defaults belong to the profile
 	 * and are shared by its catalogs.
@@ -144,7 +173,7 @@ public:
 	 *
 	 * One mirror set serves every catalog referencing this profile. The single source of truth a getter's fetch path
 	 * (RequestContext::base_url) and the UI picker (@ref mirror_choices) both read;
-	 * a live catalog override keyed by parser and profile may supersede it at
+	 * a live remote override keyed by parser and profile may supersede it at
 	 * request time. Default: none.
 	 * @return The built-in base URLs; empty for a source with no selectable mirrors.
 	 */
@@ -153,17 +182,17 @@ public:
 	/**
 	 * @brief Declare this profile's built-in public frontend origin.
 	 * @return An owned origin URL, or an empty string when none is declared.
-	 * @note Pure metadata used by catalog generation. Request-time code resolves
+	 * @note Pure metadata used by overrides generation. Request-time code resolves
 	 * overrides through RequestContext::canonical_base_url with its fallback.
 	 */
 	[[nodiscard]] virtual std::string canonical_base_url() const;
 
 	/**
-	 * @brief The mirror choices to show the user, with any live catalog override
+	 * @brief The mirror choices to show the user, with any live remote override
 	 * applied.
 	 *
 	 * The built-in @ref mirrors overlaid with the override carried in @p context
-	 * (keyed by this parser's identity, stamped into the config by @ref make_config)
+	 * (keyed by the private identity bound by @ref make_context)
 	 * — so a picker reflects the mirrors actually fetched from, not a stale list.
 	 * @param context Context carrying the current mirror snapshot and parser id.
 	 * @return The resolved mirror descriptors, in selection order.

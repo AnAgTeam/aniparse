@@ -75,7 +75,7 @@ RequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> BooruImagesGette
 		co_return unexpected(std::move(support.error()));
 	}
 	if (auto errors = validate_query(*support, query, filters); !errors.empty()) {
-		co_return make_response_error(RequestErrorCode::InvalidArguments,
+		co_return make_request_error(RequestErrorCode::InvalidArguments,
 		                              describe_search_query_errors(errors));
 	}
 
@@ -91,7 +91,7 @@ RequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> BooruImagesGette
 RequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> BooruImagesGetter::latest(
     RequestContext context, GetFilters filters) const {
 	if (auto errors = validate_latest_filters(filters); !errors.empty()) {
-		co_return make_response_error(RequestErrorCode::InvalidArguments,
+		co_return make_request_error(RequestErrorCode::InvalidArguments,
 		                              describe_search_query_errors(errors));
 	}
 
@@ -117,7 +117,7 @@ RequestTask<std::unique_ptr<ImageContainerGetter>> BooruImagesGetter::parse_url(
 	if (std::optional<ImageContainerID> post = engine.post_id_from_url(url)) {
 		co_return std::make_unique<BooruContainerGetter>(site_, *post);
 	}
-	co_return make_response_error(RequestErrorCode::InvalidArguments,
+	co_return make_request_error(RequestErrorCode::InvalidArguments,
 	                              "URL addresses no booru post or pool");
 }
 
@@ -127,7 +127,7 @@ RequestTask<std::unique_ptr<ImageContainerGetter>> BooruImagesGetter::from_seria
 	// a "pools/"-prefixed value is a pool id (only ever produced by a pool getter, so
 	// only routed back to one for a family that has pools).
 	if (data.url.empty()) {
-		co_return make_response_error(RequestErrorCode::InvalidArguments,
+		co_return make_request_error(RequestErrorCode::InvalidArguments,
 		                              "serialized booru getter carries no id");
 	}
 	constexpr std::string_view pool_prefix = "pools/";

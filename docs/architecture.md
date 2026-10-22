@@ -36,6 +36,39 @@ runtime or parser stack. Tests compile each model header in isolation using this
 target. HTTP headers and URLs may occur in resource descriptions as values,
 without importing a transport implementation.
 
+## Work identity and durable getter data
+
+`MangaID` and `AnimeID` are opaque strings. Preserve a source's numeric key as
+text (`"12345"`), or use its stable slug (`"some-title"`) when that is its
+identity. Choose the most stable available part: prefer an immutable source key
+over a title-derived slug; exclude mirror domains, query parameters and other
+URL decoration. Do not hash a slug to manufacture a numeric ID. Keep listing and
+detail IDs consistent. An empty ID means the response has no usable identity;
+never deduplicate unrelated works by an empty ID.
+
+IDs are qualified by parser, catalog and media kind. Consumers must neither
+parse them as numbers nor infer publication or presentation order from them.
+Use dates, source ordering or explicit sort fields for that purpose. An Info ID
+is descriptive identity; it does not replace the getter's restoration data,
+which may need additional source-owned values.
+
+Persist `SerializedGetterData` unchanged alongside parser ID, catalog ID and
+media kind. Restore through `CatalogRootGetter::from_serialized()`. A parser may
+put an identity-format version in `params["format_version"]`, treat an absent
+version as its legacy format, and migrate known older representations while
+constructing a current getter. Its next `serialize()` emits the current format;
+the consumer explicitly replaces the saved blob after successful restoration
+and serialization. Ordinary loading must not discard the old blob on failure.
+Reject malformed data and unsupported versions instead of guessing.
+
+Keep accepting previously emitted formats. A format version is independent of
+the parser release and `MediaInfo::revision`; raising it does not invalidate a
+whole library. It enables conversion only when the old data reliably identifies
+the same work. The current restoration API has no `RequestContext`, so do local
+format conversions there; a migration requiring authenticated network lookup
+needs an explicit context-bearing API. A renamed slug with no reliable mapping
+still requires recovery, such as asking the user to find the work again.
+
 ## Method names
 
 - Accessors such as `info()`, `preview_info()`, `identifier()` and `capabilities()`
@@ -45,8 +78,12 @@ without importing a transport implementation.
   responses remain valid implementations of these operations.
 - Natural domain operations retain their verbs: `search()`, `authenticate()`,
   `request()`, `resolve_video()` and `serialize()`.
-- `make_*` factories create fresh owned objects. Registry `find_*` methods locate
-  an existing object; absence is an ordinary lookup result.
+- `Parser::make_profile()`, `make_catalog_getter()` and `make_images_getter()`
+  return fresh independently owned objects. Protected `make_profile_impl()` and
+  `make_catalog_getter_impl()` hooks construct implementations after ID validation.
+  `ParserProfile::make_context()` and `make_config()` create execution state and
+  settings. Registry `find_*` methods locate existing objects.
+  Static resource/selector/pattern factories use `make()`.
 
 `ParserProfile::authenticate()` returns a fresh authenticated config without
 mutating the supplied context. The caller explicitly adopts the result. Tasks

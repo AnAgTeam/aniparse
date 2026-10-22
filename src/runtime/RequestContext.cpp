@@ -32,9 +32,9 @@ static void apply_config_to(HttpRequest& any_request, const ParserConfig& config
 }
 
 RequestContext::RequestContext(std::shared_ptr<const RuntimeServices> services,
-                                   std::shared_ptr<ParserConfig> config)
+                                   std::shared_ptr<ProfileState> config)
     : services_(std::move(services))
-    , config_(config ? std::move(config) : std::make_shared<ParserConfig>()) {
+    , config_(std::move(config)) {
 	if (!services_ || !services_->client) {
 		throw std::invalid_argument("Client has to be valid");
 	}
@@ -67,14 +67,15 @@ RequestContext::RequestContext(std::shared_ptr<const RuntimeServices> services,
 	assert(config_);
 }
 
-RequestContext::RequestContext(std::shared_ptr<HttpClient> client,
-                                   std::shared_ptr<Logger> logger,
-                                   std::shared_ptr<ParserConfig> config)
-    : RequestContext(std::make_shared<RuntimeServices>(RuntimeServices{
-                           .client = std::move(client),
-                           .logger = std::move(logger),
-                       }),
-                       std::move(config)) {}
+RequestContext RequestContext::make(std::shared_ptr<const RuntimeServices> services,
+                                      ParserConfig config, std::string parser_id,
+                                      std::string profile_id) {
+	auto state = std::make_shared<ProfileState>();
+	static_cast<ParserConfig&>(*state) = std::move(config);
+	state->parser_id = std::move(parser_id);
+	state->profile_id = std::move(profile_id);
+	return RequestContext(std::move(services), std::move(state));
+}
 
 RequestTask<HttpResponse> RequestContext::request(GetRequest request) {
 	assert(config_ && services_ && services_->client);
@@ -145,7 +146,7 @@ RequestTask<HttpResponse> fetch_ok(RequestContext& context, Request request) {
 	HttpResponse& response = *fetched;
 
 	if (!is_success_status(response.status_code)) {
-		co_return make_response_error(status_to_error_code(response.status_code),
+		co_return make_request_error(status_to_error_code(response.status_code),
 		                              "HTTP " + std::to_string(response.status_code),
 		                              response.status_code, std::move(response.body));
 	}
@@ -163,7 +164,7 @@ RequestTask<html::HTMLDocument> request_html_impl(RequestContext& context, Reque
 	html::HTMLParser parser;
 	auto document = parser.try_parse(response.body);
 	if (!document) {
-		co_return make_response_error(RequestErrorCode::UnexpectedResponse,
+		co_return make_request_error(RequestErrorCode::UnexpectedResponse,
 		                              std::string("HTML parse failed: ") + document.error().what(),
 		                              response.status_code, std::move(response.body));
 	}
@@ -181,7 +182,7 @@ RequestTask<boost::json::value> request_json_impl(RequestContext& context, Reque
 	boost::system::error_code ec;
 	boost::json::value value = boost::json::parse(response.body, ec);
 	if (ec) {
-		co_return make_response_error(RequestErrorCode::UnexpectedResponse,
+		co_return make_request_error(RequestErrorCode::UnexpectedResponse,
 		                              "JSON parse failed: " + ec.message(),
 		                              response.status_code, std::move(response.body));
 	}
@@ -259,13 +260,18 @@ RequestContext RequestContext::new_with_logger(std::shared_ptr<Logger> logger) c
 	// A different logger is a different service bundle: copy the state and swap it.
 	auto services = std::make_shared<RuntimeServices>(*services_);
 	services->logger = std::move(logger);
-	return RequestContext(std::move(services), config_);
+	auto result = *this;
+	result.services_ = std::move(services);
+	return result;
 }
 
-RequestContext RequestContext::new_with_config(std::shared_ptr<ParserConfig> config) const {
-	assert(services_);
-	// Only the config changes; the services are shared as-is (no allocation).
-	return RequestContext(services_, std::move(config));
+RequestContext RequestContext::new_with_config(std::shared_ptr<const ParserConfig> config) const {
+	if (!config) {
+		throw std::invalid_argument("Replacement config must not be null");
+	}
+	auto result = make(services_, *config, config_->parser_id, config_->profile_id);
+	result.mirror_snapshot_ = mirror_snapshot_;
+	return result;
 }
 
-}; // namespace aniparse
+} // namespace aniparse

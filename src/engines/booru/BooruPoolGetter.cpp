@@ -35,7 +35,7 @@ RequestTask<ImageContainerInfo> BooruPoolGetter::load_info(RequestContext contex
 	// pool endpoint as an object); a wrapping family would grow a hook.
 	const boost::json::object* pool = json_result->if_object();
 	if (!pool) {
-		co_return make_response_error(RequestErrorCode::NotFound, "booru pool not found");
+		co_return make_request_error(RequestErrorCode::NotFound, "booru pool not found");
 	}
 
 	co_return engine.pool_to_container_info(*pool);

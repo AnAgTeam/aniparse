@@ -107,7 +107,7 @@ using Result = expected<T, Error>;
  * @param body Response body, for diagnostics; moved in
  * @return An unexpected value assignable to any Result<T>
  */
-inline auto make_response_error(RequestErrorCode code, std::string message,
+inline auto make_request_error(RequestErrorCode code, std::string message,
                                 std::optional<long> http_status = std::nullopt,
                                 std::string body = {}) {
 	return unexpected(RequestError{

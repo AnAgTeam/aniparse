@@ -103,7 +103,7 @@ namespace {
 /// A probe set that records which override text it was built with.
 struct ProbeSet {
 	std::string css;
-	static ProbeSet create(const SelectorSource& source) {
+	static ProbeSet make(const SelectorSource& source) {
 		return { std::string(source.get("info.title", ".default")) };
 	}
 };

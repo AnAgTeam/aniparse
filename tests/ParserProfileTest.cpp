@@ -20,10 +20,10 @@ class ProfileParser : public Parser {
 public:
 	ParserInfo info() const override { return {.name = "Profiles"}; }
 	std::string identifier() const override { return "profiles"; }
-	void emplace_domains(EmplaceDomainsContext&) const override {}
+	void emplace_domains(EmplaceDomainsSink&) const override {}
 	std::vector<ProfileInfo> descriptors{{"shared", "Account"}, {"separate", "Other account"}};
 	std::vector<ProfileInfo> profile_descriptors() const override { return descriptors; }
-	std::vector<CatalogInfo> scope_descriptors() const override {
+	std::vector<CatalogInfo> catalog_descriptors() const override {
 		return {
 			{.id = "manga", .kinds = catalog_kinds::manga, .profile_id = "shared"},
 			{.id = "anime", .kinds = catalog_kinds::anime, .profile_id = "shared"},
@@ -31,40 +31,37 @@ public:
 		};
 	}
 protected:
-	std::unique_ptr<ParserProfile> make_profile(ProfileInfo info) const override {
+	std::unique_ptr<ParserProfile> make_profile_impl(ProfileInfo info) const override {
 		return std::make_unique<TestProfile>(identifier(), std::move(info));
 	}
-	std::unique_ptr<CatalogRootGetter> make_catalog_getter(CatalogInfo scope) const override {
-		return std::make_unique<CatalogRootGetter>(std::move(scope));
+	std::unique_ptr<CatalogRootGetter> make_catalog_getter_impl(CatalogInfo catalog) const override {
+		return std::make_unique<CatalogRootGetter>(std::move(catalog));
 	}
 };
 }
 
 TEST_CASE("Catalogs select shared or independent profiles explicitly", "[profiles]") {
 	ProfileParser parser;
-	auto manga = parser.catalog_getter("manga");
-	auto anime = parser.catalog_getter("anime");
-	auto other = parser.catalog_getter("other");
-	REQUIRE(manga->scope().profile_id == anime->scope().profile_id);
-	REQUIRE(other->scope().profile_id != manga->scope().profile_id);
-	auto shared = parser.profile(manga->scope().profile_id);
-	auto separate = parser.profile(other->scope().profile_id);
+	auto manga = parser.make_catalog_getter("manga");
+	auto anime = parser.make_catalog_getter("anime");
+	auto other = parser.make_catalog_getter("other");
+	REQUIRE(manga->info().profile_id == anime->info().profile_id);
+	REQUIRE(other->info().profile_id != manga->info().profile_id);
+	auto shared = parser.make_profile(manga->info().profile_id);
+	auto separate = parser.make_profile(other->info().profile_id);
 	auto first = shared->make_config();
 	auto second = shared->make_config();
 	auto third = separate->make_config();
 	CHECK(first != second);
-	CHECK(first->parser_id == "profiles");
-	CHECK(first->profile_id == "shared");
-	CHECK(third->profile_id == "separate");
 	CHECK(first->headers.at("X-Profile") == "shared");
 	CHECK(third->headers.at("X-Profile") == "separate");
 	first->headers.set("Authorization", "Bearer first-account");
 	CHECK_FALSE(second->headers.contains("Authorization"));
 	CHECK_FALSE(third->headers.contains("Authorization"));
-	CHECK(parser.profile("missing") == nullptr);
+	CHECK(parser.make_profile("missing") == nullptr);
 }
 
-TEST_CASE("Profile descriptors and scope references are validated", "[profiles]") {
+TEST_CASE("Profile descriptors and catalog references are validated", "[profiles]") {
 	ProfileParser parser;
 	SECTION("empty list") {
 		parser.descriptors.clear();
@@ -78,17 +75,17 @@ TEST_CASE("Profile descriptors and scope references are validated", "[profiles]"
 		parser.descriptors.push_back({"shared", "Duplicate"});
 		CHECK_THROWS_AS(parser.profiles(), std::logic_error);
 	}
-	SECTION("missing scope profile") {
+	SECTION("missing catalog profile") {
 		parser.descriptors = {{"separate", "Other"}};
-		CHECK_THROWS_AS(parser.scopes(), std::logic_error);
+		CHECK_THROWS_AS(parser.catalogs(), std::logic_error);
 	}
 	SECTION("mismatched factory") {
 		class WrongParser final : public ProfileParser {
-			std::unique_ptr<ParserProfile> make_profile(ProfileInfo info) const override {
+			std::unique_ptr<ParserProfile> make_profile_impl(ProfileInfo info) const override {
 				return std::make_unique<TestProfile>("another-parser", std::move(info));
 			}
 		} wrong;
-		CHECK_THROWS_AS(wrong.profile("shared"), std::logic_error);
+		CHECK_THROWS_AS(wrong.make_profile("shared"), std::logic_error);
 	}
 	CHECK_THROWS_AS(ParserProfile("", {"main", "Default"}), std::invalid_argument);
 	CHECK_THROWS_AS(ParserProfile("parser", {"", "Default"}), std::invalid_argument);
@@ -104,67 +101,67 @@ TEST_CASE("Factory validation distinguishes unknown IDs from broken declared fac
         bool wrong_catalog_id = false;
         bool wrong_catalog_profile = false;
     protected:
-        std::unique_ptr<ParserProfile> make_profile(ProfileInfo info) const override {
+        std::unique_ptr<ParserProfile> make_profile_impl(ProfileInfo info) const override {
             ++profile_creations;
             if (null_profile) return nullptr;
             if (wrong_profile_id) info.id = "wrong";
-            return ProfileParser::make_profile(std::move(info));
+            return ProfileParser::make_profile_impl(std::move(info));
         }
-        std::unique_ptr<CatalogRootGetter> make_catalog_getter(CatalogInfo scope) const override {
+        std::unique_ptr<CatalogRootGetter> make_catalog_getter_impl(CatalogInfo catalog) const override {
             if (null_catalog) return nullptr;
-            if (wrong_catalog_id) scope.id = "wrong";
-            if (wrong_catalog_profile) scope.profile_id = "separate";
-            return ProfileParser::make_catalog_getter(std::move(scope));
+            if (wrong_catalog_id) catalog.id = "wrong";
+            if (wrong_catalog_profile) catalog.profile_id = "separate";
+            return ProfileParser::make_catalog_getter_impl(std::move(catalog));
         }
     } parser;
-    CHECK(parser.profile("missing") == nullptr);
-    CHECK(parser.catalog_getter("missing") == nullptr);
-    REQUIRE(parser.catalog_getter("manga"));
+    CHECK(parser.make_profile("missing") == nullptr);
+    CHECK(parser.make_catalog_getter("missing") == nullptr);
+    REQUIRE(parser.make_catalog_getter("manga"));
     CHECK(parser.profile_creations == 0);
     SECTION("null profile") {
         parser.null_profile = true;
-        CHECK_THROWS_AS(parser.profile("shared"), std::logic_error);
+        CHECK_THROWS_AS(parser.make_profile("shared"), std::logic_error);
     }
     SECTION("wrong profile identity") {
         parser.wrong_profile_id = true;
-        CHECK_THROWS_AS(parser.profile("shared"), std::logic_error);
+        CHECK_THROWS_AS(parser.make_profile("shared"), std::logic_error);
     }
     SECTION("null catalog") {
         parser.null_catalog = true;
-        CHECK_THROWS_AS(parser.catalog_getter("manga"), std::logic_error);
+        CHECK_THROWS_AS(parser.make_catalog_getter("manga"), std::logic_error);
     }
     SECTION("wrong catalog identity") {
         parser.wrong_catalog_id = true;
-        CHECK_THROWS_AS(parser.catalog_getter("manga"), std::logic_error);
+        CHECK_THROWS_AS(parser.make_catalog_getter("manga"), std::logic_error);
     }
     SECTION("wrong catalog profile") {
         parser.wrong_catalog_profile = true;
-        CHECK_THROWS_AS(parser.catalog_getter("manga"), std::logic_error);
+        CHECK_THROWS_AS(parser.make_catalog_getter("manga"), std::logic_error);
     }
 }
 
-TEST_CASE("Scopes permit sources without catalogs and reject malformed descriptors early", "[profiles]") {
+TEST_CASE("Catalogs permit sources without catalogs and reject malformed descriptors early", "[profiles]") {
     class DescriptorParser final : public ProfileParser {
     public:
-        std::vector<CatalogInfo> catalogs;
+        std::vector<CatalogInfo> declared_catalogs;
     protected:
-        std::vector<CatalogInfo> scope_descriptors() const override { return catalogs; }
+        std::vector<CatalogInfo> catalog_descriptors() const override { return declared_catalogs; }
     } parser;
-    CHECK(parser.scopes().empty());
-    SECTION("empty scope ID") {
-        parser.catalogs = {{.id = "", .profile_id = "shared"}};
-        CHECK_THROWS_AS(parser.scopes(), std::logic_error);
+    CHECK(parser.catalogs().empty());
+    SECTION("empty catalog ID") {
+        parser.declared_catalogs = {{.id = "", .profile_id = "shared"}};
+        CHECK_THROWS_AS(parser.catalogs(), std::logic_error);
     }
-    SECTION("duplicate scope IDs") {
-        parser.catalogs = {{.id = "same", .profile_id = "shared"}, {.id = "same", .profile_id = "separate"}};
-        CHECK_THROWS_AS(parser.scopes(), std::logic_error);
+    SECTION("duplicate catalog IDs") {
+        parser.declared_catalogs = {{.id = "same", .profile_id = "shared"}, {.id = "same", .profile_id = "separate"}};
+        CHECK_THROWS_AS(parser.catalogs(), std::logic_error);
     }
     SECTION("empty profile ID") {
-        parser.catalogs = {{.id = "catalog", .profile_id = ""}};
-        CHECK_THROWS_AS(parser.scopes(), std::logic_error);
+        parser.declared_catalogs = {{.id = "catalog", .profile_id = ""}};
+        CHECK_THROWS_AS(parser.catalogs(), std::logic_error);
     }
     SECTION("missing profile") {
-        parser.catalogs = {{.id = "catalog", .profile_id = "missing"}};
-        CHECK_THROWS_AS(parser.scopes(), std::logic_error);
+        parser.declared_catalogs = {{.id = "catalog", .profile_id = "missing"}};
+        CHECK_THROWS_AS(parser.catalogs(), std::logic_error);
     }
 }

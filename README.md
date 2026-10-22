@@ -85,7 +85,7 @@ Fetch a page and parse it as HTML — the client is backend-neutral, a parser ne
 
 ```cpp
 #include <aniparse/net/backends/curl/CurlHttpClient.hpp>
-#include <aniparse/runtime/RequestContext.hpp>
+#include <aniparse/source/ParserProfile.hpp>
 #include <coro/sync_wait.hpp>
 #include <print>
 
@@ -93,7 +93,7 @@ using namespace aniparse;
 
 int main() {
     auto client = std::make_shared<CurlHttpClient>();
-    RequestContext ctx(client, nullptr, nullptr);
+    auto ctx = ParserProfile("Example", {"main", "Example"}).make_context(client);
 
     // request_html: fetch + status check + parse, all in one expected value.
     auto page = coro::sync_wait(ctx.request_html(GetRequest{ .url = "https://example.com" }));

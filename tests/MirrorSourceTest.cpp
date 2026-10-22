@@ -3,6 +3,7 @@
  *
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
+#include "TestRequestContext.hpp"
 #include "catch_amalgamated.hpp"
 
 #include <aniparse/net/backends/curl/CurlHttpClient.hpp>
@@ -25,13 +26,13 @@ namespace {
 // only needs to exist; its request paths are never taken.
 struct NullClient : HttpClient {
 	RequestTask<HttpResponse> do_request(ConfiguredGetRequest) override {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "");
+		co_return make_request_error(RequestErrorCode::NotImplemented, "");
 	}
 	RequestTask<HttpResponse> do_request(ConfiguredPostRequest) override {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "");
+		co_return make_request_error(RequestErrorCode::NotImplemented, "");
 	}
 	RequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest) override {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "");
+		co_return make_request_error(RequestErrorCode::NotImplemented, "");
 	}
 	void apply_client_config(HttpClientConfig) override {}
 	std::shared_ptr<CookieJar> make_cookie_jar() override { return nullptr; }
@@ -55,12 +56,18 @@ std::shared_ptr<MirrorSourceHolder> holder_with(OverrideMap overrides) {
     return std::make_shared<MirrorSourceHolder>(profile_source(std::move(overrides)));
 }
 
-std::shared_ptr<ParserConfig> config_for(std::string parser_id, size_t alt_link) {
-	auto config       = std::make_shared<ParserConfig>();
-	config->parser_id = std::move(parser_id);
-	config->profile_id = default_profile_id;
-	config->alt_link  = alt_link;
-	return config;
+RequestContext context_for(std::shared_ptr<const RuntimeServices> services,
+                           std::string parser_id, size_t alt_link,
+                           std::string profile_id = "main") {
+    auto context = ParserProfile(std::move(parser_id), {std::move(profile_id), "Test"}).make_context(services);
+    context.set_alt_link(alt_link);
+    return context;
+}
+RequestContext context_for(std::shared_ptr<HttpClient> client,
+                           std::string parser_id, size_t alt_link) {
+    auto services = std::make_shared<RuntimeServices>();
+    services->client = std::move(client);
+    return context_for(services, std::move(parser_id), alt_link);
 }
 
 // A minimal parser that declares a built-in mirror list, to exercise
@@ -153,7 +160,7 @@ TEST_CASE("MirrorSourceHolder defaults to a non-null empty source and swaps") {
 
 TEST_CASE("RequestContext base_url falls back to the built-in when no mirror holder") {
 	auto client = std::make_shared<NullClient>();
-	RequestContext context(client, nullptr, config_for("ParserA", 1));
+	auto context = context_for(client, "ParserA", 1);
 
 	CHECK(context.base_url(builtin) == "https://b.example"); // alt_link 1
 	CHECK(context.mirrors(builtin).count() == 2);
@@ -165,12 +172,12 @@ TEST_CASE("RequestContext base_url uses the catalog override keyed by parser_id"
 	services->mirrors = holder_with(OverrideMap{ { "ParserA", { "https://m0.example", "https://m1.example" } } });
 
 	// The parser with an override reads it (selection 1 -> second override mirror).
-	RequestContext known(services, config_for("ParserA", 1));
+	auto known = context_for(services, "ParserA", 1);
 	CHECK(known.base_url(builtin) == "https://m1.example");
 	CHECK(known.mirrors(builtin).count() == 2);
 
 	// A parser with no override falls back to its built-in list.
-	RequestContext unknown(services, config_for("OtherParser", 0));
+	auto unknown = context_for(services, "OtherParser", 0);
 	CHECK(unknown.base_url(builtin) == "https://a.example");
 }
 
@@ -182,10 +189,10 @@ TEST_CASE("RequestContext canonical_base_url uses the catalog override keyed by 
 	                                                       { "ParserA", "https://frontend.example" },
 	                                                   }));
 
-	RequestContext known(services, config_for("ParserA", 0));
+	auto known = context_for(services, "ParserA", 0);
 	CHECK(known.canonical_base_url("https://seed.example") == "https://frontend.example");
 
-	RequestContext unknown(services, config_for("OtherParser", 0));
+	auto unknown = context_for(services, "OtherParser", 0);
 	CHECK(unknown.canonical_base_url("https://seed.example") == "https://seed.example");
 }
 
@@ -194,7 +201,7 @@ TEST_CASE("RequestContext snapshots mirrors at construction, immune to a later s
 	services->client  = std::make_shared<NullClient>();
 	services->mirrors = holder_with(OverrideMap{ { "ParserA", { "https://old.example" } } });
 
-	RequestContext live(services, config_for("ParserA", 0));
+	auto live = context_for(services, "ParserA", 0);
 	// Pin a view into the live context's snapshot BEFORE the swap.
 	std::string_view pinned = live.base_url(builtin);
 	CHECK(pinned == "https://old.example");
@@ -207,7 +214,9 @@ TEST_CASE("RequestContext snapshots mirrors at construction, immune to a later s
 	CHECK(pinned == "https://old.example");
 	// The live context keeps its snapshot; only a freshly built context sees the swap.
 	CHECK(live.base_url(builtin) == "https://old.example");
-	RequestContext fresh(services, config_for("ParserA", 0));
+	CHECK(live.new_with_config(live.config()).base_url(builtin) == "https://old.example");
+	CHECK(live.new_with_logger(nullptr).base_url(builtin) == "https://old.example");
+	auto fresh = context_for(services, "ParserA", 0);
 	CHECK(fresh.base_url(builtin) == "https://new.example");
 }
 
@@ -219,7 +228,7 @@ TEST_CASE("RequestContext snapshots canonical frontend origins at construction")
 	                                                       { "ParserA", "https://old.example" },
 	                                                   }));
 
-	RequestContext live(services, config_for("ParserA", 0));
+	auto live = context_for(services, "ParserA", 0);
 	std::string_view pinned = live.canonical_base_url("https://seed.example");
 	CHECK(pinned == "https://old.example");
 
@@ -227,14 +236,14 @@ TEST_CASE("RequestContext snapshots canonical frontend origins at construction")
 
 	CHECK(pinned == "https://old.example");
 	CHECK(live.canonical_base_url("https://seed.example") == "https://old.example");
-	RequestContext fresh(services, config_for("ParserA", 0));
+	auto fresh = context_for(services, "ParserA", 0);
 	CHECK(fresh.canonical_base_url("https://seed.example") == "https://new.example");
 }
 
 TEST_CASE("Parser::mirror_choices returns the built-in mirrors without a catalog override") {
 	MirrorProfile parser;
 	auto client = std::make_shared<NullClient>();
-	RequestContext context(client, nullptr, config_for("MirrorParser", 0));
+	auto context = context_for(client, "MirrorParser", 0);
 
 	CHECK(urls_of(parser.mirror_choices(context)) ==
 	      std::vector<std::string>{ "https://a.example", "https://b.example" });
@@ -247,7 +256,7 @@ TEST_CASE("Parser::mirror_choices reflects a catalog override keyed by parser id
 	    { "MirrorParser", { "https://live1.example", "https://live2.example", "https://live3.example" } } });
 
 	MirrorProfile parser;
-	RequestContext context(services, config_for("MirrorParser", 0));
+	auto context = context_for(services, "MirrorParser", 0);
 
 	// The picker now shows the live (overridden) mirrors, not the built-in list.
 	CHECK(urls_of(parser.mirror_choices(context)) ==
@@ -267,19 +276,13 @@ TEST_CASE("Profile mirrors and origins do not inherit another profile's override
             MirrorSource::ProfileOrigins{
                 {{"Provider", "manga"}, "https://manga-front.example"},
             }));
-    auto config = config_for("Provider", 0);
-    config->profile_id = "manga";
-    RequestContext manga(services, config);
+    auto manga = context_for(services, "Provider", 0, "manga");
     CHECK(manga.base_url(builtin) == "https://manga.example");
     CHECK(manga.canonical_base_url("https://seed.example") == "https://manga-front.example");
-    auto anime_config = config_for("Provider", 0);
-    anime_config->profile_id = "anime";
-    RequestContext anime(services, anime_config);
+    auto anime = context_for(services, "Provider", 0, "anime");
     CHECK(anime.base_url(builtin) == "https://anime.example");
     CHECK(anime.canonical_base_url("https://seed.example") == "https://seed.example");
-    auto main_config = config_for("Provider", 0);
-    main_config->profile_id = "main";
-    RequestContext main(services, main_config);
+    auto main = context_for(services, "Provider", 0, "main");
     CHECK(main.base_url(builtin) == builtin.front());
     CHECK(main.canonical_base_url("https://seed.example") == "https://seed.example");
 }

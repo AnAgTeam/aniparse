@@ -32,11 +32,9 @@ inline constexpr auto follow_redirects = ParserConfigFlags::make_bit(0);
  * its default headers and url params, the cookie jar holding its session, and its
  * selected mirror. A @ref RequestContext applies it to each outgoing request.
  *
- * A config for a given parser is not written by hand: it is *derived*, by handing a
- * profile to create a fresh config with ParserProfile::make_config and adopting it via
- * RequestContext::new_with_config. That derivation is what stamps @ref parser_id and
- * seeds the parser's defaults, and it is mandatory before any getter of that parser
- * runs — see RequestContext::new_with_config.
+ * ParserProfile::make_context applies the profile defaults and binds the context
+ * to its parser and profile. This value contains settings only; replacing it
+ * cannot change a context's identity.
  * @see RequestContext
  */
 struct ParserConfig {
@@ -52,13 +50,6 @@ struct ParserConfig {
 	std::shared_ptr<CookieJar> cookie_jar;
 	/// Per-parser request switches. @see parser_config_flags
 	ParserConfigFlags flags;
-
-	/// Identifier of the parser this config was derived for, stamped by
-	/// ParserProfile::make_config. Lets request-time services keyed by parser (mirror
-	/// overrides) find this parser's entry without the getter naming its own id.
-	/// Empty on a config that was not derived through make_config.
-	std::string parser_id;
-	std::string profile_id; ///< Stable profile ID, stamped by ParserProfile::make_config.
 
 	/// Selected alternative link (mirror) index. @see AltLink, RequestContext::alt_link
 	size_t alt_link = 0;

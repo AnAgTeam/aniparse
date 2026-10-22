@@ -45,7 +45,7 @@ struct TestStruct {
 };
 
 RequestTask<TestStruct> test_coro() {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "blabla");
+	co_return make_request_error(RequestErrorCode::NotImplemented, "blabla");
 }
 
 CORO_TEST_CASE("expected as value") {

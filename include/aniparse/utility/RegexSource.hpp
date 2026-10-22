@@ -215,7 +215,7 @@ public:
 	/**
 	 * @brief Build (once per owner id, cached) the pattern set @p T from that
 	 * owner's scoped source view.
-	 * @tparam T Pattern set type exposing `static T create(const RegexSource&)`
+	 * @tparam T Pattern set type exposing `static T make(const RegexSource&)`
 	 * @param owner The owner identifier to scope overrides to
 	 * @return Shared handle to the built set; hold it for the whole operation so a
 	 *         concurrent set() cannot free it underneath
@@ -236,7 +236,7 @@ public:
 		// Compile outside the lock, off the scoped view: expensive and in need of
 		// no shared state. A losing build race drops our copy for the stored winner.
 		auto view = view_for(owner);
-		auto built = std::make_shared<const T>(T::create(*view));
+		auto built = std::make_shared<const T>(T::make(*view));
 		std::unique_lock write_lock(mutex_);
 		auto [it, inserted] = sets_[std::string(owner)].try_emplace(type_key, std::move(built));
 		return std::static_pointer_cast<const T>(it->second);

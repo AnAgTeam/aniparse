@@ -33,7 +33,7 @@ constexpr auto split_domains(Range&& range) {
 	       | std::views::transform(std::views::reverse);
 }
 
-class LegacyDomainAdder final : public aniparse::EmplaceDomainsContext {
+class LegacyDomainAdder final : public aniparse::EmplaceDomainsSink {
 public:
 	LegacyDomainAdder(aniparse::DomainScanner<ParserPtr>& scanner, ParserPtr parser)
 	    : scanner_(scanner), parser_(std::move(parser)) {}
@@ -47,7 +47,7 @@ private:
 	ParserPtr parser_;
 };
 
-class LazyDomainMatcher final : public aniparse::EmplaceDomainsContext {
+class LazyDomainMatcher final : public aniparse::EmplaceDomainsSink {
 public:
 	explicit LazyDomainMatcher(std::string_view host) : host_(host) {}
 

@@ -26,25 +26,25 @@ std::string BooruParser::identifier() const {
 	return std::string(site_.identifier);
 }
 
-GetterSuggestionResult BooruParser::suggest_getter(const ParsedUrl& url) const {
+bool BooruParser::valid_for_url(const ParsedUrl& url) const {
 	// The engine knows the site's URL scheme; a post or (where supported) a pool URL
 	// is an image container routed to the images getter.
 	const BooruEngine& engine = site_.engine();
 	const bool is_container = engine.post_id_from_url(url).has_value()
 	                       || (engine.supports_pools() && engine.pool_id_from_url(url).has_value());
-	return is_container ? GetterSuggestionResult{ .type = GetterSuggestionType::Images } : GetterSuggestionResult{ .type = GetterSuggestionType::Unknown };
+	return is_container;
 }
 
 ParserCapabilities BooruParser::capabilities() const {
 	// supports_images_store is derived, not declared: every booru parser hands out an
-	// images getter (see images_getter), so the bit follows from the engine rather
+	// images getter (see make_images_getter), so the bit follows from the engine rather
 	// than from a descriptor that can forget it.
 	return { .flags = site_.capabilities | capabilities_flags::supports_images_store };
 }
 
-void BooruParser::emplace_domains(EmplaceDomainsContext& context) const {
+void BooruParser::emplace_domains(EmplaceDomainsSink& sink) const {
 	for (std::string_view domain : site_.domains) {
-		context.add_domain(domain);
+		sink.add_domain(domain);
 	}
 }
 
@@ -58,7 +58,7 @@ public:
     std::span<const std::string_view> mirrors() const override;
     RequestTask<std::shared_ptr<const ParserConfig>> authenticate(
 	    RequestContext context,
-	    AuthenticationData data) const override;
+	    AuthenticationData credentials) const override;
     AuthKeys auth_keys() const noexcept override;
 private:
     const BooruSite& site_;
@@ -76,20 +76,20 @@ std::span<const std::string_view> BooruProfile::mirrors() const {
 	return site_.api_hosts;
 }
 
-std::unique_ptr<ImagesGetter> BooruParser::images_getter() const {
+std::unique_ptr<ImagesGetter> BooruParser::make_images_getter() const {
 	return std::make_unique<BooruImagesGetter>(site_);
 }
 
 RequestTask<std::shared_ptr<const ParserConfig>> BooruProfile::authenticate(
-    RequestContext context, AuthenticationData data) const {
+    RequestContext context, AuthenticationData credentials) const {
 	if (!site_.auth) {
 		// An anonymous source has nothing to authenticate.
-		co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot auth");
+		co_return make_request_error(RequestErrorCode::NotImplemented, "The parser cannot auth");
 	}
 
-	const auto* creds = std::get_if<AuthenticationUserPassword>(&data);
+	const auto* creds = std::get_if<AuthenticationUserPassword>(&credentials);
 	if (!creds) {
-		co_return make_response_error(RequestErrorCode::InvalidArguments,
+		co_return make_request_error(RequestErrorCode::InvalidArguments,
 		    "booru credentials must be user id (username) + api key (password)");
 	}
 
@@ -111,7 +111,7 @@ AuthKeys BooruProfile::auth_keys() const noexcept {
 	return keys;
 }
 
-std::unique_ptr<ParserProfile> BooruParser::make_profile(ProfileInfo info) const {
+std::unique_ptr<ParserProfile> BooruParser::make_profile_impl(ProfileInfo info) const {
     return std::make_unique<BooruProfile>(identifier(), std::move(info), site_);
 }
 

@@ -130,7 +130,7 @@ public:
 	RequestTask<PageResults<RelatedWork>> load_related(
 		RequestContext context,
 		GetFilters filters) const override {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "Parser doesn't support related");
+		co_return make_request_error(RequestErrorCode::NotImplemented, "Parser doesn't support related");
 	}
 
 	// Fetch all pages of a specific chapter, with image links.
@@ -247,9 +247,9 @@ protected:
 		if (auto errors = validate_query(*support, query, filters); !errors.empty()) {
 			// Don't throw; return the error through the common channel.
 			// describe_search_query_errors collects the violations into a readable message.
-			co_return make_response_error(RequestErrorCode::InvalidArguments, describe_search_query_errors(errors));
+			co_return make_request_error(RequestErrorCode::InvalidArguments, describe_search_query_errors(errors));
 		}
-		co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot search");
+		co_return make_request_error(RequestErrorCode::NotImplemented, "The parser cannot search");
 	}
 
 	// Fetch the latest items for the chosen filters
@@ -282,13 +282,13 @@ protected:
 	RequestTask<CatalogEntry> parse_entry_url(
 		RequestContext context,
 		ParsedUrl url) const override {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot parse URLs");
+		co_return make_request_error(RequestErrorCode::NotImplemented, "The parser cannot parse URLs");
 	}
 
 	// Build a manga getter from serialized data
 	RequestTask<CatalogEntry> restore_entry(SerializedGetterData data, MediaKind /*kind*/) const override {
 		if (data.url.empty()) {
-			co_return make_response_error(RequestErrorCode::NotImplemented, "Invalid serialized url");
+			co_return make_request_error(RequestErrorCode::NotImplemented, "Invalid serialized url");
 		}
 		co_return std::make_unique<ExampleMangaGetter>(data.url);
 	}
@@ -338,31 +338,31 @@ class ExampleParser : public Parser {
 	// Classify a URL to a getter category, used to route parse_url. Called only if
 	// the URL's domain matches one added in emplace_domains(...). valid_for_url is
 	// derived from this by default, so a URL-entry parser overrides only this.
-	GetterSuggestionResult suggest_getter(const ParsedUrl& url) const override {
+	std::optional<std::string> suggest_catalog(const ParsedUrl& url) const override {
 		// A real parser would inspect url.path() / url.query(); this example is
 		// manga-only, so any URL on its domains routes to the manga getter.
 		(void)url;
-		return GetterSuggestionResult{ .type = GetterSuggestionType::Manga, .scope_id = "main" };
+		return std::optional<std::string>{"main"};
 	}
 
-	std::vector<CatalogInfo> scope_descriptors() const override {
+	std::vector<CatalogInfo> catalog_descriptors() const override {
 		return {{ .id = "main", .name = "Example catalog", .kinds = catalog_kinds::manga }};
 	}
 
 	// Register every domain the parser can handle.
 	// Called when the user adds this parser to the store.
-	void emplace_domains(EmplaceDomainsContext& context) const override {
-		context.add_domain("example.com");
-		context.add_domain("example-test.com");
+	void emplace_domains(EmplaceDomainsSink& sink) const override {
+		sink.add_domain("example.com");
+		sink.add_domain("example-test.com");
 	}
 
-	std::unique_ptr<ParserProfile> make_profile(ProfileInfo info) const override {
+	std::unique_ptr<ParserProfile> make_profile_impl(ProfileInfo info) const override {
         return std::make_unique<ExampleProfile>(identifier(), std::move(info));
     }
 
 	// The manga root getter for this parser
-	std::unique_ptr<CatalogRootGetter> make_catalog_getter(CatalogInfo scope) const override {
-		return std::make_unique<ExampleCatalogGetter>(std::move(scope));
+	std::unique_ptr<CatalogRootGetter> make_catalog_getter_impl(CatalogInfo catalog) const override {
+		return std::make_unique<ExampleCatalogGetter>(std::move(catalog));
 	}
 };
 
@@ -423,7 +423,6 @@ int main() {
 	// The base client the parser uses to fetch data from the internet
 	auto client = examples::make_client();
 	// The parser context: holds the client, logger and the alt-link selection
-	RequestContext client_context(client, std::make_shared<ConsoleLogger>(), nullptr);
 
 	// Add the parser to the store
 	parser_store.add_parser(std::make_shared<ExampleParser>());
@@ -432,10 +431,10 @@ int main() {
 	auto example_parser = parser_store.find_by_key("Example");
 
 	// Get the manga getter from the parser
-	auto example_manga_root = example_parser->catalog_getter("main");
+	auto example_manga_root = example_parser->make_catalog_getter("main");
 
 	// Get a context ready to work for this parser
-	auto ready_to_work_client = client_context.new_with_config(example_parser->profile("main")->make_config());
+	auto ready_to_work_client = example_parser->make_profile("main")->make_context(client, std::make_shared<ConsoleLogger>());
 
 	// Fetch the parser's latest manga.
 	// The coroutine also runs synchronously thanks to sync_wait.
@@ -463,7 +462,7 @@ int main() {
 	std::unique_ptr<MangaGetter> first_manga_getter = std::move(latest_mangas.results[0].item.manga);
 
 	// Fetch information about the first manga
-	auto first_manga_info_response = coro::sync_wait(first_manga_getter->info(ready_to_work_client));
+	auto first_manga_info_response = coro::sync_wait(first_manga_getter->load_info(ready_to_work_client));
 	if (!first_manga_info_response) {
 		// Request error
 		std::println("Failed to fetch manga info: {}", first_manga_info_response.error().message);
@@ -476,12 +475,11 @@ int main() {
 
 	// Route a pasted URL to its parser and getter category, then build the getter
 	// from it. The store parses the URL once and hands it back in route->url.
-	if (auto route = parser_store.route_url("https://example.com/manga/123"); route && route->scope_id) {
-		std::println("Routed to '{}' (manga: {})",
-			route->parser->info().name,
-			route->type == GetterSuggestionType::Manga);
+	if (auto route = parser_store.route_url("https://example.com/manga/123"); route && route->catalog_id) {
+		std::println("Routed to '{}' catalog '{}'",
+			route->parser->info().name, *route->catalog_id);
 
-		auto routed_getter = route->parser->catalog_getter(*route->scope_id);
+		auto routed_getter = route->parser->make_catalog_getter(*route->catalog_id);
 		auto parsed_manga = coro::sync_wait(routed_getter->parse_url(ready_to_work_client, std::move(route->url)));
 		if (!parsed_manga) {
 			// The example parser leaves parse_url unimplemented.

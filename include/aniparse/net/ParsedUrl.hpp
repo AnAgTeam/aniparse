@@ -17,7 +17,7 @@ namespace aniparse {
  * @brief A parsed and normalized URL (WHATWG rules, via lexbor).
  * Built once from a string, it owns the complete serialized URL and exposes its
  * components as cheap views. Parsers get one for routing (`valid_for_url` /
- * `suggest_getter` / `parse_url`) and inspect the @ref path without re-parsing.
+ * `suggest_catalog` / `parse_url`) and inspect the @ref path without re-parsing.
  * @note Owning, copyable, and movable. Returned views are invalidated when
  * this object is moved from, assigned to, or destroyed.
  */
