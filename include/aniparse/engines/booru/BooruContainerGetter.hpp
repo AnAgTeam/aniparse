@@ -4,7 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/images/Image.hpp"
+#include "aniparse/images/ImagesGetter.hpp"
 
 #include <optional>
 
@@ -44,17 +44,17 @@ public:
 	                     std::optional<ImageContainerInfo> info = std::nullopt,
 	                     std::optional<ImageItem> item = std::nullopt);
 
-	ImageContainerCompatibilities compatibilities() const noexcept override;
+	ImageContainerCapabilities capabilities() const noexcept override;
 
 	/// The list result this getter was built from, or nullopt when it was built from
 	/// an id alone. Free — a booru list response carries whole posts, so a getter out
 	/// of search needs no request to fill a card.
 	[[nodiscard]] std::optional<ImageContainerInfo> preview_info() const noexcept override;
 
-	NetworkRequestTask<ImageContainerInfo> info(RequestorContext context) const override;
+	NetworkRequestTask<ImageContainerInfo> load_info(RequestContext context) const override;
 
 	NetworkRequestTask<PageResults<ImageItem>> items(
-	    RequestorContext context,
+	    RequestContext context,
 	    GetFilters filters) const override;
 
 	NetworkRequestTask<SerializedGetterData> serialize() const override;
@@ -68,7 +68,7 @@ private:
 	};
 
 	/// Fetch and map the post. Returns the mapping — writes nothing.
-	NetworkRequestTask<Post> fetch_post(RequestorContext& context) const;
+	NetworkRequestTask<Post> fetch_post(RequestContext& context) const;
 
 	const BooruSite& site_;
 	const ImageContainerID id_;

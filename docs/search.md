@@ -49,6 +49,6 @@ supported inversion; their values carry the caller's actual choice.
 `validate_search_query` checks values against capabilities using explicit type
 mappings, without relying on matching variant indices. `validate_query` also
 checks sorting. Network operations still return the existing request errors;
-the caller may await `search_support()` once and validate locally before calling
+the caller may await `load_search_capabilities()` once and validate locally before calling
 `search()`. Dynamic options may still be fetched and cached, and autocomplete
 continues through `suggest()` with the existing filter-key vocabulary.

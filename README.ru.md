@@ -84,16 +84,16 @@
 Получить страницу и распарсить как HTML — клиент бэкенд-нейтральный, парсер не видит curl:
 
 ```cpp
-#include <aniparse/net/Client.hpp>
-#include <aniparse/ClientContext.hpp>
+#include <aniparse/net/backends/curl/CurlHttpClient.hpp>
+#include <aniparse/runtime/RequestContext.hpp>
 #include <coro/sync_wait.hpp>
 #include <print>
 
 using namespace aniparse;
 
 int main() {
-    auto client = std::make_shared<AsyncClient>();
-    RequestorContext ctx(client, nullptr, nullptr);
+    auto client = std::make_shared<CurlHttpClient>();
+    RequestContext ctx(client, nullptr, nullptr);
 
     // request_html: получение + проверка статуса + парсинг в одном expected.
     auto page = coro::sync_wait(ctx.request_html(GetRequest{ .url = "https://example.com" }));
@@ -109,7 +109,7 @@ int main() {
 
 ## Как устроено
 
-**`Parser`** регистрирует домены, которые умеет обрабатывать, и предоставляет геттеры (например `CatalogRootGetter`), которые получают и парсят контент. Геттеры работают через **`RequestorContext`** — он несёт конфиг парсера, куки и логгер и сидит поверх бэкенд-нейтрального **`ClientContext`** (сейчас curl). Парсеры оперируют только нейтральными типами запроса/ответа — поэтому HTTP-бэкенд можно заменить, не трогая ни одного парсера.
+**`Parser`** регистрирует домены, которые умеет обрабатывать, и предоставляет геттеры (например `CatalogRootGetter`), которые получают и парсят контент. Геттеры работают через **`RequestContext`** — он несёт конфиг парсера, куки и логгер и сидит поверх бэкенд-нейтрального **`HttpClient`** (сейчас curl). Парсеры оперируют только нейтральными типами запроса/ответа — поэтому HTTP-бэкенд можно заменить, не трогая ни одного парсера.
 
 ---
 

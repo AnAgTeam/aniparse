@@ -4,8 +4,8 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #include "catch_amalgamated.hpp"
-#include <aniparse/types/Search.hpp>
-#include <aniparse/catalog/content/Catalog.hpp>
+#include <aniparse/catalog/Search.hpp>
+#include <aniparse/catalog/CatalogRootGetter.hpp>
 
 #include <algorithm>
 #include <type_traits>
@@ -186,11 +186,11 @@ SearchCapabilities filtering_support() {
 }
 
 struct FilteringRootGetter : CatalogRootGetter {
-	NetworkRequestTask<SearchCapabilities> search_support_for(RequestorContext) const override {
+	NetworkRequestTask<SearchCapabilities> load_search_capabilities_for(RequestContext) const override {
 		co_return filtering_support();
 	}
 
-	CatalogLatestSupport latest_support_for() const noexcept override {
+	CatalogLatestCapabilities latest_capabilities_for() const noexcept override {
 		return { .supported_sorts = { { std::string(sort_keys::update_time), { .ascending = true } } } };
 	}
 

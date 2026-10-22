@@ -4,9 +4,9 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #include "catch_amalgamated.hpp"
-#include <aniparse/Parser.hpp>
-#include <aniparse/ClientContext.hpp>
-#include <aniparse/types/Authentication.hpp>
+#include <aniparse/source/Parser.hpp>
+#include <aniparse/runtime/RequestContext.hpp>
+#include <aniparse/source/Authentication.hpp>
 
 #include <memory>
 

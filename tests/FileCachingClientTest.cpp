@@ -14,21 +14,21 @@ namespace {
 
 // Counts how often the upstream is actually hit, so the test can assert a cache
 // hit did NOT forward. Deliberately not the curl client: FileCachingClient takes
-// any injected ClientContext, so this exercises it with no HTTP backend at all.
-struct CountingUpstream : ClientContext {
-	NetworkRequestTask<ResponseData> do_request(ConfiguredGetRequest) override {
+// any injected HttpClient, so this exercises it with no HTTP backend at all.
+struct CountingUpstream : HttpClient {
+	NetworkRequestTask<HttpResponse> do_request(ConfiguredGetRequest) override {
 		++calls;
-		co_return ResponseData{ .status_code = 200, .body = body };
+		co_return HttpResponse{ .status_code = 200, .body = body };
 	}
-	NetworkRequestTask<ResponseData> do_request(ConfiguredPostRequest) override {
+	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostRequest) override {
 		++calls;
-		co_return ResponseData{ .status_code = 200, .body = body };
+		co_return HttpResponse{ .status_code = 200, .body = body };
 	}
-	NetworkRequestTask<ResponseData> do_request(ConfiguredPostMultipartRequest) override {
+	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest) override {
 		++calls;
-		co_return ResponseData{ .status_code = 200, .body = body };
+		co_return HttpResponse{ .status_code = 200, .body = body };
 	}
-	void apply_client_config(ClientConfig) override {}
+	void apply_client_config(HttpClientConfig) override {}
 	std::shared_ptr<CookieJar> make_cookie_jar() override { return nullptr; }
 
 	int         calls = 0;

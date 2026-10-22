@@ -5,7 +5,7 @@
  * build with -DANIPARSE_BUILD_BENCHMARKS=ON, then execute
  * benchmarks/parser-store-benchmark.
  */
-#include <aniparse/ParserStore.hpp>
+#include <aniparse/source/ParserStore.hpp>
 #include <aniparse/detail/DomainScanner.hpp>
 
 #include "BenchmarkParser.hpp"

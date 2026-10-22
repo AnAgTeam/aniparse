@@ -4,7 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/types/Text.hpp"
+#include "aniparse/media/Text.hpp"
 #include <string_view>
 
 namespace aniparse::html {

@@ -5,7 +5,7 @@
  */
 #include "catch_amalgamated.hpp"
 
-#include <aniparse/catalog/Catalog.hpp>
+#include <aniparse/source/overrides/SourceOverrides.hpp>
 
 #include <string>
 #include <string_view>
@@ -32,9 +32,9 @@ constexpr std::string_view good_payload = R"({
 })";
 } // namespace
 
-TEST_CASE("decode_catalog accepts a signed, well-formed payload") {
+TEST_CASE("decode_overrides accepts a signed, well-formed payload") {
 	StubVerifier verifier(true);
-	auto result = decode_catalog(good_payload, "sig", verifier);
+	auto result = decode_overrides(good_payload, "sig", verifier);
 	REQUIRE(result.has_value());
 	CHECK(result->revision == 7);
 	REQUIRE(result->domains.contains("ExampleParser"));
@@ -42,44 +42,44 @@ TEST_CASE("decode_catalog accepts a signed, well-formed payload") {
 	CHECK(result->domains.at("OtherParser") == std::vector<std::string>{ "other.example" });
 }
 
-TEST_CASE("decode_catalog rejects a bad signature before parsing") {
+TEST_CASE("decode_overrides rejects a bad signature before parsing") {
 	StubVerifier verifier(false);
-	auto result = decode_catalog(good_payload, "sig", verifier);
+	auto result = decode_overrides(good_payload, "sig", verifier);
 	REQUIRE_FALSE(result.has_value());
-	CHECK(result.error() == CatalogError::BadSignature);
+	CHECK(result.error() == OverridesError::BadSignature);
 }
 
-TEST_CASE("decode_catalog rejects malformed JSON") {
+TEST_CASE("decode_overrides rejects malformed JSON") {
 	StubVerifier verifier(true);
-	auto result = decode_catalog("{ not json", "sig", verifier);
+	auto result = decode_overrides("{ not json", "sig", verifier);
 	REQUIRE_FALSE(result.has_value());
-	CHECK(result.error() == CatalogError::BadFormat);
+	CHECK(result.error() == OverridesError::BadFormat);
 }
 
-TEST_CASE("decode_catalog rejects an unsupported schema version") {
+TEST_CASE("decode_overrides rejects an unsupported schema version") {
 	StubVerifier verifier(true);
 	std::string_view payload = R"({ "schema_version": 2, "revision": 7, "parsers": {} })";
-	auto result = decode_catalog(payload, "sig", verifier);
+	auto result = decode_overrides(payload, "sig", verifier);
 	REQUIRE_FALSE(result.has_value());
-	CHECK(result.error() == CatalogError::UnsupportedVersion);
+	CHECK(result.error() == OverridesError::UnsupportedVersion);
 }
 
-TEST_CASE("decode_catalog rejects a non-newer revision (anti-rollback)") {
+TEST_CASE("decode_overrides rejects a non-newer revision (anti-rollback)") {
 	StubVerifier verifier(true);
 	// min_revision == payload revision -> not strictly newer.
-	auto result = decode_catalog(good_payload, "sig", verifier, 7);
+	auto result = decode_overrides(good_payload, "sig", verifier, 7);
 	REQUIRE_FALSE(result.has_value());
-	CHECK(result.error() == CatalogError::StaleRevision);
+	CHECK(result.error() == OverridesError::StaleRevision);
 }
 
-TEST_CASE("decode_catalog accepts a strictly newer revision") {
+TEST_CASE("decode_overrides accepts a strictly newer revision") {
 	StubVerifier verifier(true);
-	auto result = decode_catalog(good_payload, "sig", verifier, 6);
+	auto result = decode_overrides(good_payload, "sig", verifier, 6);
 	REQUIRE(result.has_value());
 	CHECK(result->revision == 7);
 }
 
-TEST_CASE("decode_catalog reads the flat top-level selectors table") {
+TEST_CASE("decode_overrides reads the flat top-level selectors table") {
 	StubVerifier verifier(true);
 	std::string_view payload = R"({
         "schema_version": 1,
@@ -87,14 +87,14 @@ TEST_CASE("decode_catalog reads the flat top-level selectors table") {
         "parsers": {},
         "selectors": { "example.info.description": "#desc", "example.card.link": "a.card" }
     })";
-	auto result = decode_catalog(payload, "sig", verifier);
+	auto result = decode_overrides(payload, "sig", verifier);
 	REQUIRE(result.has_value());
 	REQUIRE(result->selectors.contains("example.info.description"));
 	CHECK(result->selectors.at("example.info.description") == "#desc");
 	CHECK(result->selectors.at("example.card.link") == "a.card");
 }
 
-TEST_CASE("decode_catalog reads per-parser mirror base URLs alongside domains") {
+TEST_CASE("decode_overrides reads per-parser mirror base URLs alongside domains") {
 	StubVerifier verifier(true);
 	std::string_view payload = R"({
         "schema_version": 1,
@@ -106,16 +106,16 @@ TEST_CASE("decode_catalog reads per-parser mirror base URLs alongside domains") 
             }
         }
     })";
-	auto result = decode_catalog(payload, "sig", verifier);
+	auto result = decode_overrides(payload, "sig", verifier);
 	REQUIRE(result.has_value());
-	REQUIRE(result->profile_mirrors.contains({"ExampleParser", "main"}));
-	CHECK(result->profile_mirrors.at({"ExampleParser", "main"}) ==
+	REQUIRE(result->profiles.contains({"ExampleParser", "main"}));
+	CHECK((*result->profiles.at({"ExampleParser", "main"}).mirrors) ==
 	      std::vector<std::string>{ "https://m0.example.com", "https://m1.example.com" });
 	// domains and mirrors are independent fields on the same parser entry.
 	CHECK(result->domains.at("ExampleParser") == std::vector<std::string>{ "example.com" });
 }
 
-TEST_CASE("decode_catalog reads a parser canonical frontend origin") {
+TEST_CASE("decode_overrides reads a parser canonical frontend origin") {
 	StubVerifier verifier(true);
 	std::string_view payload = R"({
         "schema_version": 1,
@@ -126,13 +126,13 @@ TEST_CASE("decode_catalog reads a parser canonical frontend origin") {
             }
         }
     })";
-	auto result = decode_catalog(payload, "sig", verifier);
+	auto result = decode_overrides(payload, "sig", verifier);
 	REQUIRE(result.has_value());
-	REQUIRE(result->profile_canonical_base_urls.contains({"ExampleParser", "main"}));
-	CHECK(result->profile_canonical_base_urls.at({"ExampleParser", "main"}) == "https://frontend.example.com");
+	REQUIRE(result->profiles.contains({"ExampleParser", "main"}));
+	CHECK((*result->profiles.at({"ExampleParser", "main"}).canonical_base_url) == "https://frontend.example.com");
 }
 
-TEST_CASE("decode_catalog reads the extractors section into separate maps") {
+TEST_CASE("decode_overrides reads the extractors section into separate maps") {
 	StubVerifier verifier(true);
 	std::string_view payload = R"({
         "schema_version": 1,
@@ -144,17 +144,17 @@ TEST_CASE("decode_catalog reads the extractors section into separate maps") {
             "SharedId": { "domains": ["extractor.example"], "mirrors": ["https://extractor-live.example"] }
         }
     })";
-	auto result = decode_catalog(payload, "sig", verifier);
+	auto result = decode_overrides(payload, "sig", verifier);
 	REQUIRE(result.has_value());
 	// Parser and extractor entries land in separate maps even under the same id.
 	CHECK(result->domains.at("SharedId") == std::vector<std::string>{ "parser.example" });
-	CHECK(result->profile_mirrors.at({"SharedId", "main"}) == std::vector<std::string>{ "https://parser-live.example" });
+	CHECK((*result->profiles.at({"SharedId", "main"}).mirrors) == std::vector<std::string>{ "https://parser-live.example" });
 	CHECK(result->extractor_domains.at("SharedId") == std::vector<std::string>{ "extractor.example" });
 	CHECK(result->extractor_mirrors.at("SharedId") ==
 	      std::vector<std::string>{ "https://extractor-live.example" });
 }
 
-TEST_CASE("decode_catalog reads per-entry regex pattern overrides") {
+TEST_CASE("decode_overrides reads per-entry regex pattern overrides") {
 	StubVerifier verifier(true);
 	std::string_view payload = R"json({
         "schema_version": 1,
@@ -166,7 +166,7 @@ TEST_CASE("decode_catalog reads per-entry regex pattern overrides") {
             "SomeExtractor": { "patterns": { "video_path": "/v/[^\"']+?\\.mp4" } }
         }
     })json";
-	auto result = decode_catalog(payload, "sig", verifier);
+	auto result = decode_overrides(payload, "sig", verifier);
 	REQUIRE(result.has_value());
 	REQUIRE(result->patterns.contains("ExampleParser"));
 	CHECK(result->patterns.at("ExampleParser").at("info.id") == R"(/x/(?<id>\d+))");
@@ -174,10 +174,10 @@ TEST_CASE("decode_catalog reads per-entry regex pattern overrides") {
 	CHECK(result->extractor_patterns.at("SomeExtractor").at("video_path") == R"(/v/[^"']+?\.mp4)");
 }
 
-TEST_CASE("decode_catalog treats a missing required field as bad format") {
+TEST_CASE("decode_overrides treats a missing required field as bad format") {
 	StubVerifier verifier(true);
 	std::string_view no_revision = R"({ "schema_version": 1, "parsers": {} })";
-	auto result = decode_catalog(no_revision, "sig", verifier);
+	auto result = decode_overrides(no_revision, "sig", verifier);
 	REQUIRE_FALSE(result.has_value());
-	CHECK(result.error() == CatalogError::BadFormat);
+	CHECK(result.error() == OverridesError::BadFormat);
 }

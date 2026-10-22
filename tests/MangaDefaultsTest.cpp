@@ -5,8 +5,8 @@
  */
 #include "CoroTest.hpp"
 
-#include <aniparse/catalog/content/Catalog.hpp>
-#include <aniparse/manga/Manga.hpp>
+#include <aniparse/catalog/CatalogRootGetter.hpp>
+#include <aniparse/manga/MangaGetter.hpp>
 
 #include <memory>
 
@@ -16,43 +16,43 @@ namespace {
 
 // The default MangaGetter/CatalogRootGetter methods ignore the context, so this
 // client only needs to exist; its request paths are never taken.
-struct NullClient : ClientContext {
-	NetworkRequestTask<ResponseData> do_request(ConfiguredGetRequest) override {
+struct NullClient : HttpClient {
+	NetworkRequestTask<HttpResponse> do_request(ConfiguredGetRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	NetworkRequestTask<ResponseData> do_request(ConfiguredPostRequest) override {
+	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	NetworkRequestTask<ResponseData> do_request(ConfiguredPostMultipartRequest) override {
+	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	void apply_client_config(ClientConfig) override {
+	void apply_client_config(HttpClientConfig) override {
 	}
 	std::shared_ptr<CookieJar> make_cookie_jar() override {
 		return nullptr;
 	}
 };
 
-RequestorContext make_context() {
-	return RequestorContext(std::make_shared<NullClient>(), nullptr, std::make_shared<ParserConfig>());
+RequestContext make_context() {
+	return RequestContext(std::make_shared<NullClient>(), nullptr, std::make_shared<ParserConfig>());
 }
 
 // Implements only the pure-virtual surface; every optional override keeps its
 // base default (NotImplemented / delegating).
 struct StubMangaGetter : MangaGetter {
-	MangaGetterCompatibilities compatibilities() const noexcept override {
+	MangaGetterCapabilities capabilities() const noexcept override {
 		return {};
 	}
-	NetworkRequestTask<MangaInfo> info(RequestorContext) const override {
+	NetworkRequestTask<MangaInfo> load_info(RequestContext) const override {
 		MangaInfo out;
 		out.common.title = "stub";
 		co_return out;
 	}
-	NetworkRequestTask<PageResults<MangaPage>> chapter_pages(
-	    RequestorContext, MangaChapterRef, GetFilters, std::optional<MangaTranslationID>) const override {
+	NetworkRequestTask<PageResults<MangaPage>> load_chapter_pages(
+	    RequestContext, MangaChapterRef, GetFilters, std::optional<MangaTranslationID>) const override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	std::string canonical_url(RequestorContext) const override {
+	std::string canonical_url(RequestContext) const override {
 		return "https://example.com/manga/stub";
 	}
 	NetworkRequestTask<SerializedGetterData> serialize() const override {
@@ -67,18 +67,18 @@ struct StubCatalogGetter : CatalogRootGetter {};
 TEST_CASE("CatalogRootGetter default support declarations are empty") {
 	StubCatalogGetter getter;
 
-	auto search = coro::sync_wait(getter.search_support(make_context()));
+	auto search = coro::sync_wait(getter.load_search_capabilities(make_context()));
 	REQUIRE(search);
 	CHECK(search->supported_filters.empty());
 	CHECK(search->supported_sorts.empty());
 
-	CatalogLatestSupport latest = getter.latest_support();
+	CatalogLatestCapabilities latest = getter.latest_capabilities();
 	CHECK(latest.supported_sorts.empty());
 }
 
 CORO_TEST_CASE("CatalogRootGetter search/latest/parse_url default to NotImplemented") {
 	StubCatalogGetter getter;
-	RequestorContext context = make_context();
+	RequestContext context = make_context();
 
 	auto searched = co_await getter.search(context, SearchRequestQuery{}, GetFilters{});
 	REQUIRE_FALSE(searched.has_value());
@@ -99,21 +99,21 @@ CORO_TEST_CASE("CatalogRootGetter search/latest/parse_url default to NotImplemen
 
 CORO_TEST_CASE("MangaGetter optional overrides default to NotImplemented") {
 	StubMangaGetter getter;
-	RequestorContext context = make_context();
+	RequestContext context = make_context();
 
-	auto translations = co_await getter.translation_info(context, GetFilters{});
+	auto translations = co_await getter.load_translations(context, GetFilters{});
 	REQUIRE_FALSE(translations.has_value());
 	CHECK(translations.error().code == RequestErrorCode::NotImplemented);
 
-	auto chapters = co_await getter.chapters_info(context, GetFilters{});
+	auto chapters = co_await getter.load_chapters(context, GetFilters{});
 	REQUIRE_FALSE(chapters.has_value());
 	CHECK(chapters.error().code == RequestErrorCode::NotImplemented);
 
-	auto related = co_await getter.related(context, GetFilters{});
+	auto related = co_await getter.load_related(context, GetFilters{});
 	REQUIRE_FALSE(related.has_value());
 	CHECK(related.error().code == RequestErrorCode::NotImplemented);
 
-	auto similar = co_await getter.similar(context, GetFilters{});
+	auto similar = co_await getter.load_similar(context, GetFilters{});
 	REQUIRE_FALSE(similar.has_value());
 	CHECK(similar.error().code == RequestErrorCode::NotImplemented);
 }

@@ -15,7 +15,7 @@ public:
 
 	aniparse::ParserInfo info() const override { return { .name = identifier_ }; }
 	std::string identifier() const override { return identifier_; }
-	aniparse::ParserCompatibilities compatibilities() const override { return {}; }
+	aniparse::ParserCapabilities capabilities() const override { return {}; }
 	bool valid_for_url(const aniparse::ParsedUrl&) const override { return true; }
 	void emplace_domains(aniparse::EmplaceDomainsContext& context) const override {
 		context.add_domain(domain_);

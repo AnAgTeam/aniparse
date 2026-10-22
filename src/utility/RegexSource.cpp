@@ -44,7 +44,7 @@ std::vector<std::string_view> named_groups_of(std::string_view pattern) {
 			++i;
 			continue;
 		}
-		// After "(?: lookbehinds (?<= / (?<! and comments (?# are not groups;
+		// After "(?: lookbehinds (?<= / (?<! and load_comments (?# are not groups;
 		// the named forms are (?<name>, (?'name', (?P<name>.
 		size_t name_begin = 0;
 		char close = '>';

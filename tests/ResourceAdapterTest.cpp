@@ -29,24 +29,24 @@ private:
 	std::vector<std::byte> bytes_;
 };
 
-class NullClient final : public aniparse::ClientContext {
+class NullClient final : public aniparse::HttpClient {
 public:
-	aniparse::NetworkRequestTask<aniparse::ResponseData> do_request(aniparse::ConfiguredGetRequest) override {
+	aniparse::NetworkRequestTask<aniparse::HttpResponse> do_request(aniparse::ConfiguredGetRequest) override {
 		co_return aniparse::make_response_error(aniparse::RequestErrorCode::NotImplemented, "");
 	}
-	aniparse::NetworkRequestTask<aniparse::ResponseData> do_request(aniparse::ConfiguredPostRequest) override {
+	aniparse::NetworkRequestTask<aniparse::HttpResponse> do_request(aniparse::ConfiguredPostRequest) override {
 		co_return aniparse::make_response_error(aniparse::RequestErrorCode::NotImplemented, "");
 	}
-	aniparse::NetworkRequestTask<aniparse::ResponseData> do_request(
+	aniparse::NetworkRequestTask<aniparse::HttpResponse> do_request(
 	    aniparse::ConfiguredPostMultipartRequest) override {
 		co_return aniparse::make_response_error(aniparse::RequestErrorCode::NotImplemented, "");
 	}
-	void apply_client_config(aniparse::ClientConfig) override {}
+	void apply_client_config(aniparse::HttpClientConfig) override {}
 	std::shared_ptr<aniparse::CookieJar> make_cookie_jar() override { return nullptr; }
 };
 
-aniparse::RequestorContext make_context() {
-	return aniparse::RequestorContext(std::make_shared<NullClient>(), nullptr,
+aniparse::RequestContext make_context() {
+	return aniparse::RequestContext(std::make_shared<NullClient>(), nullptr,
 	                                  std::make_shared<aniparse::ParserConfig>());
 }
 
@@ -73,7 +73,7 @@ public:
 	    : request_suffix_(std::move(request_suffix)), response_suffix_(response_suffix) {}
 
 	aniparse::NetworkRequestTask<aniparse::OpenedResource> open(
-	    aniparse::RequestorContext,
+	    aniparse::RequestContext,
 	    aniparse::ResourceContext resource) const override {
 		resource.resource.url += request_suffix_;
 		resource.resource.headers.set("X-Test", request_suffix_);

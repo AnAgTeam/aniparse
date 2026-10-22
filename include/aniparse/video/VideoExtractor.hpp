@@ -4,11 +4,11 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/ClientContext.hpp"
-#include "aniparse/Parser.hpp"
+#include "aniparse/runtime/RequestContext.hpp"
+#include "aniparse/source/Parser.hpp"
 #include "aniparse/detail/DomainStore.hpp"
-#include "aniparse/types/ParsedUrl.hpp"
-#include "aniparse/types/Video.hpp"
+#include "aniparse/net/ParsedUrl.hpp"
+#include "aniparse/video/VideoStream.hpp"
 
 #include <map>
 #include <memory>
@@ -86,9 +86,9 @@ struct VideoExtractor {
 	/**
 	 * @brief Declare the extractor's catalog-visible defaults into @p sink.
 	 *
-	 * The extractor counterpart of Parser::emplace_catalog: the volatile
+	 * The extractor counterpart of Parser::emplace_overrides: the volatile
 	 * catalog's authoring data comes from LIVE objects — the dumper hands each
-	 * registered extractor a CatalogSink and the extractor declares its pattern
+	 * registered extractor a OverridesSink and the extractor declares its pattern
 	 * sets (`sink.emplace_set<...Patterns>()`, strictly compiling every built-in
 	 * literal). Extractors fetch from the incoming URL's own origin, so they
 	 * declare no canonical base URL.
@@ -102,7 +102,7 @@ struct VideoExtractor {
 	 *         set's broken built-in literal likewise propagates (a programming
 	 *         error the dump must fail on)
 	 */
-	virtual void emplace_catalog([[maybe_unused]] CatalogSink& sink) const {}
+	virtual void emplace_overrides([[maybe_unused]] OverridesSink& sink) const {}
 	/**
 	 * @brief Decide whether this extractor handles one URL under a declared host.
 	 * @param url Parsed URL whose host already matched one of emplace_domains().
@@ -120,22 +120,22 @@ struct VideoExtractor {
 	 * both; a RequestError if the URL cannot be resolved.
 	 * @note A direct stream's request headers belong in VideoExtraction::headers.
 	 */
-	virtual NetworkRequestTask<VideoExtraction> extract(RequestorContext context, ParsedUrl url) const = 0;
+	virtual NetworkRequestTask<VideoExtraction> extract(RequestContext context, ParsedUrl url) const = 0;
 	/**
 	 * @brief A mirror view for this extractor: the volatile-catalog override
 	 * keyed by this extractor's identifier() (if any) combined with the @p builtin
 	 * fallback.
 	 *
-	 * Non-virtual; the extractor counterpart of RequestorContext::mirrors(). An
+	 * Non-virtual; the extractor counterpart of RequestContext::mirrors(). An
 	 * extractor carries no stamped ParserConfig, so it names its own stable
 	 * identifier() as the override key. Overrides keyed by extractor identifier
 	 * reach the extractor only when the consumer builds its context on a
-	 * ServiceState whose mirror holder carries the extractor mirror source.
+	 * RuntimeServices whose mirror holder carries the extractor mirror source.
 	 * @param context Request context holding the mirror snapshot.
 	 * @param builtin The extractor's built-in fallback base URLs.
 	 * @return The combined mirror view (@see Mirrors).
 	 */
-	[[nodiscard]] Mirrors mirrors(const RequestorContext& context,
+	[[nodiscard]] Mirrors mirrors(const RequestContext& context,
 	                              std::span<const std::string_view> builtin) const;
 	/**
 	 * @brief The base URL this extractor should fetch from.
@@ -148,16 +148,16 @@ struct VideoExtractor {
 	 * @param builtin The extractor's built-in fallback base URLs.
 	 * @return The first mirror's base URL, or an empty view when there is none.
 	 */
-	[[nodiscard]] std::string_view base_url(const RequestorContext& context,
+	[[nodiscard]] std::string_view base_url(const RequestContext& context,
 	                                         std::span<const std::string_view> builtin) const;
 	/**
 	 * @brief Build (cached) the pattern set @p T scoped to this extractor's
 	 * identifier, from the volatile-catalog regex source.
 	 *
-	 * The extractor counterpart of RequestorContext::patterns(): an extractor
+	 * The extractor counterpart of RequestContext::patterns(): an extractor
 	 * carries no stamped ParserConfig, so it names its own stable identifier() as
 	 * the override scope. Overrides reach the extractor only when the consumer
-	 * builds its context on a ServiceState whose pattern holder carries the
+	 * builds its context on a RuntimeServices whose pattern holder carries the
 	 * extractor pattern source.
 	 * @tparam T Pattern set type exposing `static T create(const RegexSource&)`.
 	 * @param context Request context holding the pattern snapshot.
@@ -165,9 +165,16 @@ struct VideoExtractor {
 	 * a concurrent catalog swap cannot free it underneath.
 	 */
 	template <class T>
-	[[nodiscard]] std::shared_ptr<const T> patterns(const RequestorContext& context) const {
+	[[nodiscard]] std::shared_ptr<const T> patterns(const RequestContext& context) const {
 		return context.patterns<T>(identifier());
 	}
+
+protected:
+	VideoExtractor() = default;
+	VideoExtractor(const VideoExtractor&) = default;
+	VideoExtractor(VideoExtractor&&) = default;
+	VideoExtractor& operator=(const VideoExtractor&) = default;
+	VideoExtractor& operator=(VideoExtractor&&) = default;
 };
 
 /**
@@ -340,7 +347,7 @@ public:
 	 * same caller-ownership convention as VideoExtractor::extract.
 	 */
 	[[nodiscard]] NetworkRequestTask<VideoExtraction> extract(
-	    RequestorContext context, ParsedUrl url, int max_depth = default_max_extraction_depth) const;
+	    RequestContext context, ParsedUrl url, int max_depth = default_max_extraction_depth) const;
 	/**
 	 * @brief Overload taking an unparsed URL string.
 	 *
@@ -356,7 +363,7 @@ public:
 	 * @note Same lifetime convention as the ParsedUrl overload.
 	 */
 	[[nodiscard]] NetworkRequestTask<VideoExtraction> extract(
-	    RequestorContext context, std::string url, int max_depth = default_max_extraction_depth) const;
+	    RequestContext context, std::string url, int max_depth = default_max_extraction_depth) const;
 
 private:
 	Domains domains_;

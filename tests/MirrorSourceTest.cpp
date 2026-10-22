@@ -5,10 +5,10 @@
  */
 #include "catch_amalgamated.hpp"
 
-#include <aniparse/net/Client.hpp>
-#include <aniparse/catalog/MirrorSource.hpp>
-#include <aniparse/Parser.hpp>
-#include <aniparse/manga/Manga.hpp>
+#include <aniparse/net/backends/curl/CurlHttpClient.hpp>
+#include <aniparse/source/overrides/MirrorSource.hpp>
+#include <aniparse/source/Parser.hpp>
+#include <aniparse/manga/MangaGetter.hpp>
 
 #include <array>
 #include <map>
@@ -23,17 +23,17 @@ using namespace std::string_view_literals;
 namespace {
 // The context resolves base URLs without touching the network, so this client
 // only needs to exist; its request paths are never taken.
-struct NullClient : ClientContext {
-	NetworkRequestTask<ResponseData> do_request(ConfiguredGetRequest) override {
+struct NullClient : HttpClient {
+	NetworkRequestTask<HttpResponse> do_request(ConfiguredGetRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	NetworkRequestTask<ResponseData> do_request(ConfiguredPostRequest) override {
+	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	NetworkRequestTask<ResponseData> do_request(ConfiguredPostMultipartRequest) override {
+	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	void apply_client_config(ClientConfig) override {}
+	void apply_client_config(HttpClientConfig) override {}
 	std::shared_ptr<CookieJar> make_cookie_jar() override { return nullptr; }
 };
 
@@ -151,50 +151,50 @@ TEST_CASE("MirrorSourceHolder defaults to a non-null empty source and swaps") {
 	CHECK(holder.get()->empty_source());
 }
 
-TEST_CASE("RequestorContext base_url falls back to the built-in when no mirror holder") {
+TEST_CASE("RequestContext base_url falls back to the built-in when no mirror holder") {
 	auto client = std::make_shared<NullClient>();
-	RequestorContext context(client, nullptr, config_for("ParserA", 1));
+	RequestContext context(client, nullptr, config_for("ParserA", 1));
 
 	CHECK(context.base_url(builtin) == "https://b.example"); // alt_link 1
 	CHECK(context.mirrors(builtin).count() == 2);
 }
 
-TEST_CASE("RequestorContext base_url uses the catalog override keyed by parser_id") {
-	auto services     = std::make_shared<ServiceState>();
+TEST_CASE("RequestContext base_url uses the catalog override keyed by parser_id") {
+	auto services     = std::make_shared<RuntimeServices>();
 	services->client  = std::make_shared<NullClient>();
 	services->mirrors = holder_with(OverrideMap{ { "ParserA", { "https://m0.example", "https://m1.example" } } });
 
 	// The parser with an override reads it (selection 1 -> second override mirror).
-	RequestorContext known(services, config_for("ParserA", 1));
+	RequestContext known(services, config_for("ParserA", 1));
 	CHECK(known.base_url(builtin) == "https://m1.example");
 	CHECK(known.mirrors(builtin).count() == 2);
 
 	// A parser with no override falls back to its built-in list.
-	RequestorContext unknown(services, config_for("OtherParser", 0));
+	RequestContext unknown(services, config_for("OtherParser", 0));
 	CHECK(unknown.base_url(builtin) == "https://a.example");
 }
 
-TEST_CASE("RequestorContext canonical_base_url uses the catalog override keyed by parser_id") {
-	auto services     = std::make_shared<ServiceState>();
+TEST_CASE("RequestContext canonical_base_url uses the catalog override keyed by parser_id") {
+	auto services     = std::make_shared<RuntimeServices>();
 	services->client  = std::make_shared<NullClient>();
 	services->mirrors = std::make_shared<MirrorSourceHolder>(
 	    profile_source(OverrideMap{}, CanonicalBaseMap{
 	                                                       { "ParserA", "https://frontend.example" },
 	                                                   }));
 
-	RequestorContext known(services, config_for("ParserA", 0));
+	RequestContext known(services, config_for("ParserA", 0));
 	CHECK(known.canonical_base_url("https://seed.example") == "https://frontend.example");
 
-	RequestorContext unknown(services, config_for("OtherParser", 0));
+	RequestContext unknown(services, config_for("OtherParser", 0));
 	CHECK(unknown.canonical_base_url("https://seed.example") == "https://seed.example");
 }
 
-TEST_CASE("RequestorContext snapshots mirrors at construction, immune to a later swap") {
-	auto services     = std::make_shared<ServiceState>();
+TEST_CASE("RequestContext snapshots mirrors at construction, immune to a later swap") {
+	auto services     = std::make_shared<RuntimeServices>();
 	services->client  = std::make_shared<NullClient>();
 	services->mirrors = holder_with(OverrideMap{ { "ParserA", { "https://old.example" } } });
 
-	RequestorContext live(services, config_for("ParserA", 0));
+	RequestContext live(services, config_for("ParserA", 0));
 	// Pin a view into the live context's snapshot BEFORE the swap.
 	std::string_view pinned = live.base_url(builtin);
 	CHECK(pinned == "https://old.example");
@@ -207,19 +207,19 @@ TEST_CASE("RequestorContext snapshots mirrors at construction, immune to a later
 	CHECK(pinned == "https://old.example");
 	// The live context keeps its snapshot; only a freshly built context sees the swap.
 	CHECK(live.base_url(builtin) == "https://old.example");
-	RequestorContext fresh(services, config_for("ParserA", 0));
+	RequestContext fresh(services, config_for("ParserA", 0));
 	CHECK(fresh.base_url(builtin) == "https://new.example");
 }
 
-TEST_CASE("RequestorContext snapshots canonical frontend origins at construction") {
-	auto services     = std::make_shared<ServiceState>();
+TEST_CASE("RequestContext snapshots canonical frontend origins at construction") {
+	auto services     = std::make_shared<RuntimeServices>();
 	services->client  = std::make_shared<NullClient>();
 	services->mirrors = std::make_shared<MirrorSourceHolder>(
 	    profile_source(OverrideMap{}, CanonicalBaseMap{
 	                                                       { "ParserA", "https://old.example" },
 	                                                   }));
 
-	RequestorContext live(services, config_for("ParserA", 0));
+	RequestContext live(services, config_for("ParserA", 0));
 	std::string_view pinned = live.canonical_base_url("https://seed.example");
 	CHECK(pinned == "https://old.example");
 
@@ -227,27 +227,27 @@ TEST_CASE("RequestorContext snapshots canonical frontend origins at construction
 
 	CHECK(pinned == "https://old.example");
 	CHECK(live.canonical_base_url("https://seed.example") == "https://old.example");
-	RequestorContext fresh(services, config_for("ParserA", 0));
+	RequestContext fresh(services, config_for("ParserA", 0));
 	CHECK(fresh.canonical_base_url("https://seed.example") == "https://new.example");
 }
 
 TEST_CASE("Parser::mirror_choices returns the built-in mirrors without a catalog override") {
 	MirrorProfile parser;
 	auto client = std::make_shared<NullClient>();
-	RequestorContext context(client, nullptr, config_for("MirrorParser", 0));
+	RequestContext context(client, nullptr, config_for("MirrorParser", 0));
 
 	CHECK(urls_of(parser.mirror_choices(context)) ==
 	      std::vector<std::string>{ "https://a.example", "https://b.example" });
 }
 
 TEST_CASE("Parser::mirror_choices reflects a catalog override keyed by parser id") {
-	auto services     = std::make_shared<ServiceState>();
+	auto services     = std::make_shared<RuntimeServices>();
 	services->client  = std::make_shared<NullClient>();
 	services->mirrors = holder_with(OverrideMap{
 	    { "MirrorParser", { "https://live1.example", "https://live2.example", "https://live3.example" } } });
 
 	MirrorProfile parser;
-	RequestorContext context(services, config_for("MirrorParser", 0));
+	RequestContext context(services, config_for("MirrorParser", 0));
 
 	// The picker now shows the live (overridden) mirrors, not the built-in list.
 	CHECK(urls_of(parser.mirror_choices(context)) ==
@@ -255,7 +255,7 @@ TEST_CASE("Parser::mirror_choices reflects a catalog override keyed by parser id
 }
 
 TEST_CASE("Profile mirrors and origins do not inherit another profile's overrides", "[profiles]") {
-    auto services = std::make_shared<ServiceState>();
+    auto services = std::make_shared<RuntimeServices>();
     services->client = std::make_shared<NullClient>();
     services->mirrors = std::make_shared<MirrorSourceHolder>(
         std::make_shared<const MirrorSource>(
@@ -269,17 +269,17 @@ TEST_CASE("Profile mirrors and origins do not inherit another profile's override
             }));
     auto config = config_for("Provider", 0);
     config->profile_id = "manga";
-    RequestorContext manga(services, config);
+    RequestContext manga(services, config);
     CHECK(manga.base_url(builtin) == "https://manga.example");
     CHECK(manga.canonical_base_url("https://seed.example") == "https://manga-front.example");
     auto anime_config = config_for("Provider", 0);
     anime_config->profile_id = "anime";
-    RequestorContext anime(services, anime_config);
+    RequestContext anime(services, anime_config);
     CHECK(anime.base_url(builtin) == "https://anime.example");
     CHECK(anime.canonical_base_url("https://seed.example") == "https://seed.example");
     auto main_config = config_for("Provider", 0);
     main_config->profile_id = "main";
-    RequestorContext main(services, main_config);
+    RequestContext main(services, main_config);
     CHECK(main.base_url(builtin) == builtin.front());
     CHECK(main.canonical_base_url("https://seed.example") == "https://seed.example");
 }

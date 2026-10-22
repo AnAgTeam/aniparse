@@ -2,30 +2,30 @@
  * Copyright (C) 2026 Toilettrauma
  */
 #include "CoroTest.hpp"
-#include "aniparse/catalog/content/Catalog.hpp"
-#include "aniparse/Parser.hpp"
-#include "aniparse/ParserStore.hpp"
+#include "aniparse/catalog/CatalogRootGetter.hpp"
+#include "aniparse/source/Parser.hpp"
+#include "aniparse/source/ParserStore.hpp"
 
 using namespace aniparse;
 
 namespace {
 
-struct NoNetwork : ClientContext {
-    NetworkRequestTask<ResponseData> do_request(ConfiguredGetRequest) override {
+struct NoNetwork : HttpClient {
+    NetworkRequestTask<HttpResponse> do_request(ConfiguredGetRequest) override {
         FAIL("Catalog and preview fixtures must not request the network");
         co_return make_response_error(RequestErrorCode::NetworkError, "unexpected request");
     }
-    NetworkRequestTask<ResponseData> do_request(ConfiguredPostRequest) override {
+    NetworkRequestTask<HttpResponse> do_request(ConfiguredPostRequest) override {
         co_return make_response_error(RequestErrorCode::NetworkError, "unexpected request");
     }
-    NetworkRequestTask<ResponseData> do_request(ConfiguredPostMultipartRequest) override {
+    NetworkRequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest) override {
         co_return make_response_error(RequestErrorCode::NetworkError, "unexpected request");
     }
-    void apply_client_config(ClientConfig) override {}
+    void apply_client_config(HttpClientConfig) override {}
     std::shared_ptr<CookieJar> make_cookie_jar() override { return nullptr; }
 };
 
-RequestorContext context() {
+RequestContext context() {
     return {std::make_shared<NoNetwork>(), nullptr, std::make_shared<ParserConfig>()};
 }
 
@@ -33,7 +33,7 @@ struct ReadingGetter : MangaGetter {
     bool has_preview = true;
     std::string catalog;
     explicit ReadingGetter(bool preview = true, std::string selected = {}) : has_preview(preview), catalog(std::move(selected)) {}
-    MangaGetterCompatibilities compatibilities() const noexcept override { return {}; }
+    MangaGetterCapabilities capabilities() const noexcept override { return {}; }
     std::optional<MangaInfo> preview_info() const noexcept override {
         if (!has_preview) return std::nullopt;
         MangaInfo info{};
@@ -42,24 +42,24 @@ struct ReadingGetter : MangaGetter {
         info.common.previews.push_back(Image{.url = "https://example.org/card.jpg"});
         return info;
     }
-    NetworkRequestTask<MangaInfo> info(RequestorContext) const override {
+    NetworkRequestTask<MangaInfo> load_info(RequestContext) const override {
         MangaInfo info{};
         info.id = 1;
         info.common.title = catalog + "Reading detail";
         info.common.previews.push_back(Image{.url = "https://example.org/detail.jpg"});
         co_return info;
     }
-    NetworkRequestTask<PageResults<MangaPage>> chapter_pages(RequestorContext, MangaChapterRef, GetFilters, std::optional<MangaTranslationID>) const override {
+    NetworkRequestTask<PageResults<MangaPage>> load_chapter_pages(RequestContext, MangaChapterRef, GetFilters, std::optional<MangaTranslationID>) const override {
         co_return PageResults<MangaPage>{};
     }
-    std::string canonical_url(RequestorContext) const override { return "https://example.org/manga/1"; }
+    std::string canonical_url(RequestContext) const override { return "https://example.org/manga/1"; }
     NetworkRequestTask<SerializedGetterData> serialize() const override { co_return SerializedGetterData{.url = "1"}; }
 };
 
 struct WatchingGetter : AnimeGetter {
     bool has_preview = true;
     explicit WatchingGetter(bool preview = true) : has_preview(preview) {}
-    AnimeGetterCompatibilities compatibilities() const noexcept override { return {}; }
+    AnimeGetterCapabilities capabilities() const noexcept override { return {}; }
     std::optional<AnimeInfo> preview_info() const noexcept override {
         if (!has_preview) return std::nullopt;
         AnimeInfo info{};
@@ -67,16 +67,16 @@ struct WatchingGetter : AnimeGetter {
         info.common.title = "Watching card";
         return info;
     }
-    NetworkRequestTask<AnimeInfo> info(RequestorContext) const override {
+    NetworkRequestTask<AnimeInfo> load_info(RequestContext) const override {
         AnimeInfo info{};
         info.id = 1;
         info.common.title = "Watching detail";
         co_return info;
     }
-    NetworkRequestTask<PageResults<VideoSource>> episode_sources(RequestorContext, AnimeEpisodeRef, GetFilters, std::optional<AnimeTrackID>) const override {
+    NetworkRequestTask<PageResults<VideoSource>> load_episode_sources(RequestContext, AnimeEpisodeRef, GetFilters, std::optional<AnimeTrackID>) const override {
         co_return PageResults<VideoSource>{};
     }
-    std::string canonical_url(RequestorContext) const override { return "https://example.org/anime/1"; }
+    std::string canonical_url(RequestContext) const override { return "https://example.org/anime/1"; }
     NetworkRequestTask<SerializedGetterData> serialize() const override { co_return SerializedGetterData{.url = "1"}; }
 };
 
@@ -91,7 +91,7 @@ struct MixedRoot : CatalogRootGetter {
     mutable unsigned calls = 0;
     bool invalid_result = false;
 
-    NetworkRequestTask<PageResults<CatalogEntry>> search_items(RequestorContext, SearchRequestQuery, GetFilters filters) const override {
+    NetworkRequestTask<PageResults<CatalogEntry>> search_items(RequestContext, SearchRequestQuery, GetFilters filters) const override {
         ++calls;
         std::vector<CatalogEntry> native;
         native.emplace_back(std::make_unique<ReadingGetter>());
@@ -112,24 +112,24 @@ struct MixedRoot : CatalogRootGetter {
         if (invalid_result) page.append(filters.from, CatalogEntry{});
         co_return page;
     }
-    NetworkRequestTask<PageResults<CatalogEntry>> latest_items(RequestorContext ctx, GetFilters filters) const override {
+    NetworkRequestTask<PageResults<CatalogEntry>> latest_items(RequestContext ctx, GetFilters filters) const override {
         if (scope().id != "mixed") co_return make_response_error(RequestErrorCode::NotImplemented, "This catalog has no recent feed");
         co_return co_await search_items(std::move(ctx), {}, filters);
     }
-    NetworkRequestTask<SearchCapabilities> search_support_for(RequestorContext) const override {
+    NetworkRequestTask<SearchCapabilities> load_search_capabilities_for(RequestContext) const override {
         SearchCapabilities support;
         support.supported_filters.emplace(scope().id, TextCapabilities{});
         co_return support;
     }
-    CatalogLatestSupport latest_support_for() const noexcept override {
-        CatalogLatestSupport support;
+    CatalogLatestCapabilities latest_capabilities_for() const noexcept override {
+        CatalogLatestCapabilities support;
         if (scope().id == "mixed") support.supported_sorts.emplace(scope().id, SortDescriptor{.ascending = true});
         return support;
     }
-    NetworkRequestTask<std::vector<SearchSuggestion>> suggest_items(RequestorContext, std::string, std::optional<std::string>) const override {
+    NetworkRequestTask<std::vector<SearchSuggestion>> suggest_items(RequestContext, std::string, std::optional<std::string>) const override {
         co_return std::vector<SearchSuggestion>{{.value = scope().id, .label = scope().name}};
     }
-    NetworkRequestTask<CatalogEntry> parse_entry_url(RequestorContext, ParsedUrl) const override {
+    NetworkRequestTask<CatalogEntry> parse_entry_url(RequestContext, ParsedUrl) const override {
         if (scope().id == "mixed") co_return paired_entry();
         if (scope().id == "watching") co_return std::make_unique<WatchingGetter>();
         co_return std::make_unique<ReadingGetter>(true, scope().id);
@@ -163,20 +163,20 @@ struct FixtureProvider : Parser {
         if (path.starts_with("/mixed/")) return {.scope_id = "mixed"};
         return {};
     }
-    std::vector<CatalogScope> scope_descriptors() const override {
-        std::vector<CatalogScope> result{
+    std::vector<CatalogInfo> scope_descriptors() const override {
+        std::vector<CatalogInfo> result{
             {.id = "reading", .name = "Reading", .kinds = catalog_kinds::manga, .capabilities = {.reading = true}},
             {.id = "other-reading", .name = "Another manga catalog", .kinds = catalog_kinds::manga},
             {.id = "watching", .name = "Watching", .kinds = catalog_kinds::anime, .capabilities = {.watching = true}},
             {.id = "mixed", .name = "Mixed", .kinds = catalog_kinds::manga | catalog_kinds::anime,
-                .capabilities = {.reading = true, .watching = true, .flags = compatibilities_flags::adult_source}},
+                .capabilities = {.reading = true, .watching = true, .flags = capabilities_flags::adult_source}},
         };
         if (omit_anime_metadata) result.back().kinds = catalog_kinds::manga;
         if (duplicate_ids) result.back().id = result.front().id;
         if (empty_id) result.front().id.clear();
         return result;
     }
-    std::unique_ptr<CatalogRootGetter> make_catalog_getter(CatalogScope scope) const override {
+    std::unique_ptr<CatalogRootGetter> make_catalog_getter(CatalogInfo scope) const override {
         ++creations;
         if (wrong_binding) scope.id = "another-catalog";
         return std::make_unique<MixedRoot>(std::move(scope));
@@ -205,10 +205,10 @@ TEST_CASE("Scope IDs select independent catalogues even when their kinds coincid
     CHECK_FALSE(provider.catalog_getter("unknown"));
     CHECK_FALSE(provider.catalog_getter(""));
     CHECK(provider.creations == 2);
-    auto summary = provider.compatibilities().flags;
-    CHECK(summary.has(compatibilities_flags::supports_manga_store));
-    CHECK(summary.has(compatibilities_flags::supports_anime_store));
-    CHECK(summary.has(compatibilities_flags::adult_source));
+    auto summary = provider.capabilities().flags;
+    CHECK(summary.has(capabilities_flags::supports_manga_store));
+    CHECK(summary.has(capabilities_flags::supports_anime_store));
+    CHECK(summary.has(capabilities_flags::adult_source));
 }
 
 TEST_CASE("Scope factories reject ambiguous identifiers and incorrect binding", "[content-catalog]") {
@@ -276,7 +276,7 @@ CORO_TEST_CASE("All catalog operations use the scope selected at construction", 
         CHECK(page->results[0].item.has(id == "reading" ? MediaKind::Manga : MediaKind::Anime));
         CHECK(page->results[1].item.manga);
         CHECK(page->results[1].item.anime);
-        auto filters = co_await root->search_support(context());
+        auto filters = co_await root->load_search_capabilities(context());
         REQUIRE(filters);
         CHECK(filters->supported_filters.contains(id));
         auto suggestions = co_await root->suggest(context(), "");
@@ -286,13 +286,13 @@ CORO_TEST_CASE("All catalog operations use the scope selected at construction", 
         auto denied = co_await root->latest(context(), {});
         REQUIRE_FALSE(denied);
         CHECK(denied.error().code == RequestErrorCode::NotImplemented);
-        CHECK(root->latest_support().supported_sorts.empty());
+        CHECK(root->latest_capabilities().supported_sorts.empty());
     }
     auto mixed = provider.catalog_getter("mixed");
     auto latest = co_await mixed->latest(context(), {});
     REQUIRE(latest);
     CHECK(latest->results.size() == 3);
-    CHECK(mixed->latest_support().supported_sorts.contains("mixed"));
+    CHECK(mixed->latest_capabilities().supported_sorts.contains("mixed"));
 }
 
 CORO_TEST_CASE("Scope kind and capability summaries never gate implemented operations", "[content-catalog]") {
@@ -308,12 +308,12 @@ CORO_TEST_CASE("Scope kind and capability summaries never gate implemented opera
     auto opened = co_await root->parse_url(context(), *ParsedUrl::parse("https://example.org/manga/1"));
     REQUIRE(opened);
     REQUIRE(opened->manga);
-    auto pages = co_await opened->manga->chapter_pages(context(), MangaChapterRef{}, {}, std::nullopt);
+    auto pages = co_await opened->manga->load_chapter_pages(context(), MangaChapterRef{}, {}, std::nullopt);
     REQUIRE(pages);
 }
 
 CORO_TEST_CASE("Empty cards fail without silently filtering a native page", "[content-catalog]") {
-    MixedRoot root{CatalogScope{.id = "mixed"}};
+    MixedRoot root{CatalogInfo{.id = "mixed"}};
     root.invalid_result = true;
     auto result = co_await root.search(context(), {}, {});
     REQUIRE_FALSE(result);
@@ -343,14 +343,14 @@ CORO_TEST_CASE("Scope and format disambiguate otherwise identical durable blobs"
     auto other = provider.catalog_getter("other-reading");
     auto restored = co_await other->from_serialized(*manga_id, MediaKind::Manga);
     REQUIRE(restored);
-    auto details = co_await restored->manga->info(context());
+    auto details = co_await restored->manga->load_info(context());
     REQUIRE(details);
     CHECK(details->common.title == "other-readingReading detail");
 }
 
 CORO_TEST_CASE("Detail metadata does not overwrite a listing preview", "[content-catalog]") {
     CatalogEntry entry{std::make_unique<ReadingGetter>()};
-    auto detail = co_await entry.manga->info(context());
+    auto detail = co_await entry.manga->load_info(context());
     REQUIRE(detail);
     CHECK(detail->common.previews.front().url == "https://example.org/detail.jpg");
     CHECK(entry.preview_info()->previews.front().url == "https://example.org/card.jpg");
@@ -375,7 +375,7 @@ CORO_TEST_CASE("URL routing selects catalog ID independently of the type hint", 
     auto entry = co_await root->parse_url(context(), std::move(second->url));
     REQUIRE(entry);
     REQUIRE(entry->manga);
-    auto info = co_await entry->manga->info(context());
+    auto info = co_await entry->manga->load_info(context());
     REQUIRE(info);
     CHECK(info->common.title == "other-readingReading detail");
     auto mixed = store.route_url("https://example.org/mixed/1");

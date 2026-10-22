@@ -2,8 +2,8 @@
  * Copyright (C) 2026 Toilettrauma
  */
 #pragma once
-#include "aniparse/types/Flags.hpp"
-#include "aniparse/types/Pagination.hpp"
+#include "aniparse/source/Capabilities.hpp"
+#include "aniparse/catalog/Pagination.hpp"
 
 #include <chrono>
 #include <cstddef>
@@ -82,7 +82,7 @@ using SupportedSearchFilters = std::map<std::string, SearchFilterCapabilities, s
 struct SearchCapabilities {
     SupportedSearchFilters supported_filters; ///< Accepted filter types and constraints.
     SupportedSorts supported_sorts; ///< Accepted sort keys and directions.
-    CompatibilitiesFlags compatibilities = compatibilities_flags::default_flags; ///< Search feature flags.
+    CapabilitiesFlags capabilities = capabilities_flags::default_flags; ///< Search feature flags.
     std::vector<std::string> supported_suggestion_kinds; ///< Accepted suggestion axes; empty means the default axis.
 };
 } // namespace aniparse

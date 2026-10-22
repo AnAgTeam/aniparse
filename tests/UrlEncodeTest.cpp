@@ -6,7 +6,7 @@
 #include "catch_amalgamated.hpp"
 
 #include <aniparse/utility/UrlEncode.hpp>
-#include <aniparse/types/Request.hpp>
+#include <aniparse/net/Request.hpp>
 
 using namespace aniparse;
 

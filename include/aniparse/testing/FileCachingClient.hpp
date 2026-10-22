@@ -4,14 +4,14 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/ClientContext.hpp"
+#include "aniparse/net/HttpClient.hpp"
 #include "aniparse/utility/Coroutines.hpp"
 
 // Only for the convenience default upstream (the real network = curl). Without
-// the curl backend, an upstream ClientContext must be injected explicitly, so
+// the curl backend, an upstream HttpClient must be injected explicitly, so
 // this decorator itself pulls in no HTTP backend.
 #if defined(ANIPARSE_CURL_BACKEND) && ANIPARSE_CURL_BACKEND
-#include "aniparse/net/Client.hpp"
+#include "aniparse/net/backends/curl/CurlHttpClient.hpp"
 #endif
 
 #include <cctype>
@@ -26,7 +26,7 @@
 namespace aniparse::testing {
 
 /**
- * @brief A ClientContext for examples and tests that caches responses on disk.
+ * @brief A HttpClient for examples and tests that caches responses on disk.
  *
  * A request whose (method-shaped) URL + params + body already has a file under
  * @c cache_dir is served straight from that file; otherwise the request is
@@ -36,9 +36,9 @@ namespace aniparse::testing {
  * limits). Cached responses are replayed as status 200 (only 2xx bodies are
  * stored), so it is a development aid, not a faithful transport recorder.
  */
-class FileCachingClient : public ClientContext {
+class FileCachingClient : public HttpClient {
 public:
-	FileCachingClient(std::filesystem::path cache_dir, std::shared_ptr<ClientContext> upstream)
+	FileCachingClient(std::filesystem::path cache_dir, std::shared_ptr<HttpClient> upstream)
 	    : cache_dir_(std::move(cache_dir)), upstream_(std::move(upstream)) {
 		std::filesystem::create_directories(cache_dir_);
 	}
@@ -46,10 +46,10 @@ public:
 #if defined(ANIPARSE_CURL_BACKEND) && ANIPARSE_CURL_BACKEND
 	// Convenience: default the upstream to the real network (curl backend).
 	explicit FileCachingClient(std::filesystem::path cache_dir)
-	    : FileCachingClient(std::move(cache_dir), std::make_shared<AsyncClient>()) {}
+	    : FileCachingClient(std::move(cache_dir), std::make_shared<CurlHttpClient>()) {}
 #endif
 
-	NetworkRequestTask<ResponseData> do_request(ConfiguredGetRequest request) override {
+	NetworkRequestTask<HttpResponse> do_request(ConfiguredGetRequest request) override {
 		// Compute the key BEFORE moving the request: argument evaluation order is
 		// unspecified, so name it in a sequenced statement to avoid reading a
 		// moved-from url.
@@ -57,17 +57,17 @@ public:
 		co_return co_await serve(std::move(name), std::move(request));
 	}
 
-	NetworkRequestTask<ResponseData> do_request(ConfiguredPostRequest request) override {
+	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostRequest request) override {
 		std::string name = cache_name(request.request.url, request.request.url_params, request.request.body);
 		co_return co_await serve(std::move(name), std::move(request));
 	}
 
-	NetworkRequestTask<ResponseData> do_request(ConfiguredPostMultipartRequest request) override {
+	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest request) override {
 		// Multipart bodies are not keyed; always go upstream.
 		co_return co_await upstream_->do_request(std::move(request));
 	}
 
-	void apply_client_config(ClientConfig config) override {
+	void apply_client_config(HttpClientConfig config) override {
 		upstream_->set_config(std::move(config));
 	}
 
@@ -77,10 +77,10 @@ public:
 
 private:
 	template <typename Configured>
-	NetworkRequestTask<ResponseData> serve(std::string name, Configured request) {
+	NetworkRequestTask<HttpResponse> serve(std::string name, Configured request) {
 		const std::filesystem::path file = cache_dir_ / name;
 		if (std::filesystem::exists(file)) {
-			co_return ResponseData{ .status_code = 200, .body = read_file(file) };
+			co_return HttpResponse{ .status_code = 200, .body = read_file(file) };
 		}
 		auto response = co_await upstream_->do_request(std::move(request));
 		if (response && response->status_code >= 200 && response->status_code < 300) {
@@ -122,7 +122,7 @@ private:
 	}
 
 	std::filesystem::path          cache_dir_;
-	std::shared_ptr<ClientContext> upstream_;
+	std::shared_ptr<HttpClient> upstream_;
 };
 
 } // namespace aniparse::testing

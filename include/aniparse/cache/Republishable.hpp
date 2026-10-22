@@ -35,8 +35,8 @@ namespace aniparse {
  *
  * // Seeded: snapshot() returns the seed until the first publish. A seed needs a
  * // build argument, so use the factory overload of get:
- * auto c = ctx.resources().get<Republishable<CatalogData>>(
- *     [] { return Republishable<CatalogData>{make_seed()}; });
+ * auto c = ctx.resources().get<Republishable<SourceOverrides>>(
+ *     [] { return Republishable<SourceOverrides>{make_seed()}; });
  * @endcode
  *
  * @note Thread safe. Concurrent @ref publish / @ref snapshot are safe (the cell's

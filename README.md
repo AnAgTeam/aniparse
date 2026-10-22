@@ -84,16 +84,16 @@ Want one of these sooner — or a source we don't cover yet? Issues and PRs are 
 Fetch a page and parse it as HTML — the client is backend-neutral, a parser never sees curl:
 
 ```cpp
-#include <aniparse/net/Client.hpp>
-#include <aniparse/ClientContext.hpp>
+#include <aniparse/net/backends/curl/CurlHttpClient.hpp>
+#include <aniparse/runtime/RequestContext.hpp>
 #include <coro/sync_wait.hpp>
 #include <print>
 
 using namespace aniparse;
 
 int main() {
-    auto client = std::make_shared<AsyncClient>();
-    RequestorContext ctx(client, nullptr, nullptr);
+    auto client = std::make_shared<CurlHttpClient>();
+    RequestContext ctx(client, nullptr, nullptr);
 
     // request_html: fetch + status check + parse, all in one expected value.
     auto page = coro::sync_wait(ctx.request_html(GetRequest{ .url = "https://example.com" }));
@@ -109,7 +109,7 @@ To write your own source, copy the [parser skeleton](examples/example_manga_pars
 
 ## How it works
 
-A **`Parser`** registers the domains it handles and exposes getters (e.g. `CatalogRootGetter`) that fetch and parse content. Getters run through a **`RequestorContext`**, which carries the parser's config, cookies and logger and sits on top of a backend-neutral **`ClientContext`** (curl today). Parsers only ever touch neutral request/response types — so the HTTP backend can be replaced without changing a single parser.
+A **`Parser`** registers the domains it handles and exposes getters (e.g. `CatalogRootGetter`) that fetch and parse content. Getters run through a **`RequestContext`**, which carries the parser's config, cookies and logger and sits on top of a backend-neutral **`HttpClient`** (curl today). Parsers only ever touch neutral request/response types — so the HTTP backend can be replaced without changing a single parser.
 
 ---
 

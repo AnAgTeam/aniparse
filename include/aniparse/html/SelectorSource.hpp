@@ -134,6 +134,12 @@ public:
 	 */
 	[[nodiscard]] std::shared_ptr<const SelectorSource> scoped_to(std::string_view parser_id) const;
 
+protected:
+	SelectorSource(const SelectorSource&) = default;
+	SelectorSource(SelectorSource&&) = default;
+	SelectorSource& operator=(const SelectorSource&) = default;
+	SelectorSource& operator=(SelectorSource&&) = default;
+
 private:
 	Overrides overrides_;
 	ScopedOverrides scoped_;

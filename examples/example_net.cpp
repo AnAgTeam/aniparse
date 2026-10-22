@@ -6,16 +6,16 @@
 // example_net — the networking half of the toolkit. It makes real HTTP requests
 // through the default curl-backed client and shows the three ways a parser
 // reaches the network:
-//   - context.request()      -> raw ResponseData (status, headers, effective_url, body)
+//   - context.request()      -> raw HttpResponse (status, headers, effective_url, body)
 //   - context.request_html() -> a parsed HTML document (fetch + status check + parse)
 //   - context.request_json() -> a parsed JSON value
-// Everything above the client is backend-neutral: swap AsyncClient for another
-// ClientContext (e.g. an NSURLSession-backed one) and this code is unchanged.
+// Everything above the client is backend-neutral: swap CurlHttpClient for another
+// HttpClient (e.g. an NSURLSession-backed one) and this code is unchanged.
 //
 // Unlike example_parse this one needs network access; each call reports its own
 // error through the expected channel, so a failure just prints and moves on.
-#include <aniparse/net/Client.hpp>
-#include <aniparse/ClientContext.hpp>
+#include <aniparse/net/backends/curl/CurlHttpClient.hpp>
+#include <aniparse/runtime/RequestContext.hpp>
 #include <aniparse/html/HTMLDocument.hpp>
 
 #include <boost/json.hpp>
@@ -26,10 +26,10 @@
 using namespace aniparse;
 
 int main() {
-	// The default client is curl-backed. Wrapping it in a RequestorContext is all
+	// The default client is curl-backed. Wrapping it in a RequestContext is all
 	// a parser ever sees; no logger or config is needed for a plain request.
-	auto client = std::make_shared<AsyncClient>();
-	RequestorContext context(client, nullptr, nullptr);
+	auto client = std::make_shared<CurlHttpClient>();
+	RequestContext context(client, nullptr, nullptr);
 
 	// 1. Raw request: the escape hatch for the low-level response. Note that the
 	//    status, response headers and effective_url are all available here.

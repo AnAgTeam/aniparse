@@ -1,7 +1,7 @@
 aniparse {#mainpage}
 ========
 
-**C++20 library for parsing anime, manga, images and video.**
+**C++23 library for parsing anime, manga, images and video.**
 
 These pages are the API reference, generated from the headers. For building,
 installing and the project overview, see the
@@ -9,6 +9,8 @@ installing and the project overview, see the
 
 @warning The library is in an early stage of development; the API may change
 substantially.
+
+See @subpage architecture for the header layout, dependency boundaries and naming rules.
 
 ## The shape of it
 
@@ -22,8 +24,8 @@ and exposes *getters* — the objects that actually fetch and parse:
 - **aniparse::ImagesGetter** — the separate image-container catalog API.
 
 Getters never talk to the network directly. They run through a
-**aniparse::RequestorContext**, which carries the parser's config, cookies and
-logger, and sits on a backend-neutral **aniparse::ClientContext**. A parser only
+**aniparse::RequestContext**, which carries the parser's config, cookies and
+logger, and sits on a backend-neutral **aniparse::HttpClient**. A parser only
 ever touches neutral request/response types — so the HTTP backend is swappable
 without changing a single parser.
 
@@ -35,7 +37,7 @@ it a URL and it resolves which parser owns it and what kind of content it is.
 | If you want to… | Start at |
 |---|---|
 | Write a new source | aniparse::Parser, then aniparse::CatalogRootGetter |
-| Issue requests | aniparse::RequestorContext — `request`, `request_html`, `request_json` |
+| Issue requests | aniparse::RequestContext — `request`, `request_html`, `request_json` |
 | Handle failures | aniparse::RequestError and aniparse::RequestErrorCode |
 | Pull data out of HTML | aniparse::html::HTMLDocument, aniparse::html::DOMElementView |
 | Pull data out of JSON | aniparse/json/Json.hpp — field lookups that never throw |
@@ -47,8 +49,8 @@ it a URL and it resolves which parser owns it and what kind of content it is.
 Requests do not throw for I/O or HTTP failures. `request_html` / `request_json`
 fold every such failure into an `expected` value carrying an
 aniparse::RequestError — so a parser stays in the error channel rather than
-unwinding. Exceptions are reserved for programming errors (e.g. calling a getter
-a parser never implemented, which raises aniparse::NotImplementedError).
+unwinding. Exceptions are reserved for programming errors such as invalid parser declarations.
+Unsupported optional getter operations return `RequestErrorCode::NotImplemented`.
 
 ## Examples
 

@@ -2,8 +2,8 @@
  * Copyright (C) 2026 Toilettrauma
  */
 #include "catch_amalgamated.hpp"
-#include <aniparse/Parser.hpp>
-#include <aniparse/catalog/content/Catalog.hpp>
+#include <aniparse/source/Parser.hpp>
+#include <aniparse/catalog/CatalogRootGetter.hpp>
 
 using namespace aniparse;
 
@@ -23,7 +23,7 @@ public:
 	void emplace_domains(EmplaceDomainsContext&) const override {}
 	std::vector<ProfileInfo> descriptors{{"shared", "Account"}, {"separate", "Other account"}};
 	std::vector<ProfileInfo> profile_descriptors() const override { return descriptors; }
-	std::vector<CatalogScope> scope_descriptors() const override {
+	std::vector<CatalogInfo> scope_descriptors() const override {
 		return {
 			{.id = "manga", .kinds = catalog_kinds::manga, .profile_id = "shared"},
 			{.id = "anime", .kinds = catalog_kinds::anime, .profile_id = "shared"},
@@ -34,7 +34,7 @@ protected:
 	std::unique_ptr<ParserProfile> make_profile(ProfileInfo info) const override {
 		return std::make_unique<TestProfile>(identifier(), std::move(info));
 	}
-	std::unique_ptr<CatalogRootGetter> make_catalog_getter(CatalogScope scope) const override {
+	std::unique_ptr<CatalogRootGetter> make_catalog_getter(CatalogInfo scope) const override {
 		return std::make_unique<CatalogRootGetter>(std::move(scope));
 	}
 };
@@ -110,7 +110,7 @@ TEST_CASE("Factory validation distinguishes unknown IDs from broken declared fac
             if (wrong_profile_id) info.id = "wrong";
             return ProfileParser::make_profile(std::move(info));
         }
-        std::unique_ptr<CatalogRootGetter> make_catalog_getter(CatalogScope scope) const override {
+        std::unique_ptr<CatalogRootGetter> make_catalog_getter(CatalogInfo scope) const override {
             if (null_catalog) return nullptr;
             if (wrong_catalog_id) scope.id = "wrong";
             if (wrong_catalog_profile) scope.profile_id = "separate";
@@ -146,9 +146,9 @@ TEST_CASE("Factory validation distinguishes unknown IDs from broken declared fac
 TEST_CASE("Scopes permit sources without catalogs and reject malformed descriptors early", "[profiles]") {
     class DescriptorParser final : public ProfileParser {
     public:
-        std::vector<CatalogScope> catalogs;
+        std::vector<CatalogInfo> catalogs;
     protected:
-        std::vector<CatalogScope> scope_descriptors() const override { return catalogs; }
+        std::vector<CatalogInfo> scope_descriptors() const override { return catalogs; }
     } parser;
     CHECK(parser.scopes().empty());
     SECTION("empty scope ID") {

@@ -5,14 +5,14 @@
  */
 // example_parse — the parsing half of the toolkit, with no network involved.
 // It loads a saved HTML page from disk and pulls structured data out of it:
-//   - CSS selectors kept in a set and cached through RequestorContext::resources(),
+//   - CSS selectors kept in a set and cached through RequestContext::resources(),
 //     exactly the way a getter reuses them
 //   - element text and attributes
 //   - a JS array embedded in a <script>, extracted as JSON
 // Pair it with example_net, which shows how such a page is fetched in the first
 // place. Keeping the input on disk makes this example deterministic and offline.
 #include "ExampleClient.hpp"
-#include <aniparse/ClientContext.hpp>
+#include <aniparse/runtime/RequestContext.hpp>
 #include <aniparse/cache/ResourceCache.hpp>
 #include <aniparse/html/HTMLParser.hpp>
 #include <aniparse/html/DOMElement.hpp>
@@ -57,9 +57,9 @@ struct CardSelectors {
 };
 
 // Extract the card list from a parsed page. Shaped like a getter method: it takes
-// a RequestorContext and pulls its selectors from the shared cache rather than
+// a RequestContext and pulls its selectors from the shared cache rather than
 // compiling them locally — so every call reuses the same compiled set.
-static void extract_cards(RequestorContext context, const HTMLDocument& document) {
+static void extract_cards(RequestContext context, const HTMLDocument& document) {
 	auto selectors = context.resources().get<CardSelectors>();
 
 	if (auto title = document.query(selectors->title)) {
@@ -107,10 +107,10 @@ int main() {
 	}
 	HTMLDocument& document = *document_result;
 
-	// A RequestorContext is what a parser's getters receive; here we build one only
+	// A RequestContext is what a parser's getters receive; here we build one only
 	// to reach its selector cache via resources(). No request is made — the HTML
 	// already came from the fixture on disk.
-	RequestorContext context(examples::make_client(), nullptr, nullptr);
+	RequestContext context(examples::make_client(), nullptr, nullptr);
 	extract_cards(context, document);
 
 	// Many sites ship data as a JS literal rather than as markup. parse_json_var

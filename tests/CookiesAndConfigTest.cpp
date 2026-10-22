@@ -4,7 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #include "catch_amalgamated.hpp"
-#include <aniparse/net/Client.hpp>
+#include <aniparse/net/backends/curl/CurlHttpClient.hpp>
 
 using namespace aniparse;
 
@@ -15,7 +15,7 @@ std::vector<std::string> test_curl_cookies = {
 };
 
 TEST_CASE("Cookies empty serialize") {
-	AsyncClient client;
+	CurlHttpClient client;
 	auto cookie_jar = client.make_cookie_jar();
 
 	auto serialized_cookies = cookie_jar->serialize();
@@ -23,7 +23,7 @@ TEST_CASE("Cookies empty serialize") {
 }
 
 TEST_CASE("Cookies serialize/deserialize") {
-	AsyncClient client;
+	CurlHttpClient client;
 	auto cookie_jar = client.make_cookie_jar();
 
 	cookie_jar->deserialize(test_curl_cookies);
@@ -34,7 +34,7 @@ TEST_CASE("Cookies serialize/deserialize") {
 }
 
 TEST_CASE("Cookies find_cookie returns value by name") {
-	AsyncClient client;
+	CurlHttpClient client;
 	auto cookie_jar = client.make_cookie_jar();
 
 	cookie_jar->deserialize(test_curl_cookies);
@@ -45,7 +45,7 @@ TEST_CASE("Cookies find_cookie returns value by name") {
 }
 
 TEST_CASE("Cookies find_cookie parses metadata") {
-	AsyncClient client;
+	CurlHttpClient client;
 	auto cookie_jar = client.make_cookie_jar();
 
 	cookie_jar->deserialize(test_curl_cookies);
@@ -65,7 +65,7 @@ TEST_CASE("Cookies find_cookie parses metadata") {
 }
 
 TEST_CASE("Cookies enumerates all") {
-	AsyncClient client;
+	CurlHttpClient client;
 	auto cookie_jar = client.make_cookie_jar();
 
 	cookie_jar->deserialize(test_curl_cookies);
@@ -74,7 +74,7 @@ TEST_CASE("Cookies enumerates all") {
 }
 
 TEST_CASE("Cookies set_cookie round-trips through find_cookie") {
-	AsyncClient client;
+	CurlHttpClient client;
 	auto cookie_jar = client.make_cookie_jar();
 
 	Cookie cookie{
@@ -93,7 +93,7 @@ TEST_CASE("Cookies set_cookie round-trips through find_cookie") {
 }
 
 TEST_CASE("Cookies find_cookie missing returns nullopt") {
-	AsyncClient client;
+	CurlHttpClient client;
 	auto cookie_jar = client.make_cookie_jar();
 
 	cookie_jar->deserialize(test_curl_cookies);
@@ -102,14 +102,14 @@ TEST_CASE("Cookies find_cookie missing returns nullopt") {
 }
 
 TEST_CASE("Cookies find_cookie on empty jar returns nullopt") {
-	AsyncClient client;
+	CurlHttpClient client;
 	auto cookie_jar = client.make_cookie_jar();
 
 	REQUIRE(cookie_jar->find_cookie("session") == std::nullopt);
 }
 
 TEST_CASE("Cookies serialize and check empty") {
-	AsyncClient client;
+	CurlHttpClient client;
 	auto cookie_jar = client.make_cookie_jar();
 
 	cookie_jar->deserialize(test_curl_cookies);

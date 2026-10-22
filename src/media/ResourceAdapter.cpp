@@ -75,7 +75,7 @@ public:
 	explicit ComposedResourceAdapter(std::vector<std::shared_ptr<const ResourceAdapter>> adapters)
 	    : adapters_(std::move(adapters)) {}
 
-	NetworkRequestTask<OpenedResource> open(RequestorContext context, ResourceContext resource) const override {
+	NetworkRequestTask<OpenedResource> open(RequestContext context, ResourceContext resource) const override {
 		ResourceContext current = std::move(resource);
 		std::vector<std::unique_ptr<ResourceHandle>> handles;
 		for (const std::shared_ptr<const ResourceAdapter>& adapter : adapters_) {

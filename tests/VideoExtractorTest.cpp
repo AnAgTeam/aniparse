@@ -22,7 +22,7 @@ struct TestExtractor final : aniparse::VideoExtractor {
 		return url.path().starts_with(path_prefix_);
 	}
 	aniparse::NetworkRequestTask<aniparse::VideoExtraction> extract(
-	    aniparse::RequestorContext,
+	    aniparse::RequestContext,
 	    aniparse::ParsedUrl) const override {
 		co_return outcome;
 	}
@@ -35,22 +35,22 @@ struct TestExtractor final : aniparse::VideoExtractor {
 
 // The stub extractors never touch the context, so this client only needs to
 // exist; its request paths are never taken.
-struct NullClient final : aniparse::ClientContext {
-	aniparse::NetworkRequestTask<aniparse::ResponseData> do_request(aniparse::ConfiguredGetRequest) override {
+struct NullClient final : aniparse::HttpClient {
+	aniparse::NetworkRequestTask<aniparse::HttpResponse> do_request(aniparse::ConfiguredGetRequest) override {
 		co_return aniparse::make_response_error(aniparse::RequestErrorCode::NotImplemented, "");
 	}
-	aniparse::NetworkRequestTask<aniparse::ResponseData> do_request(aniparse::ConfiguredPostRequest) override {
+	aniparse::NetworkRequestTask<aniparse::HttpResponse> do_request(aniparse::ConfiguredPostRequest) override {
 		co_return aniparse::make_response_error(aniparse::RequestErrorCode::NotImplemented, "");
 	}
-	aniparse::NetworkRequestTask<aniparse::ResponseData> do_request(aniparse::ConfiguredPostMultipartRequest) override {
+	aniparse::NetworkRequestTask<aniparse::HttpResponse> do_request(aniparse::ConfiguredPostMultipartRequest) override {
 		co_return aniparse::make_response_error(aniparse::RequestErrorCode::NotImplemented, "");
 	}
-	void apply_client_config(aniparse::ClientConfig) override {}
+	void apply_client_config(aniparse::HttpClientConfig) override {}
 	std::shared_ptr<aniparse::CookieJar> make_cookie_jar() override { return nullptr; }
 };
 
-aniparse::RequestorContext make_context() {
-	return aniparse::RequestorContext(std::make_shared<NullClient>(), nullptr,
+aniparse::RequestContext make_context() {
+	return aniparse::RequestContext(std::make_shared<NullClient>(), nullptr,
 	                                  std::make_shared<aniparse::ParserConfig>());
 }
 
@@ -61,7 +61,7 @@ aniparse::VideoStream test_stream(std::string url, int quality) {
 class NoopAdapter final : public aniparse::ResourceAdapter {
 public:
 	aniparse::NetworkRequestTask<aniparse::OpenedResource> open(
-	    aniparse::RequestorContext,
+	    aniparse::RequestContext,
 	    aniparse::ResourceContext resource) const override {
 		co_return aniparse::OpenedResource{
 		    .request = {
@@ -143,10 +143,10 @@ TEST_CASE("VideoExtractor mirrors resolve the catalog override by extractor iden
 	using namespace aniparse;
 	TestExtractor extractor("Video", "video.example", "/");
 
-	auto services = std::make_shared<ServiceState>();
+	auto services = std::make_shared<RuntimeServices>();
 	services->client = std::make_shared<NullClient>();
 	services->mirrors = std::make_shared<MirrorSourceHolder>();
-	RequestorContext context(services, std::make_shared<ParserConfig>());
+	RequestContext context(services, std::make_shared<ParserConfig>());
 
 	static constexpr std::string_view builtin[] = { "https://video.example" };
 	// No override yet: the built-in list wins.
@@ -158,7 +158,7 @@ TEST_CASE("VideoExtractor mirrors resolve the catalog override by extractor iden
 
 	// The mirror snapshot is taken at context construction, so the swapped source
 	// is seen through a context built after the swap.
-	RequestorContext updated(services, std::make_shared<ParserConfig>());
+	RequestContext updated(services, std::make_shared<ParserConfig>());
 	auto view = extractor.mirrors(updated, builtin);
 	CHECK(view.count() == 2);
 	CHECK(extractor.base_url(updated, builtin) == "https://live.example");

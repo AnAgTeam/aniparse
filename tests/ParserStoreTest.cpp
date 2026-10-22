@@ -4,7 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #include "catch_amalgamated.hpp"
-#include <aniparse/ParserStore.hpp>
+#include <aniparse/source/ParserStore.hpp>
 
 struct TestParser : aniparse::Parser {
 
@@ -20,9 +20,9 @@ struct TestParser : aniparse::Parser {
 		return !url.host().starts_with("aaa.");
 	}
 
-	aniparse::ParserCompatibilities compatibilities() const override {
+	aniparse::ParserCapabilities capabilities() const override {
 		return {
-			.flags = aniparse::compatibilities_flags::supports_anime_store
+			.flags = aniparse::capabilities_flags::supports_anime_store
 		};
 	}
 
@@ -38,7 +38,7 @@ struct NamedParser : aniparse::Parser {
 	explicit NamedParser(std::string id) : id_(std::move(id)) {}
 	aniparse::ParserInfo info() const override { return { .name = id_ }; }
 	std::string identifier() const override { return id_; }
-	aniparse::ParserCompatibilities compatibilities() const override { return {}; }
+	aniparse::ParserCapabilities capabilities() const override { return {}; }
 	void emplace_domains(aniparse::EmplaceDomainsContext&) const override {}
 	std::string id_;
 };
@@ -47,7 +47,7 @@ struct CountingDomainsParser : aniparse::Parser {
 	aniparse::ParserInfo info() const override { return { .name = "Counting" }; }
 	std::string identifier() const override { return "CountingDomains"; }
 	bool valid_for_url(const aniparse::ParsedUrl&) const override { return true; }
-	aniparse::ParserCompatibilities compatibilities() const override { return {}; }
+	aniparse::ParserCapabilities capabilities() const override { return {}; }
 	void emplace_domains(aniparse::EmplaceDomainsContext& context) const override {
 		++calls;
 		context.add_domain("static.example");

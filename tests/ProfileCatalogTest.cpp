@@ -2,7 +2,7 @@
  * Copyright (C) 2026 Toilettrauma
  */
 #include "catch_amalgamated.hpp"
-#include <aniparse/catalog/CatalogManager.hpp>
+#include <aniparse/source/overrides/SourceOverridesManager.hpp>
 
 #include <array>
 #include <boost/json.hpp>
@@ -18,17 +18,17 @@ struct Verifier : SignatureVerifier {
 	}
 };
 
-struct NoNetwork : ClientContext {
-	NetworkRequestTask<ResponseData> do_request(ConfiguredGetRequest) override {
+struct NoNetwork : HttpClient {
+	NetworkRequestTask<HttpResponse> do_request(ConfiguredGetRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	NetworkRequestTask<ResponseData> do_request(ConfiguredPostRequest) override {
+	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	NetworkRequestTask<ResponseData> do_request(ConfiguredPostMultipartRequest) override {
+	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	void apply_client_config(ClientConfig) override {}
+	void apply_client_config(HttpClientConfig) override {}
 	std::shared_ptr<CookieJar> make_cookie_jar() override { return nullptr; }
 };
 
@@ -54,8 +54,8 @@ std::shared_ptr<ParserConfig> config(std::string profile, std::string parser = "
 	result->profile_id = std::move(profile);
 	return result;
 }
-std::shared_ptr<ServiceState> services() {
-	auto result = std::make_shared<ServiceState>();
+std::shared_ptr<RuntimeServices> services() {
+	auto result = std::make_shared<RuntimeServices>();
 	result->client = std::make_shared<NoNetwork>();
 	result->mirrors = std::make_shared<MirrorSourceHolder>();
 	return result;
@@ -64,14 +64,14 @@ std::shared_ptr<ServiceState> services() {
 
 TEST_CASE("Signed catalog decodes profiles and ignores obsolete parser-wide origins", "[profile-catalog]") {
 	Verifier verifier;
-	auto decoded = decode_catalog(payload, "signature", verifier);
+	auto decoded = decode_overrides(payload, "signature", verifier);
 	REQUIRE(decoded);
 	CHECK(verifier.verified_payload == payload);
-	CHECK(decoded->profile_mirrors.at({"Example", "main"}).front() == "https://main-api.example");
-	CHECK(decoded->profile_mirrors.at({"Example", "reader"}).front() == "https://reader-api.example");
-	CHECK(decoded->profile_canonical_base_urls.at({"Example", "reader"}) == "https://reader-front.example");
-	CHECK(decoded->profile_mirrors.size() == 2);
-	CHECK(decoded->profile_canonical_base_urls.size() == 2);
+	CHECK((*decoded->profiles.at({"Example", "main"}).mirrors).front() == "https://main-api.example");
+	CHECK((*decoded->profiles.at({"Example", "reader"}).mirrors).front() == "https://reader-api.example");
+	CHECK((*decoded->profiles.at({"Example", "reader"}).canonical_base_url) == "https://reader-front.example");
+	CHECK(decoded->profiles.size() == 2);
+	CHECK_FALSE(decoded->profiles.contains({"Example", "empty"}));
 }
 
 TEST_CASE("Malformed profile fields reject the signed catalog", "[profile-catalog]") {
@@ -84,23 +84,23 @@ TEST_CASE("Malformed profile fields reject the signed catalog", "[profile-catalo
 	    R"({"profiles":{"p":{"canonical_base_url":""}}})"}) {
 		INFO(fields);
 		const auto text = std::string(R"({"schema_version":1,"revision":1,"parsers":{"Example":)") + fields + "}}";
-		auto decoded = decode_catalog(text, "signature", verifier);
+		auto decoded = decode_overrides(text, "signature", verifier);
 		REQUIRE_FALSE(decoded);
-		CHECK(decoded.error() == CatalogError::BadFormat);
+		CHECK(decoded.error() == OverridesError::BadFormat);
 	}
 }
 
-TEST_CASE("CatalogManager applies isolated profile settings and keeps old snapshots", "[profile-catalog]") {
+TEST_CASE("SourceOverridesManager applies isolated profile settings and keeps old snapshots", "[profile-catalog]") {
 	ParserStore store;
 	Verifier verifier;
 	auto state = services();
-	CatalogManager manager(store, verifier, state);
-	RequestorContext before(state, config("reader"));
+	SourceOverridesManager manager(store, verifier, state);
+	RequestContext before(state, config("reader"));
 	REQUIRE(manager.apply(payload, "signature"));
-	RequestorContext main(state, config("main"));
-	RequestorContext reader(state, config("reader"));
-	RequestorContext other(state, config("other"));
-	RequestorContext foreign(state, config("reader", "OtherParser"));
+	RequestContext main(state, config("main"));
+	RequestContext reader(state, config("reader"));
+	RequestContext other(state, config("other"));
+	RequestContext foreign(state, config("reader", "OtherParser"));
 	CHECK(before.base_url(builtin) == builtin.front());
 	CHECK(main.base_url(builtin) == "https://main-api.example");
 	CHECK(main.canonical_base_url("https://builtin-front.example") == "https://main-front.example");
@@ -123,7 +123,7 @@ TEST_CASE("CatalogManager applies isolated profile settings and keeps old snapsh
 	CHECK(manager.revision() == 7);
 	verifier.accepted = true;
 	REQUIRE(manager.apply(newer, "signature"));
-	RequestorContext fresh(state, config("reader"));
+	RequestContext fresh(state, config("reader"));
 	CHECK(fresh.base_url(builtin) == "https://new-reader-api.example");
 	CHECK(reader.base_url(builtin) == "https://reader-api.example");
 
@@ -135,7 +135,7 @@ TEST_CASE("CatalogManager applies isolated profile settings and keeps old snapsh
 	CHECK(state->mirrors->get() == pinned);
 	CHECK(manager.revision() == 8);
 	manager.reset();
-	RequestorContext reset(state, config("reader"));
+	RequestContext reset(state, config("reader"));
 	CHECK(reset.base_url(builtin) == builtin.front());
 	CHECK(reset.canonical_base_url("https://builtin-front.example") == "https://builtin-front.example");
 	CHECK(fresh.base_url(builtin) == "https://new-reader-api.example");
@@ -146,18 +146,35 @@ TEST_CASE("Obsolete parser-wide origins are ignored and empty profile mirrors us
 	ParserStore store;
 	Verifier verifier;
 	auto state = services();
-	CatalogManager manager(store, verifier, state);
+	SourceOverridesManager manager(store, verifier, state);
 	REQUIRE(manager.apply(R"({"schema_version":1,"revision":1,"parsers":{"Example":{
 	    "mirrors":["https://legacy.example"],"canonical_base_url":"https://legacy-front.example"}}})", "signature"));
-	RequestorContext legacy(state, config("main"));
+	RequestContext legacy(state, config("main"));
 	CHECK(legacy.base_url(builtin) == builtin.front());
 	CHECK(legacy.canonical_base_url("https://builtin-front.example") == "https://builtin-front.example");
 	REQUIRE(manager.apply(R"({"schema_version":1,"revision":2,"parsers":{"Example":{
 	    "mirrors":["https://legacy.example"],"profiles":{"main":{"mirrors":[]}}}}})", "signature"));
-	RequestorContext cleared(state, config("main"));
+	RequestContext cleared(state, config("main"));
 	CHECK(cleared.base_url(builtin) == builtin.front());
 	CHECK(legacy.base_url(builtin) == builtin.front());
-	RequestorContext unstamped(state, config(""));
+	RequestContext unstamped(state, config(""));
 	CHECK(unstamped.base_url(builtin) == builtin.front());
 	CHECK(unstamped.canonical_base_url("https://builtin-front.example") == "https://builtin-front.example");
+}
+
+TEST_CASE("Profile overrides preserve independent absent and empty channels", "[profile-catalog]") {
+    Verifier verifier;
+    const auto text = R"({"schema_version":1,"revision":1,"parsers":{"Example":{"profiles":{
+        "mirrors-only":{"mirrors":[]},
+        "origin-only":{"canonical_base_url":"https://frontend.example"}
+    }}}})";
+    auto decoded = decode_overrides(text, "signature", verifier);
+    REQUIRE(decoded);
+    const auto& mirrors = decoded->profiles.at({"Example", "mirrors-only"});
+    REQUIRE(mirrors.mirrors);
+    CHECK(mirrors.mirrors->empty());
+    CHECK_FALSE(mirrors.canonical_base_url);
+    const auto& origin = decoded->profiles.at({"Example", "origin-only"});
+    CHECK_FALSE(origin.mirrors);
+    CHECK(origin.canonical_base_url == "https://frontend.example");
 }

@@ -1,4 +1,4 @@
-#include <aniparse/Version.hpp>
+#include <aniparse/AniParse.hpp>
 
 namespace aniparse {
 

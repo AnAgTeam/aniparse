@@ -8,7 +8,7 @@ mixed scope advertises both kinds without requiring both getters in every card.
 Select a scope once. Every operation on the resulting root uses that selection:
 
 ```cpp
-for (const CatalogScope& scope : parser->scopes()) {
+for (const CatalogInfo& scope : parser->scopes()) {
     // The UI reads scope.name, scope.kinds and scope.capabilities here.
     auto profile = parser->profile(scope.profile_id);
     auto context = base_context.new_with_config(profile->make_config());
@@ -27,7 +27,7 @@ for (const CatalogScope& scope : parser->scopes()) {
 
 ## Scope selection and metadata
 
-`CatalogScope::id` is an opaque provider-local key. IDs must be nonempty and
+`CatalogInfo::id` is an opaque provider-local key. IDs must be nonempty and
 unique; the factory rejects malformed declarations. An unknown requested ID
 returns nullptr without constructing a root. The root owns its descriptor copy,
 so clearing the UI's enumeration cannot invalidate its selection.
@@ -38,7 +38,7 @@ summaries; other metadata uses `.flags`, such as adult content or suggestions.
 These declarations do not gate calls or remove returned cards. In particular an
 omitted reading declaration does not disable a working chapter-pages method.
 There are no global reading/watching capability bits. The legacy
-`Parser::compatibilities()` default derives an aggregate store/flag summary from
+`Parser::capabilities()` default derives an aggregate store/flag summary from
 scopes instead of requiring a second source declaration.
 
 The mask does not provide type filtering. A provider can expose dedicated manga

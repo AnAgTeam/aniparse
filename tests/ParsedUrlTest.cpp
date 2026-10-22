@@ -7,7 +7,7 @@
 
 #include <utility>
 
-#include <aniparse/types/ParsedUrl.hpp>
+#include <aniparse/net/ParsedUrl.hpp>
 
 using namespace aniparse;
 

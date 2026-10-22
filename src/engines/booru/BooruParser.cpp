@@ -6,7 +6,7 @@
 #include "aniparse/engines/booru/BooruParser.hpp"
 #include "aniparse/engines/booru/BooruEngine.hpp"
 #include "aniparse/engines/booru/BooruImagesGetter.hpp"
-#include "aniparse/ClientContext.hpp"
+#include "aniparse/runtime/RequestContext.hpp"
 #include "aniparse/utility/Coroutines.hpp"
 
 #include <memory>
@@ -35,11 +35,11 @@ GetterSuggestionResult BooruParser::suggest_getter(const ParsedUrl& url) const {
 	return is_container ? GetterSuggestionResult{ .type = GetterSuggestionType::Images } : GetterSuggestionResult{ .type = GetterSuggestionType::Unknown };
 }
 
-ParserCompatibilities BooruParser::compatibilities() const {
+ParserCapabilities BooruParser::capabilities() const {
 	// supports_images_store is derived, not declared: every booru parser hands out an
 	// images getter (see images_getter), so the bit follows from the engine rather
 	// than from a descriptor that can forget it.
-	return { .flags = site_.compatibilities | compatibilities_flags::supports_images_store };
+	return { .flags = site_.capabilities | capabilities_flags::supports_images_store };
 }
 
 void BooruParser::emplace_domains(EmplaceDomainsContext& context) const {
@@ -56,8 +56,8 @@ public:
         : ParserProfile(std::move(parser_id), std::move(info)), site_(site) {}
     void configure(ParserConfig& config) const override;
     std::span<const std::string_view> mirrors() const override;
-    NetworkRequestTask<std::shared_ptr<const ParserConfig>> authenticate_context(
-	    RequestorContext context,
+    NetworkRequestTask<std::shared_ptr<const ParserConfig>> authenticate(
+	    RequestContext context,
 	    AuthenticationData data) const override;
     AuthKeys auth_keys() const noexcept override;
 private:
@@ -80,8 +80,8 @@ std::unique_ptr<ImagesGetter> BooruParser::images_getter() const {
 	return std::make_unique<BooruImagesGetter>(site_);
 }
 
-NetworkRequestTask<std::shared_ptr<const ParserConfig>> BooruProfile::authenticate_context(
-    RequestorContext context, AuthenticationData data) const {
+NetworkRequestTask<std::shared_ptr<const ParserConfig>> BooruProfile::authenticate(
+    RequestContext context, AuthenticationData data) const {
 	if (!site_.auth) {
 		// An anonymous source has nothing to authenticate.
 		co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot auth");
@@ -94,7 +94,7 @@ NetworkRequestTask<std::shared_ptr<const ParserConfig>> BooruProfile::authentica
 	}
 
 	// Static query-param credentials: copy the base config and stamp them in. The
-	// merged url_params ride on every request (ClientContext applies config params).
+	// merged url_params ride on every request (HttpClient applies config params).
 	auto config = std::make_shared<ParserConfig>(*context.config());
 	config->cookie_jar = nullptr;
 	config->url_params[std::string(site_.auth->user_param)] = creds->username;

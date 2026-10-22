@@ -4,7 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/types/Flags.hpp"
+#include "aniparse/source/Capabilities.hpp"
 
 #include <optional>
 #include <span>
@@ -18,7 +18,7 @@ struct BooruEngine;
  * @brief Static query-param credentials — a user id + api key pair carried as query
  * params. The username is stamped into @ref user_param and the password into @ref key_param of the
  * config's url_params, with no network round-trip: booru credentials are static
- * parameters that ride on every request. @see ParserProfile::authenticate_context
+ * parameters that ride on every request. @see ParserProfile::authenticate
  */
 struct BooruStaticParamAuth {
 	std::string_view user_param; ///< url_param the username (user id) is stamped into.
@@ -45,7 +45,7 @@ struct BooruSite {
 	/// built-in set; a catalog refresh unions volatile domains onto it.
 	std::span<const std::string_view> domains;
 	/// The API fetch host(s) — the built-in mirror set (ParserProfile::mirrors), routed
-	/// through RequestorContext::base_url so a catalog override can move them. Distinct
+	/// through RequestContext::base_url so a catalog override can move them. Distinct
 	/// from @ref domains (URL-routing ownership): two sites running the same engine
 	/// differ here (their own API hosts).
 	std::span<const std::string_view> api_hosts;
@@ -57,12 +57,12 @@ struct BooruSite {
 	/// Accessor to the shared engine instance (a static per-family singleton). A
 	/// function pointer, so the descriptor stays a constant expression.
 	const BooruEngine& (*engine)();
-	/// Parser-level capability flags (Parser::compatibilities) — e.g. whether the
+	/// Parser-level capability flags (Parser::capabilities) — e.g. whether the
 	/// source hosts adult content. A datum, since a SFW booru would clear adult_source.
 	/// Lists only what the site adds: BooruParser always advertises
 	/// supports_images_store on top of this, because every booru parser hands out an
 	/// images getter, so a descriptor cannot forget the bit and need not repeat it.
-	CompatibilitiesFlags compatibilities;
+	CapabilitiesFlags capabilities;
 	/// The credential model, or nullopt for an anonymous source (reads need no login).
 	std::optional<BooruStaticParamAuth> auth;
 };

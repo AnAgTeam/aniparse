@@ -6,7 +6,7 @@
 #include "aniparse/engines/booru/BooruPoolGetter.hpp"
 #include "aniparse/engines/booru/BooruEngine.hpp"
 #include "aniparse/engines/booru/BooruSite.hpp"
-#include "aniparse/ClientContext.hpp"
+#include "aniparse/runtime/RequestContext.hpp"
 #include "aniparse/utility/Coroutines.hpp"
 
 #include <boost/json.hpp>
@@ -18,11 +18,11 @@ namespace aniparse::engines {
 BooruPoolGetter::BooruPoolGetter(const BooruSite& site, ImageContainerID id)
     : site_(site), id_(id) {}
 
-ImageContainerCompatibilities BooruPoolGetter::compatibilities() const noexcept {
+ImageContainerCapabilities BooruPoolGetter::capabilities() const noexcept {
 	return {};
 }
 
-NetworkRequestTask<ImageContainerInfo> BooruPoolGetter::info(RequestorContext context) const {
+NetworkRequestTask<ImageContainerInfo> BooruPoolGetter::load_info(RequestContext context) const {
 	const BooruEngine& engine = site_.engine();
 	std::string_view base = context.base_url(site_.api_hosts);
 	GetRequest request = engine.pool_request(base, id_);
@@ -42,7 +42,7 @@ NetworkRequestTask<ImageContainerInfo> BooruPoolGetter::info(RequestorContext co
 }
 
 NetworkRequestTask<PageResults<ImageItem>> BooruPoolGetter::items(
-    RequestorContext context, GetFilters filters) const {
+    RequestContext context, GetFilters filters) const {
 	// The engine builds the pool-order page request (a listing in pool order), so
 	// items() streams the collection without holding the whole id list.
 	const BooruEngine& engine = site_.engine();

@@ -12,7 +12,7 @@
 
 #include <aniparse/net/CancellingTask.hpp>
 
-#include <aniparse/ClientContext.hpp>
+#include <aniparse/runtime/RequestContext.hpp>
 
 using namespace aniparse;
 

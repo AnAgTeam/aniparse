@@ -20,7 +20,7 @@ namespace {
  * unroutable or failing link falls through to the next one.
  */
 NetworkRequestTask<VideoExtraction> extract_routed(
-    RequestorContext context, VideoExtractionRoute route,
+    RequestContext context, VideoExtractionRoute route,
     const VideoExtractorStore& store, int depth, int max_depth) {
 	auto extraction = co_await route.extractor->extract(context, std::move(route.url));
 	if (!extraction) {
@@ -54,12 +54,12 @@ NetworkRequestTask<VideoExtraction> extract_routed(
 
 } // namespace
 
-Mirrors VideoExtractor::mirrors(const RequestorContext& context,
+Mirrors VideoExtractor::mirrors(const RequestContext& context,
                                 std::span<const std::string_view> builtin) const {
 	return context.mirrors(identifier(), builtin);
 }
 
-std::string_view VideoExtractor::base_url(const RequestorContext& context,
+std::string_view VideoExtractor::base_url(const RequestContext& context,
                                           std::span<const std::string_view> builtin) const {
 	// First mirror: extractors have no per-user mirror selection.
 	return mirrors(context, builtin).base_url(0);
@@ -149,7 +149,7 @@ std::optional<VideoExtractionRoute> VideoExtractorStore::route_link(const VideoE
 }
 
 NetworkRequestTask<VideoExtraction> VideoExtractorStore::extract(
-    RequestorContext context, ParsedUrl url, int max_depth) const {
+    RequestContext context, ParsedUrl url, int max_depth) const {
 	const std::string href(url.href());
 	auto route = route_url(std::move(url));
 	if (!route) {
@@ -161,7 +161,7 @@ NetworkRequestTask<VideoExtraction> VideoExtractorStore::extract(
 }
 
 NetworkRequestTask<VideoExtraction> VideoExtractorStore::extract(
-    RequestorContext context, std::string url, int max_depth) const {
+    RequestContext context, std::string url, int max_depth) const {
 	auto parsed = ParsedUrl::parse(url);
 	if (!parsed) {
 		co_return make_response_error(RequestErrorCode::InvalidArguments,

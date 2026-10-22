@@ -1,7 +1,7 @@
 # Request profiles and authentication
 
 A parser declares selectable catalogs and request profiles independently. Each
-`CatalogScope::profile_id` selects a descriptor from `Parser::profiles()`. Several
+`CatalogInfo::profile_id` selects a descriptor from `Parser::profiles()`. Several
 catalogs can reference one profile, or each can use a different profile. An
 anonymous source still has a profile for its headers and mirrors; the default
 implementation declares `main` with no authentication or source-specific defaults.
@@ -10,7 +10,7 @@ implementation declares `main` with no authentication or source-specific default
 
 - `configure` supplies source-specific headers, query parameters and request hooks.
 - `auth_info` describes the existing password, token or interactive browser flow.
-- `authenticate_context` implements authentication on a fresh configuration.
+- `authenticate` implements authentication on a fresh configuration.
 - `auth_keys` and `export_auth` select durable credentials for persistence.
 - `mirrors` declares this profile's built-in fetch origins.
 
@@ -59,7 +59,7 @@ when adopting a configuration that does not already have one.
 For authentication, pass a context created from the selected profile:
 
 ```cpp
-auto authenticated = co_await profile->authenticate_context(context, credentials);
+auto authenticated = co_await profile->authenticate(context, credentials);
 if (authenticated) {
     auto saved = profile->export_auth(**authenticated);
     // Persist saved under (parser->identifier(), profile->info().id).
@@ -68,7 +68,7 @@ if (authenticated) {
 }
 ```
 
-Implementations override the virtual `authenticate_context` method; credentials
+Implementations override the virtual `authenticate` method; credentials
 and context are passed by value. The context must belong to the selected profile.
 The task borrows its profile: the caller must keep the profile alive until the
 task completes or is destroyed. In particular, storing or returning a task does
@@ -86,12 +86,12 @@ account configurations. Nothing mutable is stored in the parser or profile.
 ## Application request defaults
 
 ```cpp
-ClientConfig settings;
+HttpClientConfig settings;
 settings.request_defaults.headers.set("User-Agent", "MyApp/1.0");
 client->set_config(std::move(settings));
 ```
 
-`RequestorContext` merges headers by case-insensitive name in this order:
+`RequestContext` merges headers by case-insensitive name in this order:
 explicit request headers, profile configuration headers, client request defaults.
 Each lower layer fills only missing names. Request modifiers run after this merge
 and can inspect the final headers. Defaults are snapshotted for each request and
@@ -132,8 +132,8 @@ Schema version 1 accepts an optional `profiles` table inside each parser entry:
 }
 ```
 
-`decode_catalog` verifies the signature over the original payload bytes before
-reading profile settings. `CatalogManager` publishes the profile maps into the
+`decode_overrides` verifies the signature over the original payload bytes before
+reading profile settings. `SourceOverridesManager` publishes the profile maps into the
 immutable `MirrorSource` for parser request origins. Existing request contexts keep
 their old snapshots; newly constructed contexts see the applied revision.
 Malformed profile tables, IDs, mirror lists or origins reject the whole payload
@@ -149,7 +149,7 @@ The generator writes a `profiles` entry for every declared profile and obtains
 mirrors from `mirrors()`. It emits no parser-wide origin fields. Signature
 verification and schema version are unchanged.
 
-`CatalogManager` registers hosts from profile mirrors and frontend origins with
+`SourceOverridesManager` registers hosts from profile mirrors and frontend origins with
 the owning parser's domain routing. The parser still owns URL classification
 into catalog scopes through `Parser::suggest_getter`; profile IDs are not
 implicitly treated as scope IDs.

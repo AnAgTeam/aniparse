@@ -4,9 +4,9 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/types/Headers.hpp"
-#include "aniparse/images/Image.hpp"
-#include "aniparse/types/Request.hpp"
+#include "aniparse/net/Headers.hpp"
+#include "aniparse/images/ImagesGetter.hpp"
+#include "aniparse/net/Request.hpp"
 
 #include <boost/json.hpp>
 
@@ -65,7 +65,7 @@ struct BooruEngine {
 	 * filter set.
 	 * @return The support table for the family's listing/search surface
 	 */
-	[[nodiscard]] virtual SearchCapabilities search_support() const = 0;
+	[[nodiscard]] virtual SearchCapabilities load_search_capabilities() const = 0;
 
 	/**
 	 * @brief A post-list request against @p base for @p tags with @p filters paging applied;
@@ -73,7 +73,7 @@ struct BooruEngine {
 	 *
 	 * The one builder behind both search (tags given) and the newest-first feed (empty
 	 * tags). A sort key the family cannot express is dropped rather than faked — which is
-	 * why only the expressible ones are advertised in @ref search_support.
+	 * why only the expressible ones are advertised in @ref load_search_capabilities.
 	 * @param base The already-resolved fetch host to build the URL on
 	 * @param tags The tag query, free text in the family's tag grammar; may be empty
 	 * @param filters Paging window and requested sort
@@ -152,7 +152,7 @@ struct BooruEngine {
 	 * a @p kind axis.
 	 * @param base The already-resolved fetch host to build the URL on
 	 * @param partial The partially typed tag to complete
-	 * @param kind The axis to narrow to — one of the kinds declared in @ref search_support;
+	 * @param kind The axis to narrow to — one of the kinds declared in @ref load_search_capabilities;
 	 *        nullopt (or a kind the family does not offer as its own query type) means
 	 *        complete against all tags
 	 * @return The request to perform
@@ -238,6 +238,13 @@ struct BooruEngine {
 	                                                    const GetFilters& /*filters*/) const {
 		return {};
 	}
+
+protected:
+	BooruEngine() = default;
+	BooruEngine(const BooruEngine&) = default;
+	BooruEngine(BooruEngine&&) = default;
+	BooruEngine& operator=(const BooruEngine&) = default;
+	BooruEngine& operator=(BooruEngine&&) = default;
 };
 
 } // namespace aniparse::engines

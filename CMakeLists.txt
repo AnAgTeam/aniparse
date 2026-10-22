@@ -7,10 +7,10 @@ option(ANIPARSE_BUILD_EXAMPLES "build examples, Default=OFF" OFF)
 option(ANIPARSE_BUILD_BENCHMARKS "build microbenchmarks, Default=OFF" OFF)
 option(ANIPARSE_ANALYZE "MSVC /analyze lifetime gate (slow; CI leg)" OFF)
 
-# HTTP backends. The parse core is backend-neutral (talks only to ClientContext);
+# HTTP backends. The parse core is backend-neutral (talks only to HttpClient);
 # each backend is an optional concrete implementation. libasyncnet (hence curl) is
 # pulled in only for the curl backend. With no backend the core still builds — the
-# consumer injects its own ClientContext.
+# consumer injects its own HttpClient.
 option(ANIPARSE_CURL_BACKEND "build the curl HTTP backend (pulls libasyncnet + curl)" ON)
 option(ANIPARSE_NSURLSESSION_BACKEND "build the NSURLSession HTTP backend (Apple)" OFF)
 
@@ -85,23 +85,38 @@ find_package(tl-expected CONFIG REQUIRED)
 # ---- ADD LIBRARY
 
 add_library(aniparse ${aniparse_library_type}
-    "src/ParserProfile.cpp" "include/aniparse/ParserProfile.hpp"
-	"src/catalog/content/Catalog.cpp" "include/aniparse/catalog/content/Catalog.hpp"
-	"src/catalog/content/Entry.cpp" "include/aniparse/catalog/content/Entry.hpp"
-	"include/aniparse/catalog/content/Scope.hpp"
+    "include/aniparse/media/Image.hpp"
+    "include/aniparse/media/Tags.hpp"
+    "include/aniparse/media/Identity.hpp"
+    "include/aniparse/media/RelatedWork.hpp"
+    "include/aniparse/media/Publication.hpp"
+    "include/aniparse/media/Rating.hpp"
+    "include/aniparse/media/Community.hpp"
+    "include/aniparse/net/HttpClientConfig.hpp"
+    "include/aniparse/net/HttpClient.hpp"
+    "include/aniparse/net/Response.hpp"
+    "include/aniparse/source/ParserConfig.hpp"
+    "include/aniparse/source/AltLink.hpp"
+    "include/aniparse/runtime/RuntimeServices.hpp"
+    "include/aniparse/runtime/Logger.hpp"
+    "src/net/HttpClient.cpp" "src/source/AltLink.cpp"
+
+    "src/source/ParserProfile.cpp" "include/aniparse/source/ParserProfile.hpp"
+	"src/catalog/CatalogRootGetter.cpp" "include/aniparse/catalog/CatalogRootGetter.hpp"
+	"src/catalog/CatalogEntry.cpp" "include/aniparse/catalog/CatalogEntry.hpp"
+	"include/aniparse/catalog/CatalogInfo.hpp"
 	"src/AniParse.cpp" "include/aniparse/AniParse.hpp"
-	"src/Version.cpp" "include/aniparse/Version.hpp"
+	"src/Version.cpp"
 	"include/aniparse/utility/FlagsBitfield.hpp"
 	"include/aniparse/detail/BitsetLite.hpp"
 	"include/aniparse/detail/StrongBitset.hpp"
 	"include/aniparse/detail/DomainScanner.hpp"
 	"include/aniparse/detail/DomainStore.hpp"
-	# src/net/Client.cpp (the curl backend) is added conditionally below.
-	"include/aniparse/net/Client.hpp"
+	# src/net/backends/curl/CurlHttpClient.cpp (the curl backend) is added conditionally below.
 	"include/aniparse/net/CancellingTask.hpp"
 	"include/aniparse/net/vendor/CancellingTask.hpp"
 	"include/aniparse/net/vendor/Concepts.hpp"
-	"src/ClientContext.cpp" "include/aniparse/ClientContext.hpp"
+	"src/runtime/RequestContext.cpp" "include/aniparse/runtime/RequestContext.hpp"
 	"include/aniparse/net/CookieJar.hpp"
 	# Backend-neutral on purpose: the Netscape codec and the cookie store are shared
 	# by every backend (curl reads the codec, a store-less backend uses both), so they
@@ -112,30 +127,30 @@ add_library(aniparse ${aniparse_library_type}
 	"include/aniparse/utility/Expected.hpp"
 	"include/aniparse/utility/Regex.hpp"
 	"src/utility/RegexSource.cpp" "include/aniparse/utility/RegexSource.hpp"
-	"src/utility/CatalogSink.cpp" "include/aniparse/utility/CatalogSink.hpp"
+	"src/source/overrides/OverridesSink.cpp" "include/aniparse/source/overrides/OverridesSink.hpp"
 	"include/aniparse/utility/UrlEncode.hpp"
 	"src/utility/Time.cpp" "include/aniparse/utility/Time.hpp"
 	"src/utility/HtmlText.cpp" "include/aniparse/utility/HtmlText.hpp"
 	"src/utility/Number.cpp" "include/aniparse/utility/Number.hpp"
 	"src/media/ResourceAdapter.cpp" "include/aniparse/media/ResourceAdapter.hpp"
 
-	"include/aniparse/types/Ids.hpp"
-	"include/aniparse/types/Flags.hpp"
-	"include/aniparse/types/Text.hpp"
-	"src/types/Model.cpp" "include/aniparse/types/Model.hpp"
-	"src/types/Headers.cpp" "include/aniparse/types/Headers.hpp"
-	"src/types/ParsedUrl.cpp" "include/aniparse/types/ParsedUrl.hpp"
-	"include/aniparse/types/ParserInfo.hpp"
-	"include/aniparse/types/ParseResult.hpp"
-	"include/aniparse/types/Video.hpp"
-	"include/aniparse/types/Request.hpp"
-	"include/aniparse/types/Pagination.hpp"
-	"include/aniparse/types/Response.hpp"
-	"src/types/Search.cpp" "include/aniparse/types/Search.hpp"
+	"include/aniparse/media/Ids.hpp"
+	"include/aniparse/source/Capabilities.hpp"
+	"include/aniparse/media/Text.hpp"
+	"src/media/Rating.cpp" "src/media/Publication.cpp" "src/media/Community.cpp" "include/aniparse/media/MediaInfo.hpp"
+	"src/net/Headers.cpp" "include/aniparse/net/Headers.hpp"
+	"src/net/ParsedUrl.cpp" "include/aniparse/net/ParsedUrl.hpp"
+	"include/aniparse/source/ParserInfo.hpp"
+	"include/aniparse/catalog/ParseResult.hpp"
+	"include/aniparse/video/VideoStream.hpp"
+	"include/aniparse/net/Request.hpp"
+	"include/aniparse/catalog/Pagination.hpp"
+	"include/aniparse/utility/Result.hpp"
+	"src/catalog/Search.cpp" "include/aniparse/catalog/Search.hpp"
 	"include/aniparse/catalog/SearchQuery.hpp"
 	"include/aniparse/catalog/SearchCapabilities.hpp"
-	"include/aniparse/types/Serialization.hpp"
-	"src/types/Authentication.cpp" "include/aniparse/types/Authentication.hpp"
+	"include/aniparse/media/Serialization.hpp"
+	"src/source/Authentication.cpp" "include/aniparse/source/Authentication.hpp"
 
 	"src/html/HTMLDocument.cpp" "include/aniparse/html/HTMLDocument.hpp"
 	"src/html/DOMAttributes.cpp" "include/aniparse/html/DOMAttributes.hpp"
@@ -146,20 +161,20 @@ add_library(aniparse ${aniparse_library_type}
 	"src/html/CompiledSelector.cpp" "include/aniparse/html/CompiledSelector.hpp"
 	"src/html/SelectorSource.cpp" "include/aniparse/html/SelectorSource.hpp"
 
-	"src/ParserStore.cpp" "include/aniparse/ParserStore.hpp"
+	"src/source/ParserStore.cpp" "include/aniparse/source/ParserStore.hpp"
 	"src/video/VideoExtractor.cpp" "include/aniparse/video/VideoExtractor.hpp"
-	"src/catalog/Catalog.cpp" "include/aniparse/catalog/Catalog.hpp"
-	"src/catalog/CatalogManager.cpp" "include/aniparse/catalog/CatalogManager.hpp"
-	"include/aniparse/catalog/MirrorSource.hpp"
-	"src/Parser.cpp" "include/aniparse/Parser.hpp"
+	"src/source/overrides/SourceOverrides.cpp" "include/aniparse/source/overrides/SourceOverrides.hpp" "include/aniparse/source/overrides/ProfileOverrides.hpp"
+	"src/source/overrides/SourceOverridesManager.cpp" "include/aniparse/source/overrides/SourceOverridesManager.hpp"
+	"include/aniparse/source/overrides/MirrorSource.hpp"
+	"src/source/Parser.cpp" "include/aniparse/source/Parser.hpp"
 
-	"src/anime/Anime.cpp" "include/aniparse/anime/Anime.hpp"
-	"include/aniparse/anime/AnimeModel.hpp"
+	"src/anime/AnimeGetter.cpp" "include/aniparse/anime/AnimeGetter.hpp"
+	"include/aniparse/anime/AnimeInfo.hpp"
 
-	"src/images/Image.cpp" "include/aniparse/images/Image.hpp"
-	"include/aniparse/images/ImageModel.hpp"
+	"src/images/ImagesGetter.cpp" "include/aniparse/images/ImagesGetter.hpp"
+	"include/aniparse/images/ImageContainerInfo.hpp"
 
-	"src/manga/Manga.cpp" "include/aniparse/manga/Manga.hpp"
+	"src/manga/MangaGetter.cpp" "include/aniparse/manga/MangaGetter.hpp"
 
 	# Reusable booru engine toolkit: a dialect interface + generic getters and a
 	# generic parser bound to a data-only site descriptor. Neutral machinery (names
@@ -220,6 +235,16 @@ if (ANIPARSE_ANALYZE AND MSVC)
 		/wd26472 /wd26481 /wd26482 /wd26821 /wd26496 /wd26497 /wd26475 /wd26459)
 endif()
 
+# Value models are usable without the parser/runtime dependency stack.
+add_library(aniparse-models INTERFACE)
+add_library(aniparse::models ALIAS aniparse-models)
+set_target_properties(aniparse-models PROPERTIES EXPORT_NAME models)
+target_compile_features(aniparse-models INTERFACE cxx_std_23)
+target_include_directories(aniparse-models INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+
 target_include_directories(aniparse PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
 	$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
@@ -230,6 +255,7 @@ target_include_directories(aniparse PUBLIC
 # interface too — not only BUILD_INTERFACE. lexbor is a vendored static lib the
 # install does not ship, so it stays build-only.
 target_link_libraries(aniparse PUBLIC
+    aniparse-models
 	fmt::fmt
 	Boost::json
 	Boost::regex
@@ -237,14 +263,18 @@ target_link_libraries(aniparse PUBLIC
 	$<BUILD_INTERFACE:${LEXBOR_LIBRARIES}>
 )
 
-# ---- HTTP BACKENDS (optional, concrete ClientContext implementations)
+# ---- HTTP BACKENDS (optional, concrete HttpClient implementations)
 
 if (ANIPARSE_CURL_BACKEND)
 	# The macro is PUBLIC on purpose: the public header net/CancellingTask.hpp
 	# selects the real asyncnet task type vs the vendored copy off it, so every
 	# consumer TU must see the same value as the library was built with.
 	target_compile_definitions(aniparse PUBLIC ANIPARSE_CURL_BACKEND=1)
-	target_sources(aniparse PRIVATE "src/net/Client.cpp")
+	target_sources(aniparse PRIVATE
+        "src/net/backends/curl/CurlHttpClient.cpp"
+        "src/net/backends/curl/CurlCookieJar.cpp"
+        "include/aniparse/net/backends/curl/CurlHttpClient.hpp"
+        "include/aniparse/net/backends/curl/CurlCookieJar.hpp")
 	target_link_libraries(aniparse PUBLIC $<BUILD_INTERFACE:asyncnet>)
 endif()
 
@@ -254,12 +284,12 @@ if (ANIPARSE_NSURLSESSION_BACKEND)
 	endif()
 	# PUBLIC for the same reason as the curl macro: the backend's public header
 	# collapses to nothing without it, so every consumer TU must agree with the
-	# library on whether UrlSessionClient exists at all.
+	# library on whether UrlSessionHttpClient exists at all.
 	target_compile_definitions(aniparse PUBLIC ANIPARSE_NSURLSESSION_BACKEND=1)
-	target_sources(aniparse PRIVATE "src/net/UrlSessionClient.mm" "include/aniparse/net/UrlSessionClient.hpp")
+	target_sources(aniparse PRIVATE "src/net/backends/urlsession/UrlSessionHttpClient.mm" "include/aniparse/net/backends/urlsession/UrlSessionHttpClient.hpp")
 	# ARC, and only on the Objective-C++ source: the backend holds NSURLSession and
 	# its delegate as members of a plain C++ struct, which only ARC keeps alive.
-	set_source_files_properties("src/net/UrlSessionClient.mm" PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
+	set_source_files_properties("src/net/backends/urlsession/UrlSessionHttpClient.mm" PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
 	target_link_libraries(aniparse PUBLIC "-framework Foundation")
 endif()
 
@@ -323,7 +353,7 @@ set_target_properties(aniparse PROPERTIES PREFIX "lib")
 install(DIRECTORY "include/" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/aniparse.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 
-install(TARGETS aniparse
+install(TARGETS aniparse aniparse-models
 	EXPORT aniparse-targets
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}

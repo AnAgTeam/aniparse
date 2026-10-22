@@ -5,9 +5,9 @@
  */
 #pragma once
 
-#include "aniparse/ClientContext.hpp"
-#include "aniparse/types/Headers.hpp"
-#include "aniparse/types/Response.hpp"
+#include "aniparse/runtime/RequestContext.hpp"
+#include "aniparse/net/Headers.hpp"
+#include "aniparse/utility/Result.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -127,6 +127,13 @@ public:
 	 * @note A successful return transfers no ownership; the caller retains bytes.
 	 */
 	virtual Response<void> write(std::span<const std::byte> bytes) = 0;
+
+protected:
+	ResourceOutput() = default;
+	ResourceOutput(const ResourceOutput&) = default;
+	ResourceOutput(ResourceOutput&&) = default;
+	ResourceOutput& operator=(const ResourceOutput&) = default;
+	ResourceOutput& operator=(ResourceOutput&&) = default;
 };
 
 /**
@@ -141,6 +148,7 @@ public:
  */
 class ResourceHandle {
 public:
+	ResourceHandle() = default;
 	virtual ~ResourceHandle() = default;
 
 	/**
@@ -178,6 +186,12 @@ public:
 	virtual Response<void> final(ResourceOutput& output) {
 		return {};
 	}
+
+protected:
+	ResourceHandle(const ResourceHandle&) = default;
+	ResourceHandle(ResourceHandle&&) = default;
+	ResourceHandle& operator=(const ResourceHandle&) = default;
+	ResourceHandle& operator=(ResourceHandle&&) = default;
 };
 
 /**
@@ -205,7 +219,7 @@ public:
 	 * parameters are values because the returned task may outlive its caller.
 	 */
 	[[nodiscard]] virtual NetworkRequestTask<OpenedResource> open(
-	    RequestorContext context,
+	    RequestContext context,
 	    ResourceContext resource) const = 0;
 
 	/**
@@ -221,6 +235,13 @@ public:
 	 */
 	[[nodiscard]] static std::shared_ptr<const ResourceAdapter> compose(
 	    std::vector<std::shared_ptr<const ResourceAdapter>> adapters);
+
+protected:
+	ResourceAdapter() = default;
+	ResourceAdapter(const ResourceAdapter&) = default;
+	ResourceAdapter(ResourceAdapter&&) = default;
+	ResourceAdapter& operator=(const ResourceAdapter&) = default;
+	ResourceAdapter& operator=(ResourceAdapter&&) = default;
 };
 
 } // namespace aniparse

@@ -1,0 +1,126 @@
+/*
+ * Copyright (C) 2025-2026 Toilettrauma
+ *
+ * Author: Toilettrauma <macosinternal@gmail.com>
+ */
+#pragma once
+#include "aniparse/utility/FlagsBitfield.hpp"
+
+/**
+ * @file
+ * The capability vocabulary: one flag set shared by every "what can this thing
+ * do?" descriptor in the library — the parser-level @ref aniparse::ParserCapabilities,
+ * and the per-getter tables (SearchCapabilities, MangaGetterCapabilities,
+ * …). The bits live in one namespace so that a capability means the same thing
+ * wherever it is advertised; which descriptor a given bit is meaningful on is
+ * stated on the bit itself.
+ *
+ * Flags are a declaration, never a promise a caller may skip checking: they let a
+ * consumer decide what to offer (a comment tab, a track picker, an adult-content
+ * gate) before spending a request, but a source may still answer an unsupported
+ * call with a RequestError.
+ */
+
+namespace aniparse {
+/**
+ * @brief A set of capability bits, drawn from the capabilities_flags namespace.
+ * A strongly typed 64-bit flag word: combine bits with @c |, query a mask with
+ * @c has(). The tag makes it a distinct type from other flag words, so a
+ * capability bit cannot be passed where an unrelated flag set is expected.
+ */
+using CapabilitiesFlags = FlagsBitfield<64, struct CapabilitiesFlagsTag>;
+} // namespace aniparse
+
+/**
+ * @brief The capability bits a parser or a getter can advertise.
+ * @see CapabilitiesFlags, ParserCapabilities, SearchCapabilities
+ */
+namespace aniparse::capabilities_flags {
+/**
+ * Reserved. No facility of the library reads this bit today; it is kept for bit
+ * stability (the bit positions are part of the advertised value) and carries no
+ * defined contract for a consumer.
+ */
+inline constexpr auto supports_inplace_get  = CapabilitiesFlags::make_bit(0);
+/// The source offers a browsable image library. Advertised on
+/// ParserCapabilities by a parser that also hands out an ImagesGetter.
+inline constexpr auto supports_images_store = CapabilitiesFlags::make_bit(1);
+/// The source offers a browsable anime library. Advertised on
+/// ParserCapabilities by a parser that also hands out an CatalogRootGetter.
+inline constexpr auto supports_anime_store  = CapabilitiesFlags::make_bit(2);
+/// The source offers a browsable manga library. Advertised on
+/// ParserCapabilities by a parser that also hands out a CatalogRootGetter.
+inline constexpr auto supports_manga_store  = CapabilitiesFlags::make_bit(3);
+// Former reading/watching bit positions 16 and 17 remain unassigned. Catalog
+// landing-page summaries now use CatalogCapabilities::reading and ::watching.
+/// The source offers a browsable video library beyond the anime catalog.
+inline constexpr auto supports_video_store  = CapabilitiesFlags::make_bit(4);
+/**
+ * Reserved for a source whose library does not fit the domain stores above. No
+ * facility of the library reads this bit today.
+ */
+inline constexpr auto using_custom_store    = CapabilitiesFlags::make_bit(5);
+/**
+ * The source hosts adult content. Advertised on ParserCapabilities so a
+ * consumer can gate or hide the source before any request is made; it says
+ * nothing about an individual item.
+ */
+inline constexpr auto adult_source          = CapabilitiesFlags::make_bit(6);
+
+/// The source's image library can be searched, not only browsed.
+inline constexpr auto supports_images_search = CapabilitiesFlags::make_bit(7);
+/// The source accepts new user accounts, so a consumer may offer a sign-up path.
+/// Registration itself is out of scope for the library — only login exists
+/// (@ref ParserProfile::authenticate).
+inline constexpr auto supports_registration  = CapabilitiesFlags::make_bit(8);
+/// The source lets an authenticated user rate or vote on items. Declaration only:
+/// no getter exposes voting yet.
+inline constexpr auto supports_voting        = CapabilitiesFlags::make_bit(9);
+/// The source carries user comments on its items, so the domain getters' @c
+/// load_comments() answer instead of reporting NotImplemented.
+inline constexpr auto supports_commenting    = CapabilitiesFlags::make_bit(10);
+/// The source keeps server-side user lists (a reading/watching list bound to the
+/// account). Declaration only: no getter exposes list editing yet.
+inline constexpr auto supports_online_lists  = CapabilitiesFlags::make_bit(11);
+
+/// The source can suggest search tokens for a partial input (autocomplete). A
+/// getter advertises it in SearchCapabilities::capabilities. @see suggest
+inline constexpr auto supports_suggestions   = CapabilitiesFlags::make_bit(14);
+
+/// The anime source exposes a (team x player) track axis to browse before
+/// episodes: pick a track, then its episode set. An AnimeGetter advertises it in
+/// its capabilities() so a consumer shows a track picker without a
+/// speculative request; episode-first sources leave it unset. @see tracks
+inline constexpr auto supports_tracks        = CapabilitiesFlags::make_bit(15);
+
+/**
+ * All the Paginator<T>::next items will be unique over time if true.
+ * Otherwise, the items can duplicate. For example, when you get 10
+ * from next, then 3 new items added at the start and you start getting
+ * duplicates of 8-10 from previous parsing and only 7 new
+ */
+inline constexpr auto supports_pagination_uniqueness = CapabilitiesFlags::make_bit(12);
+
+/**
+ * A sentinel bit that names no capability: it is never advertised by a source and
+ * never satisfied by a support check, so it can stand for "a feature this
+ * descriptor cannot express".
+ */
+inline constexpr auto unsupported_feature = CapabilitiesFlags::make_bit(13);
+
+/// The empty capability set — advertise nothing. The initial value of every
+/// CapabilitiesFlags field, so a descriptor lists only what it opts into.
+inline constexpr CapabilitiesFlags default_flags;
+} // namespace aniparse::capabilities_flags
+
+namespace aniparse {
+/// A parser's declared capabilities, returned by Parser::capabilities(). The
+/// parser-level (cross-domain) capability descriptor; distinct from the per-getter
+/// *GetterCompatibilities structs.
+struct ParserCapabilities {
+	/// Everything the source declares at parser level: which libraries it offers
+	/// (the @c *_store bits), whether it is adult, which account features exist.
+	/// Empty by default — a parser lists only what it opts into.
+	CapabilitiesFlags flags = capabilities_flags::default_flags;
+};
+} // namespace aniparse

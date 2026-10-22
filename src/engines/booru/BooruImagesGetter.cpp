@@ -9,7 +9,7 @@
 #include "aniparse/engines/booru/BooruPoolGetter.hpp"
 #include "aniparse/engines/booru/BooruSite.hpp"
 #include "aniparse/json/Json.hpp"
-#include "aniparse/ClientContext.hpp"
+#include "aniparse/runtime/RequestContext.hpp"
 #include "aniparse/utility/Coroutines.hpp"
 
 #include <boost/json.hpp>
@@ -52,12 +52,12 @@ namespace {
 	}
 } // namespace
 
-NetworkRequestTask<SearchCapabilities> BooruImagesGetter::search_support(RequestorContext) const {
-	co_return site_.engine().search_support();
+NetworkRequestTask<SearchCapabilities> BooruImagesGetter::load_search_capabilities(RequestContext) const {
+	co_return site_.engine().load_search_capabilities();
 }
 
 NetworkRequestTask<std::vector<SearchSuggestion>> BooruImagesGetter::suggest(
-    RequestorContext context, std::string partial, std::optional<std::string> kind) const {
+    RequestContext context, std::string partial, std::optional<std::string> kind) const {
 	const BooruEngine& engine = site_.engine();
 	std::string_view base = context.base_url(site_.api_hosts);
 	GetRequest request = engine.suggest_request(base, std::move(partial), std::move(kind));
@@ -69,8 +69,8 @@ NetworkRequestTask<std::vector<SearchSuggestion>> BooruImagesGetter::suggest(
 }
 
 NetworkRequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> BooruImagesGetter::search(
-    RequestorContext context, SearchRequestQuery query, GetFilters filters) const {
-	auto support = co_await search_support(context);
+    RequestContext context, SearchRequestQuery query, GetFilters filters) const {
+	auto support = co_await load_search_capabilities(context);
 	if (!support) {
 		co_return unexpected(std::move(support.error()));
 	}
@@ -89,7 +89,7 @@ NetworkRequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> BooruImag
 }
 
 NetworkRequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> BooruImagesGetter::latest(
-    RequestorContext context, GetFilters filters) const {
+    RequestContext context, GetFilters filters) const {
 	if (auto errors = validate_latest_filters(filters); !errors.empty()) {
 		co_return make_response_error(RequestErrorCode::InvalidArguments,
 		                              describe_search_query_errors(errors));
@@ -106,7 +106,7 @@ NetworkRequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> BooruImag
 }
 
 NetworkRequestTask<std::unique_ptr<ImageContainerGetter>> BooruImagesGetter::parse_url(
-    RequestorContext, ParsedUrl url) const {
+    RequestContext, ParsedUrl url) const {
 	const BooruEngine& engine = site_.engine();
 	// A pool URL is a container-of-many; a post URL is a container-of-one.
 	if (engine.supports_pools()) {

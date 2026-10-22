@@ -3,7 +3,7 @@
  */
 #include "catch_amalgamated.hpp"
 
-#include <aniparse/utility/CatalogSink.hpp>
+#include <aniparse/source/overrides/OverridesSink.hpp>
 
 #include <stdexcept>
 #include <string>
@@ -53,40 +53,40 @@ struct BrokenSelectors {
 };
 } // namespace
 
-TEST_CASE("CatalogSink records a selector set's (key, literal) pairs") {
-	CatalogSink sink("ExampleParser");
+TEST_CASE("OverridesSink records a selector set's (key, literal) pairs") {
+	OverridesSink sink("ExampleParser");
 	sink.emplace_set<ProbeSelectors>();
-	CHECK(sink.selectors() == CatalogSink::RecordedSet{
+	CHECK(sink.selectors() == OverridesSink::RecordedSet{
 	    { "card.card", ".tiles .tile" },
 	    { "info.title", "h1.main" },
 	});
 	CHECK(sink.patterns().empty());
 }
 
-TEST_CASE("CatalogSink records a pattern set's (key, literal) pairs") {
-	CatalogSink sink("ExampleExtractor");
+TEST_CASE("OverridesSink records a pattern set's (key, literal) pairs") {
+	OverridesSink sink("ExampleExtractor");
 	sink.emplace_set<ProbePatterns>();
-	CHECK(sink.patterns() == CatalogSink::RecordedSet{
+	CHECK(sink.patterns() == OverridesSink::RecordedSet{
 	    { "video_path", R"(/v/[^/]+\.mp4)" },
 	});
 	CHECK(sink.selectors().empty());
 }
 
-TEST_CASE("CatalogSink rejects a key colliding across the owner's sets") {
-	CatalogSink sink("ExampleParser");
+TEST_CASE("OverridesSink rejects a key colliding across the owner's sets") {
+	OverridesSink sink("ExampleParser");
 	sink.emplace_set<ProbeSelectors>();
 	CHECK_THROWS_AS(sink.emplace_set<CollidingSelectors>(), std::logic_error);
 }
 
-TEST_CASE("CatalogSink with no declarations emits nothing") {
-	CatalogSink sink("QuietParser");
+TEST_CASE("OverridesSink with no declarations emits nothing") {
+	OverridesSink sink("QuietParser");
 	CHECK(sink.selectors().empty());
 	CHECK(sink.patterns().empty());
 	CHECK(sink.owner_id() == "QuietParser"sv);
 }
 
 TEST_CASE("a broken built-in literal fails the sink loudly, naming owner and key") {
-	CatalogSink sink("BrokenParser");
+	OverridesSink sink("BrokenParser");
 	try {
 		sink.emplace_set<BrokenSelectors>();
 		FAIL("expected std::logic_error");

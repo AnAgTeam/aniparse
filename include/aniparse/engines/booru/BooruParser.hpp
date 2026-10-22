@@ -4,7 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/Parser.hpp"
+#include "aniparse/source/Parser.hpp"
 #include "aniparse/engines/booru/BooruSite.hpp"
 
 namespace aniparse::engines {
@@ -35,7 +35,7 @@ public:
 	 * forget it.
 	 * @return The site's capability flags, with the image-library bit added
 	 */
-	ParserCompatibilities compatibilities() const override;
+	ParserCapabilities capabilities() const override;
 	void emplace_domains(EmplaceDomainsContext& context) const override;
 
 	std::unique_ptr<ImagesGetter> images_getter() const override;

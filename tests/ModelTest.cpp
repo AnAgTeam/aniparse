@@ -4,7 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #include "catch_amalgamated.hpp"
-#include <aniparse/types/Model.hpp>
+#include <aniparse/media/MediaInfo.hpp>
 
 #include <array>
 #include <vector>

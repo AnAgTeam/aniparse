@@ -35,7 +35,7 @@ struct Cookie {
  * neutral @ref Cookie model and whatever store the HTTP backend actually reads.
  *
  * A jar is never constructed directly: it is minted by the client backend
- * (ClientContext::make_cookie_jar) and held by a ParserConfig, so every request made
+ * (HttpClient::make_cookie_jar) and held by a ParserConfig, so every request made
  * with that config reads and writes the same cookies while a config derived for
  * another parser gets a jar of its own. Mutations therefore land in the transport's
  * live store, not in a copy — a login performed over one request is visible to the
@@ -91,5 +91,12 @@ public:
 	 * @param cookies Lines produced by @ref serialize()
 	 */
 	virtual void deserialize(std::span<std::string> cookies)         = 0;
+
+protected:
+	CookieJar() = default;
+	CookieJar(const CookieJar&) = default;
+	CookieJar(CookieJar&&) = default;
+	CookieJar& operator=(const CookieJar&) = default;
+	CookieJar& operator=(CookieJar&&) = default;
 };
 } // namespace aniparse

@@ -5,7 +5,7 @@
  */
 #pragma once
 #include "aniparse/cache/Republishable.hpp"
-#include "aniparse/types/Response.hpp"
+#include "aniparse/utility/Result.hpp"
 
 #include <memory>
 #include <utility>
@@ -26,7 +26,7 @@ namespace aniparse {
  *               co_await.
  * @param fetch  Invocable returning `NetworkRequestTask<std::shared_ptr<const T>>`;
  *               copied into the coroutine frame and called at most once, only on a
- *               cold cell. A lambda whose body calls non-const RequestorContext
+ *               cold cell. A lambda whose body calls non-const RequestContext
  *               methods (request / request_json / ...) must be declared `mutable`,
  *               since its captured context copy is otherwise const.
  *

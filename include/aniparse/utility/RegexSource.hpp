@@ -138,6 +138,12 @@ public:
 	 */
 	[[nodiscard]] std::shared_ptr<const RegexSource> scoped_to(std::string_view owner) const;
 
+protected:
+	RegexSource(const RegexSource&) = default;
+	RegexSource(RegexSource&&) = default;
+	RegexSource& operator=(const RegexSource&) = default;
+	RegexSource& operator=(RegexSource&&) = default;
+
 private:
 	Overrides overrides_;
 	ScopedOverrides scoped_;

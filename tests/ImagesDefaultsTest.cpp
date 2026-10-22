@@ -5,8 +5,8 @@
  */
 #include "CoroTest.hpp"
 
-#include <aniparse/ClientContext.hpp>
-#include <aniparse/images/Image.hpp>
+#include <aniparse/runtime/RequestContext.hpp>
+#include <aniparse/images/ImagesGetter.hpp>
 
 #include <memory>
 #include <optional>
@@ -17,25 +17,25 @@ namespace {
 
 // The default ImagesGetter/ImageContainerGetter methods ignore the context, so this
 // client only needs to exist; its request paths are never taken.
-struct NullClient : ClientContext {
-	NetworkRequestTask<ResponseData> do_request(ConfiguredGetRequest) override {
+struct NullClient : HttpClient {
+	NetworkRequestTask<HttpResponse> do_request(ConfiguredGetRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	NetworkRequestTask<ResponseData> do_request(ConfiguredPostRequest) override {
+	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	NetworkRequestTask<ResponseData> do_request(ConfiguredPostMultipartRequest) override {
+	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	void apply_client_config(ClientConfig) override {
+	void apply_client_config(HttpClientConfig) override {
 	}
 	std::shared_ptr<CookieJar> make_cookie_jar() override {
 		return nullptr;
 	}
 };
 
-RequestorContext make_context() {
-	return RequestorContext(std::make_shared<NullClient>(), nullptr, std::make_shared<ParserConfig>());
+RequestContext make_context() {
+	return RequestContext(std::make_shared<NullClient>(), nullptr, std::make_shared<ParserConfig>());
 }
 
 // Implements only the pure-virtual surface; every optional override keeps its base
@@ -47,15 +47,15 @@ struct StubImagesGetter : ImagesGetter {
 };
 
 struct StubImageContainerGetter : ImageContainerGetter {
-	ImageContainerCompatibilities compatibilities() const noexcept override {
+	ImageContainerCapabilities capabilities() const noexcept override {
 		return {};
 	}
-	NetworkRequestTask<ImageContainerInfo> info(RequestorContext) const override {
+	NetworkRequestTask<ImageContainerInfo> load_info(RequestContext) const override {
 		ImageContainerInfo out;
 		out.common.title = "stub";
 		co_return out;
 	}
-	NetworkRequestTask<PageResults<ImageItem>> items(RequestorContext, GetFilters) const override {
+	NetworkRequestTask<PageResults<ImageItem>> items(RequestContext, GetFilters) const override {
 		co_return PageResults<ImageItem>{};
 	}
 	NetworkRequestTask<SerializedGetterData> serialize() const override {
@@ -68,20 +68,20 @@ struct StubImageContainerGetter : ImageContainerGetter {
 TEST_CASE("ImagesGetter default support declarations are empty; suggestions off") {
 	StubImagesGetter getter;
 
-	auto support = coro::sync_wait(getter.search_support(make_context()));
+	auto support = coro::sync_wait(getter.load_search_capabilities(make_context()));
 	REQUIRE(support);
 	CHECK(support->supported_filters.empty());
 	CHECK(support->supported_sorts.empty());
 	CHECK(support->supported_suggestion_kinds.empty());
-	CHECK_FALSE(support->compatibilities.has(compatibilities_flags::supports_suggestions));
+	CHECK_FALSE(support->capabilities.has(capabilities_flags::supports_suggestions));
 
-	ImagesGetterRootCompatibilities latest = getter.latest_support();
+	ImagesGetterCapabilities latest = getter.latest_capabilities();
 	CHECK(latest.supported_sorts.empty());
 }
 
 CORO_TEST_CASE("ImagesGetter search/latest/suggest/parse_url/from_serialized default to NotImplemented") {
 	StubImagesGetter getter;
-	RequestorContext context = make_context();
+	RequestContext context = make_context();
 
 	auto searched = co_await getter.search(context, SearchRequestQuery{}, GetFilters{});
 	REQUIRE_FALSE(searched.has_value());
@@ -106,9 +106,9 @@ CORO_TEST_CASE("ImagesGetter search/latest/suggest/parse_url/from_serialized def
 
 CORO_TEST_CASE("ImageContainerGetter comments default to NotImplemented; preview_info knows nothing") {
 	StubImageContainerGetter getter;
-	RequestorContext context = make_context();
+	RequestContext context = make_context();
 
-	auto comments = co_await getter.comments(context, GetFilters{});
+	auto comments = co_await getter.load_comments(context, GetFilters{});
 	REQUIRE_FALSE(comments.has_value());
 	CHECK(comments.error().code == RequestErrorCode::NotImplemented);
 

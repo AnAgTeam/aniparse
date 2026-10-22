@@ -4,7 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/images/Image.hpp"
+#include "aniparse/images/ImagesGetter.hpp"
 
 namespace aniparse::engines {
 
@@ -25,24 +25,24 @@ class BooruImagesGetter : public ImagesGetter {
 public:
 	explicit BooruImagesGetter(const BooruSite& site) : site_(site) {}
 
-	NetworkRequestTask<SearchCapabilities> search_support(RequestorContext context) const override;
+	NetworkRequestTask<SearchCapabilities> load_search_capabilities(RequestContext context) const override;
 
 	NetworkRequestTask<std::vector<SearchSuggestion>> suggest(
-	    RequestorContext context,
+	    RequestContext context,
 	    std::string partial,
 	    std::optional<std::string> kind) const override;
 
 	NetworkRequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> search(
-	    RequestorContext context,
+	    RequestContext context,
 	    SearchRequestQuery query,
 	    GetFilters filters) const override;
 
 	NetworkRequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> latest(
-	    RequestorContext context,
+	    RequestContext context,
 	    GetFilters filters) const override;
 
 	NetworkRequestTask<std::unique_ptr<ImageContainerGetter>> parse_url(
-	    RequestorContext context,
+	    RequestContext context,
 	    ParsedUrl url) const override;
 
 	NetworkRequestTask<std::unique_ptr<ImageContainerGetter>> from_serialized(

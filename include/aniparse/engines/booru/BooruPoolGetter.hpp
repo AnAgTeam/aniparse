@@ -4,7 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/images/Image.hpp"
+#include "aniparse/images/ImagesGetter.hpp"
 
 #include <optional>
 
@@ -30,12 +30,12 @@ public:
 	/// @param id   The numeric pool id — its identity.
 	BooruPoolGetter(const BooruSite& site, ImageContainerID id);
 
-	ImageContainerCompatibilities compatibilities() const noexcept override;
+	ImageContainerCapabilities capabilities() const noexcept override;
 
-	NetworkRequestTask<ImageContainerInfo> info(RequestorContext context) const override;
+	NetworkRequestTask<ImageContainerInfo> load_info(RequestContext context) const override;
 
 	NetworkRequestTask<PageResults<ImageItem>> items(
-	    RequestorContext context,
+	    RequestContext context,
 	    GetFilters filters) const override;
 
 	NetworkRequestTask<SerializedGetterData> serialize() const override;

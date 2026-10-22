@@ -6,7 +6,7 @@
 #include "aniparse/engines/booru/BooruContainerGetter.hpp"
 #include "aniparse/engines/booru/BooruEngine.hpp"
 #include "aniparse/engines/booru/BooruSite.hpp"
-#include "aniparse/ClientContext.hpp"
+#include "aniparse/runtime/RequestContext.hpp"
 #include "aniparse/utility/Coroutines.hpp"
 
 #include <boost/json.hpp>
@@ -20,12 +20,12 @@ BooruContainerGetter::BooruContainerGetter(const BooruSite& site, ImageContainer
                                            std::optional<ImageItem> item)
     : site_(site), id_(id), info_(std::move(info)), item_(std::move(item)) {}
 
-ImageContainerCompatibilities BooruContainerGetter::compatibilities() const noexcept {
+ImageContainerCapabilities BooruContainerGetter::capabilities() const noexcept {
 	return {};
 }
 
 NetworkRequestTask<BooruContainerGetter::Post> BooruContainerGetter::fetch_post(
-    RequestorContext& context) const {
+    RequestContext& context) const {
 	const BooruEngine& engine = site_.engine();
 	std::string_view base = context.base_url(site_.api_hosts);
 	GetRequest request = engine.container_request(base, id_);
@@ -49,7 +49,7 @@ std::optional<ImageContainerInfo> BooruContainerGetter::preview_info() const noe
 	return info_;
 }
 
-NetworkRequestTask<ImageContainerInfo> BooruContainerGetter::info(RequestorContext context) const {
+NetworkRequestTask<ImageContainerInfo> BooruContainerGetter::load_info(RequestContext context) const {
 	// Always asks the source, even when a list result is in hand: info() is the fresh
 	// record, and the card this getter was built with may be minutes or days old.
 	auto post = co_await fetch_post(context);
@@ -60,7 +60,7 @@ NetworkRequestTask<ImageContainerInfo> BooruContainerGetter::info(RequestorConte
 }
 
 NetworkRequestTask<PageResults<ImageItem>> BooruContainerGetter::items(
-    RequestorContext context, GetFilters) const {
+    RequestContext context, GetFilters) const {
 	// A post is a container-of-one: at most a single media leaf, ignoring paging.
 	auto page_of = [](std::optional<ImageItem> item) {
 		PageResults<ImageItem> page;

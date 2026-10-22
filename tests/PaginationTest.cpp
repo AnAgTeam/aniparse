@@ -5,7 +5,7 @@
  */
 #include "catch_amalgamated.hpp"
 
-#include <aniparse/types/Pagination.hpp>
+#include <aniparse/catalog/Pagination.hpp>
 
 #include <memory>
 #include <string>

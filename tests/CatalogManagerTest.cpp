@@ -5,7 +5,7 @@
  */
 #include "catch_amalgamated.hpp"
 
-#include <aniparse/catalog/CatalogManager.hpp>
+#include <aniparse/source/overrides/SourceOverridesManager.hpp>
 #include <aniparse/video/VideoExtractor.hpp>
 
 #include <memory>
@@ -32,7 +32,7 @@ struct CatalogParser : Parser {
 	ParserInfo info() const override { return { .name = id }; }
 	std::string identifier() const override { return id; }
 	bool valid_for_url(const ParsedUrl&) const override { return true; }
-	ParserCompatibilities compatibilities() const override { return {}; }
+	ParserCapabilities capabilities() const override { return {}; }
 	void emplace_domains(EmplaceDomainsContext&) const override {}
 };
 
@@ -53,7 +53,7 @@ struct CatalogExtractor : VideoExtractor {
 	std::string identifier() const override { return id; }
 	void emplace_domains(EmplaceDomainsContext&) const override {}
 	bool valid_for_url(const ParsedUrl&) const override { return true; }
-	NetworkRequestTask<VideoExtraction> extract(RequestorContext, ParsedUrl) const override {
+	NetworkRequestTask<VideoExtraction> extract(RequestContext, ParsedUrl) const override {
 		co_return VideoExtraction{};
 	}
 };
@@ -65,11 +65,11 @@ std::string catalog(int revision, std::string_view parser_id, std::string_view d
 }
 } // namespace
 
-TEST_CASE("CatalogManager applies a verified catalog to routing") {
+TEST_CASE("SourceOverridesManager applies a verified catalog to routing") {
 	ParserStore store;
 	store.add_parser(std::make_unique<CatalogParser>("ExampleParser"));
 	StubVerifier verifier(true);
-	CatalogManager manager(store, verifier);
+	SourceOverridesManager manager(store, verifier);
 
 	// Nothing routes there before any catalog.
 	CHECK_FALSE(store.find_for_url("https://example.com"));
@@ -81,24 +81,24 @@ TEST_CASE("CatalogManager applies a verified catalog to routing") {
 	CHECK(store.find_for_url("https://example.com"));
 }
 
-TEST_CASE("CatalogManager leaves state unchanged on a bad signature") {
+TEST_CASE("SourceOverridesManager leaves state unchanged on a bad signature") {
 	ParserStore store;
 	store.add_parser(std::make_unique<CatalogParser>("ExampleParser"));
 	StubVerifier verifier(false);
-	CatalogManager manager(store, verifier);
+	SourceOverridesManager manager(store, verifier);
 
 	auto applied = manager.apply(catalog(3, "ExampleParser", "example.com"), "sig");
 	REQUIRE_FALSE(applied.has_value());
-	CHECK(applied.error() == CatalogError::BadSignature);
+	CHECK(applied.error() == OverridesError::BadSignature);
 	CHECK(manager.revision() == 0);
 	CHECK_FALSE(store.find_for_url("https://example.com"));
 }
 
-TEST_CASE("CatalogManager rejects a non-newer catalog and keeps the applied one") {
+TEST_CASE("SourceOverridesManager rejects a non-newer catalog and keeps the applied one") {
 	ParserStore store;
 	store.add_parser(std::make_unique<CatalogParser>("ExampleParser"));
 	StubVerifier verifier(true);
-	CatalogManager manager(store, verifier);
+	SourceOverridesManager manager(store, verifier);
 
 	REQUIRE(manager.apply(catalog(5, "ExampleParser", "example.com"), "sig").has_value());
 	CHECK(manager.revision() == 5);
@@ -107,20 +107,20 @@ TEST_CASE("CatalogManager rejects a non-newer catalog and keeps the applied one"
 	// domains stay in place, the older catalog's domain never lands.
 	auto stale = manager.apply(catalog(4, "ExampleParser", "other.example"), "sig");
 	REQUIRE_FALSE(stale.has_value());
-	CHECK(stale.error() == CatalogError::StaleRevision);
+	CHECK(stale.error() == OverridesError::StaleRevision);
 	CHECK(manager.revision() == 5);
 	CHECK(store.find_for_url("https://example.com"));
 	CHECK_FALSE(store.find_for_url("https://other.example"));
 }
 
-TEST_CASE("CatalogManager swaps catalog selectors into the services holder") {
+TEST_CASE("SourceOverridesManager swaps catalog selectors into the services holder") {
 	ParserStore store;
 	StubVerifier verifier(true);
 
-	auto services = std::make_shared<ServiceState>();
+	auto services = std::make_shared<RuntimeServices>();
 	services->selectors = std::make_shared<html::SelectorSourceHolder>();
 	services->resources = std::make_shared<ResourceCache>();
-	CatalogManager manager(store, verifier, services);
+	SourceOverridesManager manager(store, verifier, services);
 
 	// Before any catalog the holder is empty -> every key falls back.
 	CHECK(services->selectors->get()->get("example.info.description", "FALLBACK") == "FALLBACK");
@@ -137,16 +137,16 @@ TEST_CASE("CatalogManager swaps catalog selectors into the services holder") {
 	CHECK(source->get("unknown.key", "FALLBACK") == "FALLBACK");          // unknown still falls back
 }
 
-TEST_CASE("CatalogManager swaps catalog patterns into the services holders") {
+TEST_CASE("SourceOverridesManager swaps catalog patterns into the services holders") {
 	ParserStore store;
 	StubVerifier verifier(true);
 
-	auto services = std::make_shared<ServiceState>();
+	auto services = std::make_shared<RuntimeServices>();
 	services->patterns = std::make_shared<RegexSourceHolder>();
 	services->resources = std::make_shared<ResourceCache>();
-	auto extractor_services = std::make_shared<ServiceState>();
+	auto extractor_services = std::make_shared<RuntimeServices>();
 	extractor_services->patterns = std::make_shared<RegexSourceHolder>();
-	CatalogManager manager(store, verifier, services, nullptr, extractor_services);
+	SourceOverridesManager manager(store, verifier, services, nullptr, extractor_services);
 
 	// Before any catalog the holders are empty -> every key falls back.
 	CHECK(services->patterns->get()->scoped_to("ExampleParser")->get("info.id", "FALLBACK") ==
@@ -169,14 +169,14 @@ TEST_CASE("CatalogManager swaps catalog patterns into the services holders") {
 	CHECK(extractor_services->patterns->get()->scoped_to("ExampleParser")->empty_source());
 }
 
-TEST_CASE("CatalogManager swaps catalog mirrors and unions their hosts into routing") {
+TEST_CASE("SourceOverridesManager swaps catalog mirrors and unions their hosts into routing") {
 	ParserStore store;
 	store.add_parser(std::make_unique<CatalogParser>("ExampleParser"));
 	StubVerifier verifier(true);
 
-	auto services     = std::make_shared<ServiceState>();
+	auto services     = std::make_shared<RuntimeServices>();
 	services->mirrors = std::make_shared<MirrorSourceHolder>();
-	CatalogManager manager(store, verifier, services);
+	SourceOverridesManager manager(store, verifier, services);
 
 	// A catalog with only mirrors (no separate "domains") for the parser.
 	std::string_view payload = R"({
@@ -198,14 +198,14 @@ TEST_CASE("CatalogManager swaps catalog mirrors and unions their hosts into rout
 	CHECK(store.find_for_url("https://alt.example/title/1"));
 }
 
-TEST_CASE("CatalogManager swaps canonical frontend origins and routes their host") {
+TEST_CASE("SourceOverridesManager swaps canonical frontend origins and routes their host") {
 	ParserStore store;
 	store.add_parser(std::make_unique<CatalogParser>("ExampleParser"));
 	StubVerifier verifier(true);
 
-	auto services     = std::make_shared<ServiceState>();
+	auto services     = std::make_shared<RuntimeServices>();
 	services->mirrors = std::make_shared<MirrorSourceHolder>();
-	CatalogManager manager(store, verifier, services);
+	SourceOverridesManager manager(store, verifier, services);
 
 	std::string_view payload = R"({
 		"schema_version": 1, "revision": 4,
@@ -222,18 +222,18 @@ TEST_CASE("CatalogManager swaps canonical frontend origins and routes their host
 	CHECK(store.find_for_url("https://frontend.example/title/1"));
 }
 
-TEST_CASE("CatalogManager applies the extractors section to the extractor store and mirrors") {
+TEST_CASE("SourceOverridesManager applies the extractors section to the extractor store and mirrors") {
 	ParserStore store;
 	store.add_parser(std::make_unique<CatalogParser>("SharedId"));
 	VideoExtractorStore extractors;
 	extractors.add_extractor(std::make_shared<CatalogExtractor>("SharedId"));
 	StubVerifier verifier(true);
 
-	auto services = std::make_shared<ServiceState>();
+	auto services = std::make_shared<RuntimeServices>();
 	services->mirrors = std::make_shared<MirrorSourceHolder>();
-	auto extractor_services = std::make_shared<ServiceState>();
+	auto extractor_services = std::make_shared<RuntimeServices>();
 	extractor_services->mirrors = std::make_shared<MirrorSourceHolder>();
-	CatalogManager manager(store, verifier, services, &extractors, extractor_services);
+	SourceOverridesManager manager(store, verifier, services, &extractors, extractor_services);
 
 	std::string_view payload = R"({
 		"schema_version": 1, "revision": 6,
@@ -259,22 +259,22 @@ TEST_CASE("CatalogManager applies the extractors section to the extractor store 
 	      std::vector<std::string>{ "https://extractor-live.example:8443/base" });
 }
 
-TEST_CASE("CatalogManager reset restores static routing and empty override snapshots") {
+TEST_CASE("SourceOverridesManager reset restores static routing and empty override snapshots") {
 	ParserStore store;
 	store.add_parser(std::make_unique<StaticCatalogParser>("SharedId"));
 	VideoExtractorStore extractors;
 	extractors.add_extractor(std::make_shared<CatalogExtractor>("SharedId"));
 	StubVerifier verifier(true);
 
-	auto services = std::make_shared<ServiceState>();
+	auto services = std::make_shared<RuntimeServices>();
 	services->mirrors = std::make_shared<MirrorSourceHolder>();
 	services->selectors = std::make_shared<html::SelectorSourceHolder>();
 	services->patterns = std::make_shared<RegexSourceHolder>();
 	services->resources = std::make_shared<ResourceCache>();
-	auto extractor_services = std::make_shared<ServiceState>();
+	auto extractor_services = std::make_shared<RuntimeServices>();
 	extractor_services->mirrors = std::make_shared<MirrorSourceHolder>();
 	extractor_services->patterns = std::make_shared<RegexSourceHolder>();
-	CatalogManager manager(store, verifier, services, &extractors, extractor_services);
+	SourceOverridesManager manager(store, verifier, services, &extractors, extractor_services);
 
 	std::string_view payload = R"({
 		"schema_version": 1, "revision": 6,
@@ -311,11 +311,11 @@ TEST_CASE("CatalogManager reset restores static routing and empty override snaps
 	CHECK(extractor_services->patterns->get()->empty_source());
 }
 
-TEST_CASE("CatalogManager without an extractor store ignores the extractors section") {
+TEST_CASE("SourceOverridesManager without an extractor store ignores the extractors section") {
 	ParserStore store;
 	store.add_parser(std::make_unique<CatalogParser>("ExampleParser"));
 	StubVerifier verifier(true);
-	CatalogManager manager(store, verifier);
+	SourceOverridesManager manager(store, verifier);
 
 	std::string_view payload = R"({
 		"schema_version": 1, "revision": 2,
@@ -326,13 +326,13 @@ TEST_CASE("CatalogManager without an extractor store ignores the extractors sect
 	CHECK(store.find_for_url("https://example.com"));
 }
 
-TEST_CASE("CatalogManager ignores obsolete parser origins including malformed values", "[profile-catalog]") {
+TEST_CASE("SourceOverridesManager ignores obsolete parser origins including malformed values", "[profile-catalog]") {
     ParserStore store;
     store.add_parser(std::make_unique<CatalogParser>("ExampleParser"));
     StubVerifier verifier(true);
-    auto services = std::make_shared<ServiceState>();
+    auto services = std::make_shared<RuntimeServices>();
     services->mirrors = std::make_shared<MirrorSourceHolder>();
-    CatalogManager manager(store, verifier, services);
+    SourceOverridesManager manager(store, verifier, services);
     std::string_view payload;
     SECTION("old valid origins") {
         payload = R"({"schema_version":1,"revision":1,"parsers":{"ExampleParser":{

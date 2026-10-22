@@ -3,7 +3,7 @@
  */
 #pragma once
 
-#include <aniparse/Parser.hpp>
+#include <aniparse/source/Parser.hpp>
 
 #include <memory>
 

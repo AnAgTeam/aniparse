@@ -1,8 +1,8 @@
 #include "ExampleClient.hpp"
-#include <aniparse/Parser.hpp>
-#include <aniparse/catalog/content/Catalog.hpp>
-#include <aniparse/ParserStore.hpp>
-#include <aniparse/net/Client.hpp>
+#include <aniparse/source/Parser.hpp>
+#include <aniparse/catalog/CatalogRootGetter.hpp>
+#include <aniparse/source/ParserStore.hpp>
+#include <aniparse/net/backends/curl/CurlHttpClient.hpp>
 
 // for coro::sync_wait
 #include <coro/sync_wait.hpp>
@@ -27,8 +27,8 @@ public:
 	}
 
 	// Returns the getter's basic capability information.
-	MangaGetterCompatibilities compatibilities() const noexcept override {
-		using namespace compatibilities_flags;
+	MangaGetterCapabilities capabilities() const noexcept override {
+		using namespace capabilities_flags;
 		return {
 			// Supports commenting, supports voting (not implemented yet)
 			.flags = supports_commenting
@@ -52,7 +52,7 @@ public:
 	}
 
 	// Fetch the full information about the manga
-	NetworkRequestTask<MangaInfo> info(RequestorContext context) const override {
+	NetworkRequestTask<MangaInfo> load_info(RequestContext context) const override {
 		co_return MangaInfo{
 			.common = {
 				.title = "Test",
@@ -66,8 +66,8 @@ public:
 
 
 	// Fetch the manga's translation information; there can be several
-	NetworkRequestTask<PageResults<MangaTranslationInfo>> translation_info(
-		RequestorContext context,
+	NetworkRequestTask<PageResults<MangaTranslationInfo>> load_translations(
+		RequestContext context,
 		GetFilters filters) const override {
 		PageResults<MangaTranslationInfo> pages;
 
@@ -95,8 +95,8 @@ public:
 	}
 
 	// Fetch the manga's chapter information; there can be several
-	NetworkRequestTask<PageResults<MangaChapterInfo>> chapters_info(
-		RequestorContext context,
+	NetworkRequestTask<PageResults<MangaChapterInfo>> load_chapters(
+		RequestContext context,
 		GetFilters filters,
 		std::optional<MangaTranslationID> translation) const override {
 		PageResults<MangaChapterInfo> pages;
@@ -127,17 +127,17 @@ public:
 	// Optional. The works the source declares related to this one (a sequel, a
 	// spin-off, an anime adaptation), as RelatedWork descriptors. If unsupported,
 	// return NotImplemented.
-	NetworkRequestTask<PageResults<RelatedWork>> related(
-		RequestorContext context,
+	NetworkRequestTask<PageResults<RelatedWork>> load_related(
+		RequestContext context,
 		GetFilters filters) const override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "Parser doesn't support related");
 	}
 
 	// Fetch all pages of a specific chapter, with image links.
 	// The chapter is identified by round-trip: the ref() of an element from
-	// chapters_info() is passed here (its id may carry a parser-internal key).
-	NetworkRequestTask<PageResults<MangaPage>> chapter_pages(
-		RequestorContext context,
+	// load_chapters() is passed here (its id may carry a parser-internal key).
+	NetworkRequestTask<PageResults<MangaPage>> load_chapter_pages(
+		RequestContext context,
 		MangaChapterRef chapter,
 		GetFilters filters,
 	    std::optional<MangaTranslationID> translation) const override {
@@ -184,7 +184,7 @@ public:
 	 * @param context Request context; unused by this static example.
 	 * @return The same public identity used by serialization.
 	 */
-	std::string canonical_url(RequestorContext /*context*/) const override {
+	std::string canonical_url(RequestContext /*context*/) const override {
 		return private_url_;
 	}
 
@@ -210,7 +210,7 @@ protected:
 
 	// Describe the manga search capabilities.
 	// This covers filters, sorting, ...
-	NetworkRequestTask<SearchCapabilities> search_support_for(RequestorContext) const override {
+	NetworkRequestTask<SearchCapabilities> load_search_capabilities_for(RequestContext) const override {
 		co_return SearchCapabilities{
 			// no sort, no filters
 		};
@@ -220,7 +220,7 @@ protected:
 	// Sort keys are open: the standard ones live in sort_keys, but a site may
 	// declare its own. The descriptor sets the supported directions
 	// (descending = true by default).
-	CatalogLatestSupport latest_support_for() const noexcept override {
+	CatalogLatestCapabilities latest_capabilities_for() const noexcept override {
 		using namespace sort_keys;
 		return {
 			.supported_sorts = {
@@ -233,14 +233,14 @@ protected:
 		};
 	}
 
-	// Search by the given criteria. Capabilities come from search_support_for().
+	// Search by the given criteria. Capabilities come from load_search_capabilities_for().
 	NetworkRequestTask<PageResults<CatalogEntry>> search_items(
-		RequestorContext context,
+		RequestContext context,
 		SearchRequestQuery query,
 		GetFilters filters) const override {
 		// Check the search has no invalid/extra entries.
-		// search_support() is the reference.
-		auto support = co_await search_support(context);
+		// load_search_capabilities() is the reference.
+		auto support = co_await load_search_capabilities(context);
 		if (!support) {
 			co_return unexpected(std::move(support.error()));
 		}
@@ -254,7 +254,7 @@ protected:
 
 	// Fetch the latest items for the chosen filters
 	NetworkRequestTask<PageResults<CatalogEntry>> latest_items(
-		RequestorContext context,
+		RequestContext context,
 		GetFilters filters) const override {
 		PageResults<CatalogEntry> pages;
 		// Logging
@@ -280,7 +280,7 @@ protected:
 
 	// Build a manga getter from a URL
 	NetworkRequestTask<CatalogEntry> parse_entry_url(
-		RequestorContext context,
+		RequestContext context,
 		ParsedUrl url) const override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot parse URLs");
 	}
@@ -345,7 +345,7 @@ class ExampleParser : public Parser {
 		return GetterSuggestionResult{ .type = GetterSuggestionType::Manga, .scope_id = "main" };
 	}
 
-	std::vector<CatalogScope> scope_descriptors() const override {
+	std::vector<CatalogInfo> scope_descriptors() const override {
 		return {{ .id = "main", .name = "Example catalog", .kinds = catalog_kinds::manga }};
 	}
 
@@ -361,7 +361,7 @@ class ExampleParser : public Parser {
     }
 
 	// The manga root getter for this parser
-	std::unique_ptr<CatalogRootGetter> make_catalog_getter(CatalogScope scope) const override {
+	std::unique_ptr<CatalogRootGetter> make_catalog_getter(CatalogInfo scope) const override {
 		return std::make_unique<ExampleCatalogGetter>(std::move(scope));
 	}
 };
@@ -386,7 +386,7 @@ struct std::formatter<LogLevel> {
 	}
 };
 
-struct ConsoleLogger : LoggerContext {
+struct ConsoleLogger : Logger {
 	void log(LogLevel message_type,
 		std::string_view message,
 		std::string_view parser_id,
@@ -423,7 +423,7 @@ int main() {
 	// The base client the parser uses to fetch data from the internet
 	auto client = examples::make_client();
 	// The parser context: holds the client, logger and the alt-link selection
-	RequestorContext client_context(client, std::make_shared<ConsoleLogger>(), nullptr);
+	RequestContext client_context(client, std::make_shared<ConsoleLogger>(), nullptr);
 
 	// Add the parser to the store
 	parser_store.add_parser(std::make_shared<ExampleParser>());

@@ -12,6 +12,7 @@ add_executable(aniparse-tests
 	"PaginationTest.cpp"
 	"ParsedUrlTest.cpp"
 	"ModelTest.cpp"
+	"PolymorphicInterfacesTest.cpp"
 	"AuthExportTest.cpp"
 	"ParserProfileTest.cpp"
 	"RequestorContextTest.cpp"
@@ -46,8 +47,8 @@ set_property(TARGET aniparse-tests PROPERTY CXX_STANDARD 23)
 target_link_libraries(aniparse-tests PRIVATE aniparse)
 add_test(NAME aniparse-tests COMMAND aniparse-tests)
 
-# Tests that drive the curl backend (AsyncClient) directly. Only built when that
-# backend is present; with it off they cannot compile (AsyncClient is gated out).
+# Tests that drive the curl backend (CurlHttpClient) directly. Only built when that
+# backend is present; with it off they cannot compile (CurlHttpClient is gated out).
 if (ANIPARSE_CURL_BACKEND)
 	add_executable(aniparse-tests-backend
 		"catch_amalgamated.cpp" "catch_amalgamated.hpp"
@@ -58,3 +59,24 @@ if (ANIPARSE_CURL_BACKEND)
 	target_link_libraries(aniparse-tests-backend PRIVATE aniparse)
 	add_test(NAME aniparse-tests-backend COMMAND aniparse-tests-backend)
 endif()
+
+# Each value header is compiled in isolation with only the model target's include
+# directory. Runtime/transport libraries and their third-party include paths are absent.
+set(aniparse_model_headers
+    media/Image.hpp media/Tags.hpp media/Identity.hpp media/RelatedWork.hpp
+    media/Publication.hpp media/Rating.hpp media/Community.hpp media/MediaInfo.hpp
+    media/Text.hpp media/Ids.hpp media/Serialization.hpp
+    manga/MangaInfo.hpp anime/AnimeInfo.hpp images/ImageContainerInfo.hpp
+    source/ParserInfo.hpp source/ProfileInfo.hpp
+    catalog/SearchQuery.hpp catalog/SearchCapabilities.hpp catalog/CatalogInfo.hpp catalog/Pagination.hpp
+    AniParse.hpp source/overrides/ProfileOverrides.hpp
+)
+set(aniparse_model_checks)
+foreach(model_header IN LISTS aniparse_model_headers)
+    string(REPLACE "/" "_" check_name "${model_header}")
+    set(check_source "${CMAKE_CURRENT_BINARY_DIR}/headers/${check_name}.cpp")
+    file(GENERATE OUTPUT "${check_source}" CONTENT "#include <aniparse/${model_header}>\n")
+    list(APPEND aniparse_model_checks "${check_source}")
+endforeach()
+add_library(aniparse-model-headers OBJECT ${aniparse_model_checks})
+target_link_libraries(aniparse-model-headers PRIVATE aniparse::models)
