@@ -11,14 +11,14 @@ using namespace aniparse;
 namespace {
 
 struct NoNetwork : HttpClient {
-    NetworkRequestTask<HttpResponse> do_request(ConfiguredGetRequest) override {
+    RequestTask<HttpResponse> do_request(ConfiguredGetRequest) override {
         FAIL("Catalog and preview fixtures must not request the network");
         co_return make_response_error(RequestErrorCode::NetworkError, "unexpected request");
     }
-    NetworkRequestTask<HttpResponse> do_request(ConfiguredPostRequest) override {
+    RequestTask<HttpResponse> do_request(ConfiguredPostRequest) override {
         co_return make_response_error(RequestErrorCode::NetworkError, "unexpected request");
     }
-    NetworkRequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest) override {
+    RequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest) override {
         co_return make_response_error(RequestErrorCode::NetworkError, "unexpected request");
     }
     void apply_client_config(HttpClientConfig) override {}
@@ -42,18 +42,18 @@ struct ReadingGetter : MangaGetter {
         info.common.previews.push_back(Image{.url = "https://example.org/card.jpg"});
         return info;
     }
-    NetworkRequestTask<MangaInfo> load_info(RequestContext) const override {
+    RequestTask<MangaInfo> load_info(RequestContext) const override {
         MangaInfo info{};
         info.id = 1;
         info.common.title = catalog + "Reading detail";
         info.common.previews.push_back(Image{.url = "https://example.org/detail.jpg"});
         co_return info;
     }
-    NetworkRequestTask<PageResults<MangaPage>> load_chapter_pages(RequestContext, MangaChapterRef, GetFilters, std::optional<MangaTranslationID>) const override {
+    RequestTask<PageResults<MangaPage>> load_chapter_pages(RequestContext, MangaChapterRef, GetFilters, std::optional<MangaTranslationID>) const override {
         co_return PageResults<MangaPage>{};
     }
     std::string canonical_url(RequestContext) const override { return "https://example.org/manga/1"; }
-    NetworkRequestTask<SerializedGetterData> serialize() const override { co_return SerializedGetterData{.url = "1"}; }
+    RequestTask<SerializedGetterData> serialize() const override { co_return SerializedGetterData{.url = "1"}; }
 };
 
 struct WatchingGetter : AnimeGetter {
@@ -67,17 +67,17 @@ struct WatchingGetter : AnimeGetter {
         info.common.title = "Watching card";
         return info;
     }
-    NetworkRequestTask<AnimeInfo> load_info(RequestContext) const override {
+    RequestTask<AnimeInfo> load_info(RequestContext) const override {
         AnimeInfo info{};
         info.id = 1;
         info.common.title = "Watching detail";
         co_return info;
     }
-    NetworkRequestTask<PageResults<VideoSource>> load_episode_sources(RequestContext, AnimeEpisodeRef, GetFilters, std::optional<AnimeTrackID>) const override {
+    RequestTask<PageResults<VideoSource>> load_episode_sources(RequestContext, AnimeEpisodeRef, GetFilters, std::optional<AnimeTrackID>) const override {
         co_return PageResults<VideoSource>{};
     }
     std::string canonical_url(RequestContext) const override { return "https://example.org/anime/1"; }
-    NetworkRequestTask<SerializedGetterData> serialize() const override { co_return SerializedGetterData{.url = "1"}; }
+    RequestTask<SerializedGetterData> serialize() const override { co_return SerializedGetterData{.url = "1"}; }
 };
 
 CatalogEntry paired_entry() {
@@ -91,7 +91,7 @@ struct MixedRoot : CatalogRootGetter {
     mutable unsigned calls = 0;
     bool invalid_result = false;
 
-    NetworkRequestTask<PageResults<CatalogEntry>> search_items(RequestContext, SearchRequestQuery, GetFilters filters) const override {
+    RequestTask<PageResults<CatalogEntry>> search_items(RequestContext, SearchRequestQuery, GetFilters filters) const override {
         ++calls;
         std::vector<CatalogEntry> native;
         native.emplace_back(std::make_unique<ReadingGetter>());
@@ -112,11 +112,11 @@ struct MixedRoot : CatalogRootGetter {
         if (invalid_result) page.append(filters.from, CatalogEntry{});
         co_return page;
     }
-    NetworkRequestTask<PageResults<CatalogEntry>> latest_items(RequestContext ctx, GetFilters filters) const override {
+    RequestTask<PageResults<CatalogEntry>> latest_items(RequestContext ctx, GetFilters filters) const override {
         if (scope().id != "mixed") co_return make_response_error(RequestErrorCode::NotImplemented, "This catalog has no recent feed");
         co_return co_await search_items(std::move(ctx), {}, filters);
     }
-    NetworkRequestTask<SearchCapabilities> load_search_capabilities_for(RequestContext) const override {
+    RequestTask<SearchCapabilities> load_search_capabilities_for(RequestContext) const override {
         SearchCapabilities support;
         support.supported_filters.emplace(scope().id, TextCapabilities{});
         co_return support;
@@ -126,15 +126,15 @@ struct MixedRoot : CatalogRootGetter {
         if (scope().id == "mixed") support.supported_sorts.emplace(scope().id, SortDescriptor{.ascending = true});
         return support;
     }
-    NetworkRequestTask<std::vector<SearchSuggestion>> suggest_items(RequestContext, std::string, std::optional<std::string>) const override {
+    RequestTask<std::vector<SearchSuggestion>> suggest_items(RequestContext, std::string, std::optional<std::string>) const override {
         co_return std::vector<SearchSuggestion>{{.value = scope().id, .label = scope().name}};
     }
-    NetworkRequestTask<CatalogEntry> parse_entry_url(RequestContext, ParsedUrl) const override {
+    RequestTask<CatalogEntry> parse_entry_url(RequestContext, ParsedUrl) const override {
         if (scope().id == "mixed") co_return paired_entry();
         if (scope().id == "watching") co_return std::make_unique<WatchingGetter>();
         co_return std::make_unique<ReadingGetter>(true, scope().id);
     }
-    NetworkRequestTask<CatalogEntry> restore_entry(SerializedGetterData data, MediaKind kind) const override {
+    RequestTask<CatalogEntry> restore_entry(SerializedGetterData data, MediaKind kind) const override {
         if (data.url != "1") co_return make_response_error(RequestErrorCode::InvalidArguments, "invalid identity");
         if (kind == MediaKind::Manga) co_return std::make_unique<ReadingGetter>(false, scope().id);
         co_return std::make_unique<WatchingGetter>();

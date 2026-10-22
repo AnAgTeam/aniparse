@@ -16,7 +16,7 @@ public:
 	explicit ChainedResourceHandle(std::vector<std::unique_ptr<ResourceHandle>> handles)
 	    : handles_(std::move(handles)) {}
 
-	Response<void> on_response(ResourceMetadata& metadata) override {
+	Result<void> on_response(ResourceMetadata& metadata) override {
 		for (auto handle = handles_.rbegin(); handle != handles_.rend(); ++handle) {
 			auto result = (*handle)->on_response(metadata);
 			if (!result) {
@@ -26,11 +26,11 @@ public:
 		return {};
 	}
 
-	Response<void> update(std::span<const std::byte> input, ResourceOutput& output) override {
+	Result<void> update(std::span<const std::byte> input, ResourceOutput& output) override {
 		return update_prefix(handles_.size(), input, output);
 	}
 
-	Response<void> final(ResourceOutput& output) override {
+	Result<void> final(ResourceOutput& output) override {
 		for (std::size_t count = handles_.size(); count > 0; --count) {
 			ForwardingOutput forwarded(*this, count - 1, output);
 			auto result = handles_[count - 1]->final(forwarded);
@@ -48,7 +48,7 @@ private:
 		                 ResourceOutput& output) noexcept
 		    : chain_(chain), prefix_count_(prefix_count), output_(output) {}
 
-		Response<void> write(std::span<const std::byte> bytes) override {
+		Result<void> write(std::span<const std::byte> bytes) override {
 			return chain_.update_prefix(prefix_count_, bytes, output_);
 		}
 
@@ -58,7 +58,7 @@ private:
 		ResourceOutput& output_;
 	};
 
-	Response<void> update_prefix(std::size_t count, std::span<const std::byte> input,
+	Result<void> update_prefix(std::size_t count, std::span<const std::byte> input,
 	                             ResourceOutput& output) {
 		if (count == 0) {
 			return output.write(input);
@@ -75,7 +75,7 @@ public:
 	explicit ComposedResourceAdapter(std::vector<std::shared_ptr<const ResourceAdapter>> adapters)
 	    : adapters_(std::move(adapters)) {}
 
-	NetworkRequestTask<OpenedResource> open(RequestContext context, ResourceContext resource) const override {
+	RequestTask<OpenedResource> open(RequestContext context, ResourceContext resource) const override {
 		ResourceContext current = std::move(resource);
 		std::vector<std::unique_ptr<ResourceHandle>> handles;
 		for (const std::shared_ptr<const ResourceAdapter>& adapter : adapters_) {

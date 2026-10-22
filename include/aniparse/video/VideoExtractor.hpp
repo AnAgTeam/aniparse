@@ -120,7 +120,7 @@ struct VideoExtractor {
 	 * both; a RequestError if the URL cannot be resolved.
 	 * @note A direct stream's request headers belong in VideoExtraction::headers.
 	 */
-	virtual NetworkRequestTask<VideoExtraction> extract(RequestContext context, ParsedUrl url) const = 0;
+	virtual RequestTask<VideoExtraction> extract(RequestContext context, ParsedUrl url) const = 0;
 	/**
 	 * @brief A mirror view for this extractor: the volatile-catalog override
 	 * keyed by this extractor's identifier() (if any) combined with the @p builtin
@@ -346,12 +346,12 @@ public:
 	 * @note Member coroutine: the store must outlive the returned task, under the
 	 * same caller-ownership convention as VideoExtractor::extract.
 	 */
-	[[nodiscard]] NetworkRequestTask<VideoExtraction> extract(
+	[[nodiscard]] RequestTask<VideoExtraction> extract(
 	    RequestContext context, ParsedUrl url, int max_depth = default_max_extraction_depth) const;
 	/**
 	 * @brief Overload taking an unparsed URL string.
 	 *
-	 * The URL is taken by value on purpose: a NetworkRequestTask is lazy and its
+	 * The URL is taken by value on purpose: a RequestTask is lazy and its
 	 * body — including the parse — starts only when the task is first awaited,
 	 * so a borrowed view could dangle before the parse ever runs.
 	 * @param context Request context handed to the extractors; belongs to the
@@ -362,7 +362,7 @@ public:
 	 * when @p url does not parse.
 	 * @note Same lifetime convention as the ParsedUrl overload.
 	 */
-	[[nodiscard]] NetworkRequestTask<VideoExtraction> extract(
+	[[nodiscard]] RequestTask<VideoExtraction> extract(
 	    RequestContext context, std::string url, int max_depth = default_max_extraction_depth) const;
 
 private:

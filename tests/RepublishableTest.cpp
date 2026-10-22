@@ -23,7 +23,7 @@ std::shared_ptr<const std::string> str(std::string value) {
 // A fetch that always succeeds with @p value, counting its invocations so a test
 // can prove the cache-first path skips it on a warm cell.
 auto ok_fetch(int& calls, std::string value) {
-	return [&calls, value]() -> NetworkRequestTask<std::shared_ptr<const std::string>> {
+	return [&calls, value]() -> RequestTask<std::shared_ptr<const std::string>> {
 		++calls;
 		co_return str(value);
 	};
@@ -31,7 +31,7 @@ auto ok_fetch(int& calls, std::string value) {
 
 // A fetch that always fails, likewise counting invocations.
 auto failing_fetch(int& calls) {
-	return [&calls]() -> NetworkRequestTask<std::shared_ptr<const std::string>> {
+	return [&calls]() -> RequestTask<std::shared_ptr<const std::string>> {
 		++calls;
 		co_return make_response_error(RequestErrorCode::NetworkError, "boom");
 	};

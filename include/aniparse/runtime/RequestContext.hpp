@@ -32,8 +32,6 @@ namespace html { class HTMLDocument; }
  */
 class RequestContext {
 public:
-	//constexpr RequestContext() noexcept = default;
-
 	/**
 	 * @brief Construct a context over a bundle of shared services and a config.
 	 * @param services Shared services; must be valid and carry a valid client. A
@@ -73,7 +71,7 @@ public:
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	NetworkRequestTask<HttpResponse> request(GetRequest request);
+	RequestTask<HttpResponse> request(GetRequest request);
 
 	/**
 	 * @brief Perform HTTP POST request with respect to client config
@@ -85,7 +83,7 @@ public:
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	NetworkRequestTask<HttpResponse> request(PostRequest request);
+	RequestTask<HttpResponse> request(PostRequest request);
 
 	/**
 	 * @brief Perform HTTP POST multipart/form-data request with respect to client config
@@ -97,7 +95,7 @@ public:
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	NetworkRequestTask<HttpResponse> request(PostMultipartRequest request);
+	RequestTask<HttpResponse> request(PostMultipartRequest request);
 
 	/**
 	 * @brief Perform a GET and parse the 2xx response body as an HTML document.
@@ -112,7 +110,7 @@ public:
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	NetworkRequestTask<html::HTMLDocument> request_html(GetRequest request);
+	RequestTask<html::HTMLDocument> request_html(GetRequest request);
 
 	/**
 	 * @brief Perform a POST and parse the 2xx response body as an HTML document.
@@ -123,7 +121,7 @@ public:
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	NetworkRequestTask<html::HTMLDocument> request_html(PostRequest request);
+	RequestTask<html::HTMLDocument> request_html(PostRequest request);
 
 	/**
 	 * @brief Perform a GET and parse the 2xx response body as JSON.
@@ -135,7 +133,7 @@ public:
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	NetworkRequestTask<boost::json::value> request_json(GetRequest request);
+	RequestTask<boost::json::value> request_json(GetRequest request);
 
 	/**
 	 * @brief Perform a POST and parse the 2xx response body as JSON.
@@ -146,7 +144,7 @@ public:
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	NetworkRequestTask<boost::json::value> request_json(PostRequest request);
+	RequestTask<boost::json::value> request_json(PostRequest request);
 
 	/**
 	 * @brief Output INFO to logger

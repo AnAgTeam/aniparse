@@ -44,7 +44,7 @@ struct TestStruct {
 	int value = 4;
 };
 
-NetworkRequestTask<TestStruct> test_coro() {
+RequestTask<TestStruct> test_coro() {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "blabla");
 }
 

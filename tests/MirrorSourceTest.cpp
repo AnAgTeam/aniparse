@@ -24,13 +24,13 @@ namespace {
 // The context resolves base URLs without touching the network, so this client
 // only needs to exist; its request paths are never taken.
 struct NullClient : HttpClient {
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredGetRequest) override {
+	RequestTask<HttpResponse> do_request(ConfiguredGetRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostRequest) override {
+	RequestTask<HttpResponse> do_request(ConfiguredPostRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest) override {
+	RequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
 	void apply_client_config(HttpClientConfig) override {}

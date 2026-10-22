@@ -14,14 +14,14 @@ std::optional<ImageContainerInfo> ImageContainerGetter::preview_info() const noe
 	return std::nullopt;
 }
 
-NetworkRequestTask<PageResults<Comment>> ImageContainerGetter::load_comments(
+RequestTask<PageResults<Comment>> ImageContainerGetter::load_comments(
     RequestContext,
     GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's ImageContainerGetter cannot get comments");
 }
 
 
-NetworkRequestTask<SearchCapabilities> ImagesGetter::load_search_capabilities(RequestContext) const {
+RequestTask<SearchCapabilities> ImagesGetter::load_search_capabilities(RequestContext) const {
 	co_return SearchCapabilities{};
 }
 
@@ -33,26 +33,26 @@ std::vector<SearchQueryError> ImagesGetter::validate_latest_filters(const GetFil
 	return validate_sort(latest_capabilities().supported_sorts, filters.sort);
 }
 
-NetworkRequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> ImagesGetter::search(
+RequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> ImagesGetter::search(
     RequestContext,
     SearchRequestQuery,
     GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot search images");
 }
 
-NetworkRequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> ImagesGetter::latest(
+RequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> ImagesGetter::latest(
     RequestContext,
     GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot get latest images");
 }
 
-NetworkRequestTask<std::unique_ptr<ImageContainerGetter>> ImagesGetter::parse_url(
+RequestTask<std::unique_ptr<ImageContainerGetter>> ImagesGetter::parse_url(
     RequestContext,
     ParsedUrl) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot parse image urls");
 }
 
-NetworkRequestTask<std::vector<SearchSuggestion>> ImagesGetter::suggest(
+RequestTask<std::vector<SearchSuggestion>> ImagesGetter::suggest(
     RequestContext,
     std::string,
     std::optional<std::string>) const {

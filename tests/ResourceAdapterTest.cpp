@@ -16,7 +16,7 @@ namespace {
 
 class CollectingOutput final : public aniparse::ResourceOutput {
 public:
-	aniparse::Response<void> write(std::span<const std::byte> bytes) override {
+	aniparse::Result<void> write(std::span<const std::byte> bytes) override {
 		bytes_.insert(bytes_.end(), bytes.begin(), bytes.end());
 		return {};
 	}
@@ -31,13 +31,13 @@ private:
 
 class NullClient final : public aniparse::HttpClient {
 public:
-	aniparse::NetworkRequestTask<aniparse::HttpResponse> do_request(aniparse::ConfiguredGetRequest) override {
+	aniparse::RequestTask<aniparse::HttpResponse> do_request(aniparse::ConfiguredGetRequest) override {
 		co_return aniparse::make_response_error(aniparse::RequestErrorCode::NotImplemented, "");
 	}
-	aniparse::NetworkRequestTask<aniparse::HttpResponse> do_request(aniparse::ConfiguredPostRequest) override {
+	aniparse::RequestTask<aniparse::HttpResponse> do_request(aniparse::ConfiguredPostRequest) override {
 		co_return aniparse::make_response_error(aniparse::RequestErrorCode::NotImplemented, "");
 	}
-	aniparse::NetworkRequestTask<aniparse::HttpResponse> do_request(
+	aniparse::RequestTask<aniparse::HttpResponse> do_request(
 	    aniparse::ConfiguredPostMultipartRequest) override {
 		co_return aniparse::make_response_error(aniparse::RequestErrorCode::NotImplemented, "");
 	}
@@ -54,7 +54,7 @@ class SuffixHandle final : public aniparse::ResourceHandle {
 public:
 	explicit SuffixHandle(std::byte suffix) : suffix_(suffix) {}
 
-	aniparse::Response<void> update(std::span<const std::byte> input,
+	aniparse::Result<void> update(std::span<const std::byte> input,
 	                                aniparse::ResourceOutput& output) override {
 		auto copied = output.write(input);
 		if (!copied) {
@@ -72,7 +72,7 @@ public:
 	TestAdapter(std::string request_suffix, std::byte response_suffix)
 	    : request_suffix_(std::move(request_suffix)), response_suffix_(response_suffix) {}
 
-	aniparse::NetworkRequestTask<aniparse::OpenedResource> open(
+	aniparse::RequestTask<aniparse::OpenedResource> open(
 	    aniparse::RequestContext,
 	    aniparse::ResourceContext resource) const override {
 		resource.resource.url += request_suffix_;

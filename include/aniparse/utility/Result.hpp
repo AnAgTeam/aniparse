@@ -66,7 +66,7 @@ enum class RequestErrorCode {
 };
 
 /**
- * @brief The error half of every Response — what went wrong, in one value.
+ * @brief The error half of every Result — what went wrong, in one value.
  * Recoverable failures travel through this channel rather than as exceptions, so
  * a getter's failure path is part of its signature.
  */
@@ -95,17 +95,17 @@ struct RequestError {
  *         richer one.
  */
 template<typename T, typename Error = RequestError>
-using Response = expected<T, Error>;
+using Result = expected<T, Error>;
 
 /**
- * @brief Build the failure half of a @ref Response in one call — the standard way
+ * @brief Build the failure half of a @ref Result in one call — the standard way
  * a getter reports an error, keeping the RequestError fields named at the site
  * that knows them.
  * @param code Failure classification
  * @param message Human-readable detail for logs; not for switching on
  * @param http_status Exact HTTP status, when the failure is status-based
  * @param body Response body, for diagnostics; moved in
- * @return An unexpected value assignable to any Response<T>
+ * @return An unexpected value assignable to any Result<T>
  */
 inline auto make_response_error(RequestErrorCode code, std::string message,
                                 std::optional<long> http_status = std::nullopt,
@@ -120,11 +120,11 @@ inline auto make_response_error(RequestErrorCode code, std::string message,
 
 /**
  * @brief The return type of every asynchronous, cancellable operation that may hit
- * the network: an awaitable task yielding a @ref Response.
+ * the network: an awaitable task yielding a @ref Result.
  * @tparam T The success value type the task yields.
  * @note A task carrying no value uses a placeholder success type; T = void leaves
  *       the coroutine promise unset.
  */
 template<typename T>
-using NetworkRequestTask = asyncnet::NetworkTask<Response<T>>;
+using RequestTask = asyncnet::NetworkTask<Result<T>>;
 } // namespace aniparse

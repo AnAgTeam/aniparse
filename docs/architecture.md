@@ -70,5 +70,8 @@ compatibility names, not names of C++ configuration types.
 Transport receives prepared HTTP requests and session cookies, never a complete
 `ParserConfig`. `RequestContext` applies profile settings and application
 fallbacks before dispatch. `HttpResponse` describes an HTTP response in
-`net/Response.hpp`; operation results, errors and cancellable task aliases are
-in `utility/Result.hpp`.
+`net/Response.hpp`; `Result<T>` carries the value or a `RequestError` for an operation. Results,
+errors and cancellable task aliases are declared in `utility/Result.hpp`.
+
+`RequestTask<T>` names a cancellable task yielding `Result<T>`. An operation
+may return cached or local data without performing network I/O.

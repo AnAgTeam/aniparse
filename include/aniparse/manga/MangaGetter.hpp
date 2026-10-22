@@ -94,7 +94,7 @@ struct MangaGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<MangaInfo> load_info(RequestContext context) const = 0;
+	virtual RequestTask<MangaInfo> load_info(RequestContext context) const = 0;
 
 	/**
 	 * @brief The translations this manga is available in, paginated via @p filters.
@@ -109,7 +109,7 @@ struct MangaGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<PageResults<MangaTranslationInfo>> load_translations(
+	virtual RequestTask<PageResults<MangaTranslationInfo>> load_translations(
 	    RequestContext context,
 	    GetFilters filters) const;
 
@@ -128,7 +128,7 @@ struct MangaGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<PageResults<MangaChapterInfo>> load_chapters(
+	virtual RequestTask<PageResults<MangaChapterInfo>> load_chapters(
 	    RequestContext context,
 	    GetFilters filters,
 	    std::optional<MangaTranslationID> translation = std::nullopt) const;
@@ -144,7 +144,7 @@ struct MangaGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<PageResults<Comment>> load_comments(
+	virtual RequestTask<PageResults<Comment>> load_comments(
 	    RequestContext context,
 	    GetFilters filters) const;
 
@@ -166,7 +166,7 @@ struct MangaGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<PageResults<RelatedWork>> load_related(
+	virtual RequestTask<PageResults<RelatedWork>> load_related(
 	    RequestContext context,
 	    GetFilters filters) const;
 
@@ -181,7 +181,7 @@ struct MangaGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> load_similar(
+	virtual RequestTask<PageResults<std::unique_ptr<MangaGetter>>> load_similar(
 	    RequestContext context,
 	    GetFilters filters) const;
 
@@ -204,7 +204,7 @@ struct MangaGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<PageResults<MangaPage>> load_chapter_pages(
+	virtual RequestTask<PageResults<MangaPage>> load_chapter_pages(
 	    RequestContext context,
 	    MangaChapterRef chapter,
 	    GetFilters filters,
@@ -239,7 +239,7 @@ struct MangaGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<SerializedGetterData> serialize() const = 0;
+	virtual RequestTask<SerializedGetterData> serialize() const = 0;
 
 protected:
 	MangaGetter() = default;

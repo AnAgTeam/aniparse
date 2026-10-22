@@ -53,7 +53,7 @@ struct CatalogExtractor : VideoExtractor {
 	std::string identifier() const override { return id; }
 	void emplace_domains(EmplaceDomainsContext&) const override {}
 	bool valid_for_url(const ParsedUrl&) const override { return true; }
-	NetworkRequestTask<VideoExtraction> extract(RequestContext, ParsedUrl) const override {
+	RequestTask<VideoExtraction> extract(RequestContext, ParsedUrl) const override {
 		co_return VideoExtraction{};
 	}
 };

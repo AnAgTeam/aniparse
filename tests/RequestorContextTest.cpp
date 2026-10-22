@@ -58,19 +58,19 @@ struct DummyLogger : public Logger {
 // assert both the request value and the jar it was routed onto.
 struct CannedClientMock : HttpClient {
 	explicit CannedClientMock(std::shared_ptr<CookieJar> cookie_jar = nullptr,
-	                          Response<HttpResponse> response = HttpResponse{ .status_code = 200 })
+	                          Result<HttpResponse> response = HttpResponse{ .status_code = 200 })
 		: cookie_jar(std::move(cookie_jar))
 		, response(std::move(response)) {}
 
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredGetRequest request) override {
+	RequestTask<HttpResponse> do_request(ConfiguredGetRequest request) override {
 		this->request = std::move(request);
 		co_return response;
 	}
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostRequest request) override {
+	RequestTask<HttpResponse> do_request(ConfiguredPostRequest request) override {
 		this->request = std::move(request);
 		co_return response;
 	}
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest request) override {
+	RequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest request) override {
 		this->request = std::move(request);
 		co_return response;
 	}
@@ -87,10 +87,10 @@ struct CannedClientMock : HttpClient {
 		ConfiguredPostMultipartRequest> request;
 	std::shared_ptr<CookieJar> cookie_jar;
 	std::unique_ptr<HttpClientConfig> config;
-	Response<HttpResponse> response;
+	Result<HttpResponse> response;
 };
 
-static RequestContext canned_context(Response<HttpResponse> response) {
+static RequestContext canned_context(Result<HttpResponse> response) {
 	return RequestContext(
 		std::make_shared<CannedClientMock>(std::make_shared<DummyCookieJar>(), std::move(response)),
 		std::make_shared<DummyLogger>(),

@@ -49,7 +49,7 @@ public:
 	    : FileCachingClient(std::move(cache_dir), std::make_shared<CurlHttpClient>()) {}
 #endif
 
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredGetRequest request) override {
+	RequestTask<HttpResponse> do_request(ConfiguredGetRequest request) override {
 		// Compute the key BEFORE moving the request: argument evaluation order is
 		// unspecified, so name it in a sequenced statement to avoid reading a
 		// moved-from url.
@@ -57,12 +57,12 @@ public:
 		co_return co_await serve(std::move(name), std::move(request));
 	}
 
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostRequest request) override {
+	RequestTask<HttpResponse> do_request(ConfiguredPostRequest request) override {
 		std::string name = cache_name(request.request.url, request.request.url_params, request.request.body);
 		co_return co_await serve(std::move(name), std::move(request));
 	}
 
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest request) override {
+	RequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest request) override {
 		// Multipart bodies are not keyed; always go upstream.
 		co_return co_await upstream_->do_request(std::move(request));
 	}
@@ -77,7 +77,7 @@ public:
 
 private:
 	template <typename Configured>
-	NetworkRequestTask<HttpResponse> serve(std::string name, Configured request) {
+	RequestTask<HttpResponse> serve(std::string name, Configured request) {
 		const std::filesystem::path file = cache_dir_ / name;
 		if (std::filesystem::exists(file)) {
 			co_return HttpResponse{ .status_code = 200, .body = read_file(file) };

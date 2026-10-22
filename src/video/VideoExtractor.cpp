@@ -19,7 +19,7 @@ namespace {
  * first extraction that yields direct streams. Links are alternatives: an
  * unroutable or failing link falls through to the next one.
  */
-NetworkRequestTask<VideoExtraction> extract_routed(
+RequestTask<VideoExtraction> extract_routed(
     RequestContext context, VideoExtractionRoute route,
     const VideoExtractorStore& store, int depth, int max_depth) {
 	auto extraction = co_await route.extractor->extract(context, std::move(route.url));
@@ -148,7 +148,7 @@ std::optional<VideoExtractionRoute> VideoExtractorStore::route_link(const VideoE
 	return VideoExtractionRoute{ std::move(extractor), std::move(*parsed) };
 }
 
-NetworkRequestTask<VideoExtraction> VideoExtractorStore::extract(
+RequestTask<VideoExtraction> VideoExtractorStore::extract(
     RequestContext context, ParsedUrl url, int max_depth) const {
 	const std::string href(url.href());
 	auto route = route_url(std::move(url));
@@ -160,7 +160,7 @@ NetworkRequestTask<VideoExtraction> VideoExtractorStore::extract(
 	co_return std::move(extraction);
 }
 
-NetworkRequestTask<VideoExtraction> VideoExtractorStore::extract(
+RequestTask<VideoExtraction> VideoExtractorStore::extract(
     RequestContext context, std::string url, int max_depth) const {
 	auto parsed = ParsedUrl::parse(url);
 	if (!parsed) {

@@ -39,21 +39,21 @@ public:
 	 * @param request HTTP request
 	 * @return Task with response
 	 */
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredGetRequest request) override;
+	RequestTask<HttpResponse> do_request(ConfiguredGetRequest request) override;
 
 	/**
 	 * @brief Perform HTTP POST request
 	 * @param request HTTP request
 	 * @return Task with response
 	 */
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostRequest request) override;
+	RequestTask<HttpResponse> do_request(ConfiguredPostRequest request) override;
 
 	/**
 	 * @brief Perform HTTP POST multipart/form-data request
 	 * @param request HTTP request
 	 * @return Task with response
 	 */
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest request) override;
+	RequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest request) override;
 
 	HttpClientConfig config() const;
 

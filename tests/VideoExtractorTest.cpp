@@ -21,7 +21,7 @@ struct TestExtractor final : aniparse::VideoExtractor {
 	bool valid_for_url(const aniparse::ParsedUrl& url) const override {
 		return url.path().starts_with(path_prefix_);
 	}
-	aniparse::NetworkRequestTask<aniparse::VideoExtraction> extract(
+	aniparse::RequestTask<aniparse::VideoExtraction> extract(
 	    aniparse::RequestContext,
 	    aniparse::ParsedUrl) const override {
 		co_return outcome;
@@ -36,13 +36,13 @@ struct TestExtractor final : aniparse::VideoExtractor {
 // The stub extractors never touch the context, so this client only needs to
 // exist; its request paths are never taken.
 struct NullClient final : aniparse::HttpClient {
-	aniparse::NetworkRequestTask<aniparse::HttpResponse> do_request(aniparse::ConfiguredGetRequest) override {
+	aniparse::RequestTask<aniparse::HttpResponse> do_request(aniparse::ConfiguredGetRequest) override {
 		co_return aniparse::make_response_error(aniparse::RequestErrorCode::NotImplemented, "");
 	}
-	aniparse::NetworkRequestTask<aniparse::HttpResponse> do_request(aniparse::ConfiguredPostRequest) override {
+	aniparse::RequestTask<aniparse::HttpResponse> do_request(aniparse::ConfiguredPostRequest) override {
 		co_return aniparse::make_response_error(aniparse::RequestErrorCode::NotImplemented, "");
 	}
-	aniparse::NetworkRequestTask<aniparse::HttpResponse> do_request(aniparse::ConfiguredPostMultipartRequest) override {
+	aniparse::RequestTask<aniparse::HttpResponse> do_request(aniparse::ConfiguredPostMultipartRequest) override {
 		co_return aniparse::make_response_error(aniparse::RequestErrorCode::NotImplemented, "");
 	}
 	void apply_client_config(aniparse::HttpClientConfig) override {}
@@ -60,7 +60,7 @@ aniparse::VideoStream test_stream(std::string url, int quality) {
 
 class NoopAdapter final : public aniparse::ResourceAdapter {
 public:
-	aniparse::NetworkRequestTask<aniparse::OpenedResource> open(
+	aniparse::RequestTask<aniparse::OpenedResource> open(
 	    aniparse::RequestContext,
 	    aniparse::ResourceContext resource) const override {
 		co_return aniparse::OpenedResource{

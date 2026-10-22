@@ -52,7 +52,7 @@ public:
 	}
 
 	// Fetch the full information about the manga
-	NetworkRequestTask<MangaInfo> load_info(RequestContext context) const override {
+	RequestTask<MangaInfo> load_info(RequestContext context) const override {
 		co_return MangaInfo{
 			.common = {
 				.title = "Test",
@@ -66,7 +66,7 @@ public:
 
 
 	// Fetch the manga's translation information; there can be several
-	NetworkRequestTask<PageResults<MangaTranslationInfo>> load_translations(
+	RequestTask<PageResults<MangaTranslationInfo>> load_translations(
 		RequestContext context,
 		GetFilters filters) const override {
 		PageResults<MangaTranslationInfo> pages;
@@ -95,7 +95,7 @@ public:
 	}
 
 	// Fetch the manga's chapter information; there can be several
-	NetworkRequestTask<PageResults<MangaChapterInfo>> load_chapters(
+	RequestTask<PageResults<MangaChapterInfo>> load_chapters(
 		RequestContext context,
 		GetFilters filters,
 		std::optional<MangaTranslationID> translation) const override {
@@ -127,7 +127,7 @@ public:
 	// Optional. The works the source declares related to this one (a sequel, a
 	// spin-off, an anime adaptation), as RelatedWork descriptors. If unsupported,
 	// return NotImplemented.
-	NetworkRequestTask<PageResults<RelatedWork>> load_related(
+	RequestTask<PageResults<RelatedWork>> load_related(
 		RequestContext context,
 		GetFilters filters) const override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "Parser doesn't support related");
@@ -136,7 +136,7 @@ public:
 	// Fetch all pages of a specific chapter, with image links.
 	// The chapter is identified by round-trip: the ref() of an element from
 	// load_chapters() is passed here (its id may carry a parser-internal key).
-	NetworkRequestTask<PageResults<MangaPage>> load_chapter_pages(
+	RequestTask<PageResults<MangaPage>> load_chapter_pages(
 		RequestContext context,
 		MangaChapterRef chapter,
 		GetFilters filters,
@@ -191,7 +191,7 @@ public:
 	// Serialize all of the getter's data into a serializable struct.
 	// Needed e.g. to save results to a file and reconstruct this getter later.
 	// Used together with CatalogRootGetter::from_serialized(...)
-	NetworkRequestTask<SerializedGetterData> serialize() const override {
+	RequestTask<SerializedGetterData> serialize() const override {
 		co_return SerializedGetterData{
 			.url = private_url_
 		};
@@ -210,7 +210,7 @@ protected:
 
 	// Describe the manga search capabilities.
 	// This covers filters, sorting, ...
-	NetworkRequestTask<SearchCapabilities> load_search_capabilities_for(RequestContext) const override {
+	RequestTask<SearchCapabilities> load_search_capabilities_for(RequestContext) const override {
 		co_return SearchCapabilities{
 			// no sort, no filters
 		};
@@ -234,7 +234,7 @@ protected:
 	}
 
 	// Search by the given criteria. Capabilities come from load_search_capabilities_for().
-	NetworkRequestTask<PageResults<CatalogEntry>> search_items(
+	RequestTask<PageResults<CatalogEntry>> search_items(
 		RequestContext context,
 		SearchRequestQuery query,
 		GetFilters filters) const override {
@@ -253,7 +253,7 @@ protected:
 	}
 
 	// Fetch the latest items for the chosen filters
-	NetworkRequestTask<PageResults<CatalogEntry>> latest_items(
+	RequestTask<PageResults<CatalogEntry>> latest_items(
 		RequestContext context,
 		GetFilters filters) const override {
 		PageResults<CatalogEntry> pages;
@@ -279,14 +279,14 @@ protected:
 	}
 
 	// Build a manga getter from a URL
-	NetworkRequestTask<CatalogEntry> parse_entry_url(
+	RequestTask<CatalogEntry> parse_entry_url(
 		RequestContext context,
 		ParsedUrl url) const override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot parse URLs");
 	}
 
 	// Build a manga getter from serialized data
-	NetworkRequestTask<CatalogEntry> restore_entry(SerializedGetterData data, MediaKind /*kind*/) const override {
+	RequestTask<CatalogEntry> restore_entry(SerializedGetterData data, MediaKind /*kind*/) const override {
 		if (data.url.empty()) {
 			co_return make_response_error(RequestErrorCode::NotImplemented, "Invalid serialized url");
 		}

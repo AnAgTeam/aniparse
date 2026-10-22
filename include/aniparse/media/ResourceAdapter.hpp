@@ -126,7 +126,7 @@ public:
 	 * consumer cannot accept more bytes.
 	 * @note A successful return transfers no ownership; the caller retains bytes.
 	 */
-	virtual Response<void> write(std::span<const std::byte> bytes) = 0;
+	virtual Result<void> write(std::span<const std::byte> bytes) = 0;
 
 protected:
 	ResourceOutput() = default;
@@ -158,7 +158,7 @@ public:
 	 * response is unusable.
 	 * @note The default implementation leaves @p metadata unchanged.
 	 */
-	virtual Response<void> on_response(ResourceMetadata& metadata) {
+	virtual Result<void> on_response(ResourceMetadata& metadata) {
 		return {};
 	}
 
@@ -171,7 +171,7 @@ public:
 	 * @note The default implementation is a zero-copy passthrough. Implementations
 	 * may emit zero, one, or many blocks and must not retain @p input or @p output.
 	 */
-	virtual Response<void> update(std::span<const std::byte> input, ResourceOutput& output) {
+	virtual Result<void> update(std::span<const std::byte> input, ResourceOutput& output) {
 		return output.write(input);
 	}
 
@@ -183,7 +183,7 @@ public:
 	 * @note The default implementation emits nothing. This method is not called
 	 * when the transport fails or the consumer cancels the resource.
 	 */
-	virtual Response<void> final(ResourceOutput& output) {
+	virtual Result<void> final(ResourceOutput& output) {
 		return {};
 	}
 
@@ -218,7 +218,7 @@ public:
 	 * @note This is the only coroutine phase of the adapter lifecycle. Both
 	 * parameters are values because the returned task may outlive its caller.
 	 */
-	[[nodiscard]] virtual NetworkRequestTask<OpenedResource> open(
+	[[nodiscard]] virtual RequestTask<OpenedResource> open(
 	    RequestContext context,
 	    ResourceContext resource) const = 0;
 

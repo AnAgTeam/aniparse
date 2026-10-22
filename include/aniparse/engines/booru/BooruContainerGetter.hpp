@@ -51,13 +51,13 @@ public:
 	/// of search needs no request to fill a card.
 	[[nodiscard]] std::optional<ImageContainerInfo> preview_info() const noexcept override;
 
-	NetworkRequestTask<ImageContainerInfo> load_info(RequestContext context) const override;
+	RequestTask<ImageContainerInfo> load_info(RequestContext context) const override;
 
-	NetworkRequestTask<PageResults<ImageItem>> items(
+	RequestTask<PageResults<ImageItem>> items(
 	    RequestContext context,
 	    GetFilters filters) const override;
 
-	NetworkRequestTask<SerializedGetterData> serialize() const override;
+	RequestTask<SerializedGetterData> serialize() const override;
 
 private:
 	/// The post as this engine maps it: the container metadata and its media leaf
@@ -68,7 +68,7 @@ private:
 	};
 
 	/// Fetch and map the post. Returns the mapping — writes nothing.
-	NetworkRequestTask<Post> fetch_post(RequestContext& context) const;
+	RequestTask<Post> fetch_post(RequestContext& context) const;
 
 	const BooruSite& site_;
 	const ImageContainerID id_;

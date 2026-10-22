@@ -38,7 +38,7 @@ struct HttpClient {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<HttpResponse> do_request(ConfiguredGetRequest request) = 0;
+	virtual RequestTask<HttpResponse> do_request(ConfiguredGetRequest request) = 0;
 
 	/**
 	 * @brief Perform HTTP POST request
@@ -48,7 +48,7 @@ struct HttpClient {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<HttpResponse> do_request(ConfiguredPostRequest request) = 0;
+	virtual RequestTask<HttpResponse> do_request(ConfiguredPostRequest request) = 0;
 
 	/**
 	 * @brief Perform HTTP POST multipart/form-data request
@@ -61,7 +61,7 @@ struct HttpClient {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest request) = 0;
+	virtual RequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest request) = 0;
 
 	/**
 	 * @brief Adopt a new transport-wide configuration.

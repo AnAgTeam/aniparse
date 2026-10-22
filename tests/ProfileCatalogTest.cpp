@@ -19,13 +19,13 @@ struct Verifier : SignatureVerifier {
 };
 
 struct NoNetwork : HttpClient {
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredGetRequest) override {
+	RequestTask<HttpResponse> do_request(ConfiguredGetRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostRequest) override {
+	RequestTask<HttpResponse> do_request(ConfiguredPostRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest) override {
+	RequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
 	void apply_client_config(HttpClientConfig) override {}

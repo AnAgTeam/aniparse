@@ -95,7 +95,7 @@ struct ImageContainerGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<ImageContainerInfo> load_info(RequestContext context) const = 0;
+	virtual RequestTask<ImageContainerInfo> load_info(RequestContext context) const = 0;
 
 	/**
 	 * @brief The media items of this container, paginated via @p filters.
@@ -109,7 +109,7 @@ struct ImageContainerGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<PageResults<ImageItem>> items(
+	virtual RequestTask<PageResults<ImageItem>> items(
 	    RequestContext context,
 	    GetFilters filters) const = 0;
 
@@ -123,7 +123,7 @@ struct ImageContainerGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<PageResults<Comment>> load_comments(
+	virtual RequestTask<PageResults<Comment>> load_comments(
 	    RequestContext context,
 	    GetFilters filters) const;
 
@@ -143,7 +143,7 @@ struct ImageContainerGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<SerializedGetterData> serialize() const = 0;
+	virtual RequestTask<SerializedGetterData> serialize() const = 0;
 
 protected:
 	ImageContainerGetter() = default;
@@ -172,7 +172,7 @@ struct ImagesGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<SearchCapabilities> load_search_capabilities(RequestContext context) const;
+	virtual RequestTask<SearchCapabilities> load_search_capabilities(RequestContext context) const;
 
 	/**
 	 * @brief What latest() accepts: its sort declaration and capability flags.
@@ -205,7 +205,7 @@ struct ImagesGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> search(
+	virtual RequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> search(
 	    RequestContext context,
 	    SearchRequestQuery query,
 	    GetFilters filters) const;
@@ -220,7 +220,7 @@ struct ImagesGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> latest(
+	virtual RequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> latest(
 	    RequestContext context,
 	    GetFilters filters) const;
 
@@ -239,7 +239,7 @@ struct ImagesGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<std::vector<SearchSuggestion>> suggest(
+	virtual RequestTask<std::vector<SearchSuggestion>> suggest(
 	    RequestContext context,
 	    std::string partial,
 	    std::optional<std::string> kind = std::nullopt) const;
@@ -257,7 +257,7 @@ struct ImagesGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<std::unique_ptr<ImageContainerGetter>> parse_url(
+	virtual RequestTask<std::unique_ptr<ImageContainerGetter>> parse_url(
 	    RequestContext context,
 	    ParsedUrl url) const;
 
@@ -279,7 +279,7 @@ struct ImagesGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<std::unique_ptr<ImageContainerGetter>> from_serialized(SerializedGetterData data) const = 0;
+	virtual RequestTask<std::unique_ptr<ImageContainerGetter>> from_serialized(SerializedGetterData data) const = 0;
 
 protected:
 	ImagesGetter() = default;

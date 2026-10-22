@@ -55,14 +55,14 @@ public:
 	 * @param request HTTP request
 	 * @return Task with the response, or a RequestError on a transport-level failure
 	 */
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredGetRequest request) override;
+	RequestTask<HttpResponse> do_request(ConfiguredGetRequest request) override;
 
 	/**
 	 * @brief Perform HTTP POST request
 	 * @param request HTTP request
 	 * @return Task with the response, or a RequestError on a transport-level failure
 	 */
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostRequest request) override;
+	RequestTask<HttpResponse> do_request(ConfiguredPostRequest request) override;
 
 	/**
 	 * @brief Perform HTTP POST multipart/form-data request
@@ -70,7 +70,7 @@ public:
 	 * @return Task with the response, or a RequestError on a transport-level failure
 	 * @throws std::invalid_argument If a File form part cannot be read at send time
 	 */
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest request) override;
+	RequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest request) override;
 
 	/**
 	 * @brief Adopt a new transport-wide configuration.

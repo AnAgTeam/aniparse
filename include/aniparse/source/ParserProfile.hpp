@@ -59,7 +59,7 @@ public:
 	 * completed or been destroyed. The task borrows this; it does not own the
 	 * profile. This also applies when a task is stored or returned to another caller.
 	 */
-	virtual NetworkRequestTask<std::shared_ptr<const ParserConfig>> authenticate(
+	virtual RequestTask<std::shared_ptr<const ParserConfig>> authenticate(
 	    RequestContext context,
 	    AuthenticationData data) const;
 

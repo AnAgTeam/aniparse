@@ -22,7 +22,7 @@
  * Anime.hpp includes this and adds the getters, so nothing else changes.
  *
  * Kept transport-free on purpose: this is the half a consumer binds to (the Swift
- * bridge imports it directly), and a header that reaches NetworkRequestTask cannot
+ * bridge imports it directly), and a header that reaches RequestTask cannot
  * be imported by Swift's clang importer at all. @see MangaModel.hpp
  */
 

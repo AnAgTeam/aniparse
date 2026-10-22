@@ -32,13 +32,13 @@ public:
 
 	ImageContainerCapabilities capabilities() const noexcept override;
 
-	NetworkRequestTask<ImageContainerInfo> load_info(RequestContext context) const override;
+	RequestTask<ImageContainerInfo> load_info(RequestContext context) const override;
 
-	NetworkRequestTask<PageResults<ImageItem>> items(
+	RequestTask<PageResults<ImageItem>> items(
 	    RequestContext context,
 	    GetFilters filters) const override;
 
-	NetworkRequestTask<SerializedGetterData> serialize() const override;
+	RequestTask<SerializedGetterData> serialize() const override;
 
 private:
 	const BooruSite& site_;

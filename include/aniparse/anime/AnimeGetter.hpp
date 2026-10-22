@@ -82,7 +82,7 @@ struct AnimeGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<AnimeInfo> load_info(RequestContext context) const = 0;
+	virtual RequestTask<AnimeInfo> load_info(RequestContext context) const = 0;
 
 	/**
 	 * @brief The (team × player) tracks available for this anime, paginated via
@@ -99,7 +99,7 @@ struct AnimeGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<PageResults<AnimeTrackInfo>> load_tracks(
+	virtual RequestTask<PageResults<AnimeTrackInfo>> load_tracks(
 	    RequestContext context,
 	    GetFilters filters) const;
 
@@ -121,7 +121,7 @@ struct AnimeGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<PageResults<AnimeEpisodeInfo>> load_episodes(
+	virtual RequestTask<PageResults<AnimeEpisodeInfo>> load_episodes(
 	    RequestContext context,
 	    GetFilters filters,
 	    std::optional<AnimeTrackID> track = std::nullopt) const;
@@ -136,7 +136,7 @@ struct AnimeGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<PageResults<Comment>> load_comments(
+	virtual RequestTask<PageResults<Comment>> load_comments(
 	    RequestContext context,
 	    GetFilters filters) const;
 
@@ -156,7 +156,7 @@ struct AnimeGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<PageResults<RelatedWork>> load_related(
+	virtual RequestTask<PageResults<RelatedWork>> load_related(
 	    RequestContext context,
 	    GetFilters filters) const;
 
@@ -171,7 +171,7 @@ struct AnimeGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<PageResults<std::unique_ptr<AnimeGetter>>> load_similar(
+	virtual RequestTask<PageResults<std::unique_ptr<AnimeGetter>>> load_similar(
 	    RequestContext context,
 	    GetFilters filters) const;
 
@@ -199,7 +199,7 @@ struct AnimeGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<PageResults<VideoSource>> load_episode_sources(
+	virtual RequestTask<PageResults<VideoSource>> load_episode_sources(
 	    RequestContext context,
 	    AnimeEpisodeRef episode,
 	    GetFilters filters,
@@ -225,7 +225,7 @@ struct AnimeGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<VideoSource> resolve_video(
+	virtual RequestTask<VideoSource> resolve_video(
 	    RequestContext context,
 	    VideoSource source) const;
 
@@ -258,7 +258,7 @@ struct AnimeGetter {
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<SerializedGetterData> serialize() const = 0;
+	virtual RequestTask<SerializedGetterData> serialize() const = 0;
 
 protected:
 	AnimeGetter() = default;

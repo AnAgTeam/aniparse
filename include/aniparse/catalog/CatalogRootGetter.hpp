@@ -49,7 +49,7 @@ public:
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	NetworkRequestTask<SearchCapabilities> load_search_capabilities(RequestContext context) const;
+	RequestTask<SearchCapabilities> load_search_capabilities(RequestContext context) const;
 
 	/**
 	 * @brief Read ordering support for the selected catalog's latest operation.
@@ -73,7 +73,7 @@ public:
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	NetworkRequestTask<PageResults<CatalogEntry>> search(RequestContext context, SearchRequestQuery query, GetFilters filters) const;
+	RequestTask<PageResults<CatalogEntry>> search(RequestContext context, SearchRequestQuery query, GetFilters filters) const;
 
 	/**
 	 * @brief Fetch one recent-items page in the selected catalog.
@@ -83,7 +83,7 @@ public:
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	NetworkRequestTask<PageResults<CatalogEntry>> latest(RequestContext context, GetFilters filters) const;
+	RequestTask<PageResults<CatalogEntry>> latest(RequestContext context, GetFilters filters) const;
 
 	/**
 	 * @brief Complete a search token in the selected catalog.
@@ -94,7 +94,7 @@ public:
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	NetworkRequestTask<std::vector<SearchSuggestion>> suggest(RequestContext context, std::string partial, std::optional<std::string> kind = std::nullopt) const;
+	RequestTask<std::vector<SearchSuggestion>> suggest(RequestContext context, std::string partial, std::optional<std::string> kind = std::nullopt) const;
 
 	/**
 	 * @brief Open a URL belonging to the selected catalog.
@@ -104,7 +104,7 @@ public:
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	NetworkRequestTask<CatalogEntry> parse_url(RequestContext context, ParsedUrl url) const;
+	RequestTask<CatalogEntry> parse_url(RequestContext context, ParsedUrl url) const;
 
 	/**
 	 * @brief Restore an item's durable identity within the selected catalog.
@@ -118,7 +118,7 @@ public:
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	NetworkRequestTask<CatalogEntry> from_serialized(SerializedGetterData data, MediaKind kind) const;
+	RequestTask<CatalogEntry> from_serialized(SerializedGetterData data, MediaKind kind) const;
 
 protected:
 	/**
@@ -128,7 +128,7 @@ protected:
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<SearchCapabilities> load_search_capabilities_for(RequestContext context) const;
+	virtual RequestTask<SearchCapabilities> load_search_capabilities_for(RequestContext context) const;
 
 	/**
 	 * @brief Implement latest declarations for the bound scope.
@@ -145,7 +145,7 @@ protected:
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<PageResults<CatalogEntry>> search_items(RequestContext context, SearchRequestQuery query, GetFilters filters) const;
+	virtual RequestTask<PageResults<CatalogEntry>> search_items(RequestContext context, SearchRequestQuery query, GetFilters filters) const;
 
 	/**
 	 * @brief Implement native latest in the bound scope.
@@ -155,7 +155,7 @@ protected:
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<PageResults<CatalogEntry>> latest_items(RequestContext context, GetFilters filters) const;
+	virtual RequestTask<PageResults<CatalogEntry>> latest_items(RequestContext context, GetFilters filters) const;
 
 	/**
 	 * @brief Implement autocomplete in the bound scope.
@@ -166,7 +166,7 @@ protected:
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<std::vector<SearchSuggestion>> suggest_items(RequestContext context, std::string partial, std::optional<std::string> kind) const;
+	virtual RequestTask<std::vector<SearchSuggestion>> suggest_items(RequestContext context, std::string partial, std::optional<std::string> kind) const;
 
 	/**
 	 * @brief Implement URL opening in the bound scope.
@@ -176,7 +176,7 @@ protected:
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<CatalogEntry> parse_entry_url(RequestContext context, ParsedUrl url) const;
+	virtual RequestTask<CatalogEntry> parse_entry_url(RequestContext context, ParsedUrl url) const;
 
 	/**
 	 * @brief Implement identity restoration in the bound scope.
@@ -186,7 +186,7 @@ protected:
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual NetworkRequestTask<CatalogEntry> restore_entry(SerializedGetterData data, MediaKind kind) const;
+	virtual RequestTask<CatalogEntry> restore_entry(SerializedGetterData data, MediaKind kind) const;
 
 protected:
 	CatalogRootGetter(const CatalogRootGetter&) = default;

@@ -24,7 +24,7 @@ namespace aniparse {
  * @param cell   Cache handle, taken by value so it is kept alive for the whole
  *               call — a concurrent evict/clear cannot free the cell across the
  *               co_await.
- * @param fetch  Invocable returning `NetworkRequestTask<std::shared_ptr<const T>>`;
+ * @param fetch  Invocable returning `RequestTask<std::shared_ptr<const T>>`;
  *               copied into the coroutine frame and called at most once, only on a
  *               cold cell. A lambda whose body calls non-const RequestContext
  *               methods (request / request_json / ...) must be declared `mutable`,
@@ -35,12 +35,12 @@ namespace aniparse {
  *       redundant work — add an in-flight guard if strict single-fetch is needed.
  */
 template <class T, class Fetch>
-NetworkRequestTask<std::shared_ptr<const T>>
+RequestTask<std::shared_ptr<const T>>
 ensure_published(std::shared_ptr<const Republishable<T>> cell, Fetch fetch) {
 	if (cell->is_fetched()) {
 		co_return cell->snapshot();
 	}
-	Response<std::shared_ptr<const T>> built = co_await fetch();
+	Result<std::shared_ptr<const T>> built = co_await fetch();
 	if (!built) {
 		co_return unexpected(std::move(built.error()));
 	}
@@ -57,12 +57,12 @@ ensure_published(std::shared_ptr<const Republishable<T>> cell, Fetch fetch) {
  * yields an error from the fetch itself; a null seed simply yields a null snapshot.
  */
 template <class T, class Fetch>
-NetworkRequestTask<std::shared_ptr<const T>>
+RequestTask<std::shared_ptr<const T>>
 ensure_published_or_seed(std::shared_ptr<const Republishable<T>> cell, Fetch fetch) {
 	if (cell->is_fetched()) {
 		co_return cell->snapshot();
 	}
-	if (Response<std::shared_ptr<const T>> built = co_await fetch()) {
+	if (Result<std::shared_ptr<const T>> built = co_await fetch()) {
 		cell->publish(*built);
 		co_return *built;
 	}

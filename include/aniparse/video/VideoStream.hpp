@@ -12,7 +12,7 @@
  * A quality rung (VideoStream) and the translation axis (TranslationType) are the
  * same problem wherever media plays — the anime domain uses them today, a generic
  * video domain will reuse them unchanged. Kept transport-free (no getters, no
- * NetworkRequestTask) like the other data models, so the Swift bridge can bind it.
+ * RequestTask) like the other data models, so the Swift bridge can bind it.
  */
 namespace aniparse {
 

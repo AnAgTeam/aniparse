@@ -76,7 +76,7 @@ RequestContext::RequestContext(std::shared_ptr<HttpClient> client,
                        }),
                        std::move(config)) {}
 
-NetworkRequestTask<HttpResponse> RequestContext::request(GetRequest request) {
+RequestTask<HttpResponse> RequestContext::request(GetRequest request) {
 	assert(config_ && services_ && services_->client);
 	HttpRequest any_request = std::move(request);
 	apply_config_to(any_request, *config_, services_->client->request_defaults());
@@ -87,7 +87,7 @@ NetworkRequestTask<HttpResponse> RequestContext::request(GetRequest request) {
 	    .cookies = config_->cookie_jar});
 }
 
-NetworkRequestTask<HttpResponse> RequestContext::request(PostRequest request) {
+RequestTask<HttpResponse> RequestContext::request(PostRequest request) {
 	assert(config_ && services_ && services_->client);
 	HttpRequest any_request = std::move(request);
 	apply_config_to(any_request, *config_, services_->client->request_defaults());
@@ -98,7 +98,7 @@ NetworkRequestTask<HttpResponse> RequestContext::request(PostRequest request) {
 	    .cookies = config_->cookie_jar});
 }
 
-NetworkRequestTask<HttpResponse> RequestContext::request(PostMultipartRequest request) {
+RequestTask<HttpResponse> RequestContext::request(PostMultipartRequest request) {
 	assert(config_ && services_ && services_->client);
 	HttpRequest any_request = std::move(request);
 	apply_config_to(any_request, *config_, services_->client->request_defaults());
@@ -137,7 +137,7 @@ RequestErrorCode status_to_error_code(long status) {
 // the raw 2xx response for the caller to parse. Templated on the request type so
 // the GET and POST helpers share it (the matching request() overload is picked).
 template <typename Request>
-NetworkRequestTask<HttpResponse> fetch_ok(RequestContext& context, Request request) {
+RequestTask<HttpResponse> fetch_ok(RequestContext& context, Request request) {
 	auto fetched = co_await context.request(std::move(request));
 	if (!fetched) {
 		co_return unexpected(std::move(fetched.error()));
@@ -153,7 +153,7 @@ NetworkRequestTask<HttpResponse> fetch_ok(RequestContext& context, Request reque
 }
 
 template <typename Request>
-NetworkRequestTask<html::HTMLDocument> request_html_impl(RequestContext& context, Request request) {
+RequestTask<html::HTMLDocument> request_html_impl(RequestContext& context, Request request) {
 	auto fetched = co_await fetch_ok(context, std::move(request));
 	if (!fetched) {
 		co_return unexpected(std::move(fetched.error()));
@@ -171,7 +171,7 @@ NetworkRequestTask<html::HTMLDocument> request_html_impl(RequestContext& context
 }
 
 template <typename Request>
-NetworkRequestTask<boost::json::value> request_json_impl(RequestContext& context, Request request) {
+RequestTask<boost::json::value> request_json_impl(RequestContext& context, Request request) {
 	auto fetched = co_await fetch_ok(context, std::move(request));
 	if (!fetched) {
 		co_return unexpected(std::move(fetched.error()));
@@ -190,19 +190,19 @@ NetworkRequestTask<boost::json::value> request_json_impl(RequestContext& context
 
 } // namespace
 
-NetworkRequestTask<html::HTMLDocument> RequestContext::request_html(GetRequest request) {
+RequestTask<html::HTMLDocument> RequestContext::request_html(GetRequest request) {
 	return request_html_impl(*this, std::move(request));
 }
 
-NetworkRequestTask<html::HTMLDocument> RequestContext::request_html(PostRequest request) {
+RequestTask<html::HTMLDocument> RequestContext::request_html(PostRequest request) {
 	return request_html_impl(*this, std::move(request));
 }
 
-NetworkRequestTask<boost::json::value> RequestContext::request_json(GetRequest request) {
+RequestTask<boost::json::value> RequestContext::request_json(GetRequest request) {
 	return request_json_impl(*this, std::move(request));
 }
 
-NetworkRequestTask<boost::json::value> RequestContext::request_json(PostRequest request) {
+RequestTask<boost::json::value> RequestContext::request_json(PostRequest request) {
 	return request_json_impl(*this, std::move(request));
 }
 

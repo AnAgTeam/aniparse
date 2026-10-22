@@ -26,8 +26,6 @@
 #include <string_view>
 
 using asyncnet::NetworkTask;
-// NB: don't `using asyncnet::Response` here — inside namespace aniparse the
-// unqualified name would resolve to aniparse::Response<T> (the expected alias).
 
 // The session delegate. Two jobs, both about NOT taking Foundation's default:
 // suppressing redirects, and answering auth challenges (a debugging proxy's TLS,
@@ -172,10 +170,10 @@ struct TransferState {
 
 	std::atomic<Stage> stage{ Stage::running };
 	std::coroutine_handle<> handle;
-	Response<HttpResponse> result = HttpResponse{};
+	Result<HttpResponse> result = HttpResponse{};
 
 	/// Called from the session's completion block, on the delegate queue.
-	void complete(Response<HttpResponse> value) {
+	void complete(Result<HttpResponse> value) {
 		result = std::move(value);
 		// Only a coroutine that actually parked may be resumed — and only if it is
 		// still there to resume.
@@ -229,7 +227,7 @@ public:
 		return state_->stage.compare_exchange_strong(expected, TransferState::Stage::suspended);
 	}
 
-	Response<HttpResponse> await_resume() { return std::move(state_->result); }
+	Result<HttpResponse> await_resume() { return std::move(state_->result); }
 
 private:
 	std::shared_ptr<TransferState> state_;
@@ -551,10 +549,10 @@ namespace {
 
 // One attempt. Split out so the retry loop below re-runs exactly the transfer and
 // nothing else — the request is already built, the jar already read.
-NetworkTask<Response<HttpResponse>> perform_once(NSURLSession* session,
+NetworkTask<Result<HttpResponse>> perform_once(NSURLSession* session,
                                                  NSURLRequest* request,
                                                  std::shared_ptr<CookieJar> jar) {
-	asyncnet::NetworkPromise<Response<HttpResponse>>& promise = co_await asyncnet::awaitables::get_self;
+	asyncnet::NetworkPromise<Result<HttpResponse>>& promise = co_await asyncnet::awaitables::get_self;
 
 	if (promise.stop_requested()) {
 		co_return make_response_error(RequestErrorCode::Cancelled, "request cancelled");
@@ -582,7 +580,7 @@ NetworkTask<Response<HttpResponse>> perform_once(NSURLSession* session,
 	// after that — a token grabbed any earlier would belong to a discarded source, and
 	// cancellation would quietly stop arriving.
 	TransferAwaiter awaiter(state, task, co_await asyncnet::awaitables::get_stop_token);
-	Response<HttpResponse> result = co_await awaiter;
+	Result<HttpResponse> result = co_await awaiter;
 
 	// Progress is reported at the end rather than streamed: a completion-handler task
 	// surfaces no intermediate byte counts. @see NetworkPromise::read_bytes
@@ -596,13 +594,13 @@ NetworkTask<Response<HttpResponse>> perform_once(NSURLSession* session,
 // Retry a transport failure until the budget is spent, matching the curl backend's
 // policy: a cancelled request was stopped on purpose and is never retried, and an
 // HTTP status is not a transport failure, so a 4xx/5xx is returned as a success.
-NetworkTask<Response<HttpResponse>> perform_with_retry(NSURLSession* session,
+NetworkTask<Result<HttpResponse>> perform_with_retry(NSURLSession* session,
                                                        NSURLRequest* request,
                                                        std::shared_ptr<CookieJar> jar,
                                                        uint32_t max_retries) {
-	asyncnet::NetworkPromise<Response<HttpResponse>>& promise = co_await asyncnet::awaitables::get_self;
+	asyncnet::NetworkPromise<Result<HttpResponse>>& promise = co_await asyncnet::awaitables::get_self;
 
-	Response<HttpResponse> result = make_response_error(RequestErrorCode::NetworkError, "no attempt made");
+	Result<HttpResponse> result = make_response_error(RequestErrorCode::NetworkError, "no attempt made");
 	for (uint32_t attempt = 0; attempt <= max_retries; ++attempt) {
 		result = co_await perform_once(session, request, jar).connect_with(promise);
 		if (result || result.error().code == RequestErrorCode::Cancelled) {
@@ -614,7 +612,7 @@ NetworkTask<Response<HttpResponse>> perform_with_retry(NSURLSession* session,
 
 } // namespace
 
-NetworkRequestTask<HttpResponse> UrlSessionHttpClient::do_request(ConfiguredGetRequest configured) {
+RequestTask<HttpResponse> UrlSessionHttpClient::do_request(ConfiguredGetRequest configured) {
 	NSString* method = to_http_method(configured.request.method);
 	if (method == nil) {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "unsupported HTTP method");
@@ -631,13 +629,13 @@ NetworkRequestTask<HttpResponse> UrlSessionHttpClient::do_request(ConfiguredGetR
 	apply_headers(request, configured.request.headers);
 	apply_cookies(request, configured.request.headers, configured.cookies);
 
-	asyncnet::NetworkPromise<Response<HttpResponse>>& promise = co_await asyncnet::awaitables::get_self;
+	asyncnet::NetworkPromise<Result<HttpResponse>>& promise = co_await asyncnet::awaitables::get_self;
 	co_return co_await perform_with_retry(impl_->current_session(), request, configured.cookies,
 	                                      impl_->max_retries.load())
 	    .connect_with(promise);
 }
 
-NetworkRequestTask<HttpResponse> UrlSessionHttpClient::do_request(ConfiguredPostRequest configured) {
+RequestTask<HttpResponse> UrlSessionHttpClient::do_request(ConfiguredPostRequest configured) {
 	NSString* method = to_http_method(configured.request.method);
 	if (method == nil) {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "unsupported HTTP method");
@@ -656,13 +654,13 @@ NetworkRequestTask<HttpResponse> UrlSessionHttpClient::do_request(ConfiguredPost
 	apply_headers(request, configured.request.headers);
 	apply_cookies(request, configured.request.headers, configured.cookies);
 
-	asyncnet::NetworkPromise<Response<HttpResponse>>& promise = co_await asyncnet::awaitables::get_self;
+	asyncnet::NetworkPromise<Result<HttpResponse>>& promise = co_await asyncnet::awaitables::get_self;
 	co_return co_await perform_with_retry(impl_->current_session(), request, configured.cookies,
 	                                      impl_->max_retries.load())
 	    .connect_with(promise);
 }
 
-NetworkRequestTask<HttpResponse> UrlSessionHttpClient::do_request(ConfiguredPostMultipartRequest configured) {
+RequestTask<HttpResponse> UrlSessionHttpClient::do_request(ConfiguredPostMultipartRequest configured) {
 	NSString* method = to_http_method(configured.request.method);
 	if (method == nil) {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "unsupported HTTP method");
@@ -687,7 +685,7 @@ NetworkRequestTask<HttpResponse> UrlSessionHttpClient::do_request(ConfiguredPost
 	apply_headers(request, configured.request.headers);
 	apply_cookies(request, configured.request.headers, configured.cookies);
 
-	asyncnet::NetworkPromise<Response<HttpResponse>>& promise = co_await asyncnet::awaitables::get_self;
+	asyncnet::NetworkPromise<Result<HttpResponse>>& promise = co_await asyncnet::awaitables::get_self;
 	co_return co_await perform_with_retry(impl_->current_session(), request, configured.cookies,
 	                                      impl_->max_retries.load())
 	    .connect_with(promise);

@@ -16,15 +16,15 @@ namespace {
 // hit did NOT forward. Deliberately not the curl client: FileCachingClient takes
 // any injected HttpClient, so this exercises it with no HTTP backend at all.
 struct CountingUpstream : HttpClient {
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredGetRequest) override {
+	RequestTask<HttpResponse> do_request(ConfiguredGetRequest) override {
 		++calls;
 		co_return HttpResponse{ .status_code = 200, .body = body };
 	}
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostRequest) override {
+	RequestTask<HttpResponse> do_request(ConfiguredPostRequest) override {
 		++calls;
 		co_return HttpResponse{ .status_code = 200, .body = body };
 	}
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest) override {
+	RequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest) override {
 		++calls;
 		co_return HttpResponse{ .status_code = 200, .body = body };
 	}

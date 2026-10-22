@@ -22,7 +22,7 @@ ImageContainerCapabilities BooruPoolGetter::capabilities() const noexcept {
 	return {};
 }
 
-NetworkRequestTask<ImageContainerInfo> BooruPoolGetter::load_info(RequestContext context) const {
+RequestTask<ImageContainerInfo> BooruPoolGetter::load_info(RequestContext context) const {
 	const BooruEngine& engine = site_.engine();
 	std::string_view base = context.base_url(site_.api_hosts);
 	GetRequest request = engine.pool_request(base, id_);
@@ -41,7 +41,7 @@ NetworkRequestTask<ImageContainerInfo> BooruPoolGetter::load_info(RequestContext
 	co_return engine.pool_to_container_info(*pool);
 }
 
-NetworkRequestTask<PageResults<ImageItem>> BooruPoolGetter::items(
+RequestTask<PageResults<ImageItem>> BooruPoolGetter::items(
     RequestContext context, GetFilters filters) const {
 	// The engine builds the pool-order page request (a listing in pool order), so
 	// items() streams the collection without holding the whole id list.
@@ -76,7 +76,7 @@ NetworkRequestTask<PageResults<ImageItem>> BooruPoolGetter::items(
 	co_return results;
 }
 
-NetworkRequestTask<SerializedGetterData> BooruPoolGetter::serialize() const {
+RequestTask<SerializedGetterData> BooruPoolGetter::serialize() const {
 	// "pools/" prefix distinguishes a pool from a bare post id on restore.
 	co_return SerializedGetterData{ .url = "pools/" + std::to_string(id_) };
 }

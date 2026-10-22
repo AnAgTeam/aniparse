@@ -24,7 +24,7 @@ ImageContainerCapabilities BooruContainerGetter::capabilities() const noexcept {
 	return {};
 }
 
-NetworkRequestTask<BooruContainerGetter::Post> BooruContainerGetter::fetch_post(
+RequestTask<BooruContainerGetter::Post> BooruContainerGetter::fetch_post(
     RequestContext& context) const {
 	const BooruEngine& engine = site_.engine();
 	std::string_view base = context.base_url(site_.api_hosts);
@@ -49,7 +49,7 @@ std::optional<ImageContainerInfo> BooruContainerGetter::preview_info() const noe
 	return info_;
 }
 
-NetworkRequestTask<ImageContainerInfo> BooruContainerGetter::load_info(RequestContext context) const {
+RequestTask<ImageContainerInfo> BooruContainerGetter::load_info(RequestContext context) const {
 	// Always asks the source, even when a list result is in hand: info() is the fresh
 	// record, and the card this getter was built with may be minutes or days old.
 	auto post = co_await fetch_post(context);
@@ -59,7 +59,7 @@ NetworkRequestTask<ImageContainerInfo> BooruContainerGetter::load_info(RequestCo
 	co_return std::move(post->info);
 }
 
-NetworkRequestTask<PageResults<ImageItem>> BooruContainerGetter::items(
+RequestTask<PageResults<ImageItem>> BooruContainerGetter::items(
     RequestContext context, GetFilters) const {
 	// A post is a container-of-one: at most a single media leaf, ignoring paging.
 	auto page_of = [](std::optional<ImageItem> item) {
@@ -85,7 +85,7 @@ NetworkRequestTask<PageResults<ImageItem>> BooruContainerGetter::items(
 	co_return page_of(std::move(post->item));
 }
 
-NetworkRequestTask<SerializedGetterData> BooruContainerGetter::serialize() const {
+RequestTask<SerializedGetterData> BooruContainerGetter::serialize() const {
 	// Identity is the post id; the cached info/item are a fetch-time convenience, not
 	// identity, so a restored getter re-resolves via the engine's container request.
 	co_return SerializedGetterData{ .url = std::to_string(id_) };

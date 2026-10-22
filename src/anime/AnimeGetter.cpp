@@ -14,38 +14,38 @@ std::optional<AnimeInfo> AnimeGetter::preview_info() const noexcept {
 	return std::nullopt;
 }
 
-NetworkRequestTask<PageResults<AnimeTrackInfo>> AnimeGetter::load_tracks(
+RequestTask<PageResults<AnimeTrackInfo>> AnimeGetter::load_tracks(
     RequestContext,
     GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot list tracks");
 }
 
-NetworkRequestTask<PageResults<AnimeEpisodeInfo>> AnimeGetter::load_episodes(
+RequestTask<PageResults<AnimeEpisodeInfo>> AnimeGetter::load_episodes(
     RequestContext,
     GetFilters,
     std::optional<AnimeTrackID>) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot get episodes info");
 }
 
-NetworkRequestTask<PageResults<Comment>> AnimeGetter::load_comments(
+RequestTask<PageResults<Comment>> AnimeGetter::load_comments(
     RequestContext,
     GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot get comments");
 }
 
-NetworkRequestTask<PageResults<RelatedWork>> AnimeGetter::load_related(
+RequestTask<PageResults<RelatedWork>> AnimeGetter::load_related(
     RequestContext,
     GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot get related info");
 }
 
-NetworkRequestTask<PageResults<std::unique_ptr<AnimeGetter>>> AnimeGetter::load_similar(
+RequestTask<PageResults<std::unique_ptr<AnimeGetter>>> AnimeGetter::load_similar(
     RequestContext,
     GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot get similar info");
 }
 
-NetworkRequestTask<VideoSource> AnimeGetter::resolve_video(
+RequestTask<VideoSource> AnimeGetter::resolve_video(
     RequestContext,
     VideoSource source) const {
 	// Native players arrive already resolved; the default is an identity

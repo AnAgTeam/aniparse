@@ -18,9 +18,6 @@
 #include <curlpp/Options.hpp>
 
 using asyncnet::NetworkTask;
-// NB: don't `using asyncnet::Response` here — inside namespace aniparse the
-// unqualified name would resolve to aniparse::Response<T> (the expected alias),
-// not the curl-bound HTTP response. Qualify asyncnet::Response explicitly.
 
 namespace aniparse {
 
@@ -179,7 +176,7 @@ CurlHttpClient::CurlHttpClient()
     : core_(asyncnet::Requestor::make_shared()), session_(std::make_shared<asyncnet::AsyncSession>(core_)), max_retries_(default_max_retries) {
 }
 
-NetworkRequestTask<HttpResponse> CurlHttpClient::do_request(ConfiguredGetRequest configured_request) {
+RequestTask<HttpResponse> CurlHttpClient::do_request(ConfiguredGetRequest configured_request) {
 	auto session  = session_.load();
 	auto& request = configured_request.request;
 
@@ -202,7 +199,7 @@ NetworkRequestTask<HttpResponse> CurlHttpClient::do_request(ConfiguredGetRequest
 	}
 }
 
-NetworkRequestTask<HttpResponse> CurlHttpClient::do_request(ConfiguredPostRequest configured_request) {
+RequestTask<HttpResponse> CurlHttpClient::do_request(ConfiguredPostRequest configured_request) {
 	auto session  = session_.load();
 	auto& request = configured_request.request;
 
@@ -226,7 +223,7 @@ NetworkRequestTask<HttpResponse> CurlHttpClient::do_request(ConfiguredPostReques
 	}
 }
 
-NetworkRequestTask<HttpResponse> CurlHttpClient::do_request(ConfiguredPostMultipartRequest configured_request) {
+RequestTask<HttpResponse> CurlHttpClient::do_request(ConfiguredPostMultipartRequest configured_request) {
 	auto session  = session_.load();
 	auto& request = configured_request.request;
 

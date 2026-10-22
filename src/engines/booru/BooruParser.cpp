@@ -56,7 +56,7 @@ public:
         : ParserProfile(std::move(parser_id), std::move(info)), site_(site) {}
     void configure(ParserConfig& config) const override;
     std::span<const std::string_view> mirrors() const override;
-    NetworkRequestTask<std::shared_ptr<const ParserConfig>> authenticate(
+    RequestTask<std::shared_ptr<const ParserConfig>> authenticate(
 	    RequestContext context,
 	    AuthenticationData data) const override;
     AuthKeys auth_keys() const noexcept override;
@@ -80,7 +80,7 @@ std::unique_ptr<ImagesGetter> BooruParser::images_getter() const {
 	return std::make_unique<BooruImagesGetter>(site_);
 }
 
-NetworkRequestTask<std::shared_ptr<const ParserConfig>> BooruProfile::authenticate(
+RequestTask<std::shared_ptr<const ParserConfig>> BooruProfile::authenticate(
     RequestContext context, AuthenticationData data) const {
 	if (!site_.auth) {
 		// An anonymous source has nothing to authenticate.

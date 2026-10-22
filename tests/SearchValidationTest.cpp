@@ -186,7 +186,7 @@ SearchCapabilities filtering_support() {
 }
 
 struct FilteringRootGetter : CatalogRootGetter {
-	NetworkRequestTask<SearchCapabilities> load_search_capabilities_for(RequestContext) const override {
+	RequestTask<SearchCapabilities> load_search_capabilities_for(RequestContext) const override {
 		co_return filtering_support();
 	}
 

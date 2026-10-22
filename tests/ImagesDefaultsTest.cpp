@@ -18,13 +18,13 @@ namespace {
 // The default ImagesGetter/ImageContainerGetter methods ignore the context, so this
 // client only needs to exist; its request paths are never taken.
 struct NullClient : HttpClient {
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredGetRequest) override {
+	RequestTask<HttpResponse> do_request(ConfiguredGetRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostRequest) override {
+	RequestTask<HttpResponse> do_request(ConfiguredPostRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	NetworkRequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest) override {
+	RequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
 	void apply_client_config(HttpClientConfig) override {
@@ -41,7 +41,7 @@ RequestContext make_context() {
 // Implements only the pure-virtual surface; every optional override keeps its base
 // default (NotImplemented / delegating / empty).
 struct StubImagesGetter : ImagesGetter {
-	NetworkRequestTask<std::unique_ptr<ImageContainerGetter>> from_serialized(SerializedGetterData) const override {
+	RequestTask<std::unique_ptr<ImageContainerGetter>> from_serialized(SerializedGetterData) const override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
 };
@@ -50,15 +50,15 @@ struct StubImageContainerGetter : ImageContainerGetter {
 	ImageContainerCapabilities capabilities() const noexcept override {
 		return {};
 	}
-	NetworkRequestTask<ImageContainerInfo> load_info(RequestContext) const override {
+	RequestTask<ImageContainerInfo> load_info(RequestContext) const override {
 		ImageContainerInfo out;
 		out.common.title = "stub";
 		co_return out;
 	}
-	NetworkRequestTask<PageResults<ImageItem>> items(RequestContext, GetFilters) const override {
+	RequestTask<PageResults<ImageItem>> items(RequestContext, GetFilters) const override {
 		co_return PageResults<ImageItem>{};
 	}
-	NetworkRequestTask<SerializedGetterData> serialize() const override {
+	RequestTask<SerializedGetterData> serialize() const override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
 };
