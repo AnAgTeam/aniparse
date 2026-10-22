@@ -25,7 +25,7 @@ class BooruImagesGetter : public ImagesGetter {
 public:
 	explicit BooruImagesGetter(const BooruSite& site) : site_(site) {}
 
-	NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext context) const override;
+	NetworkRequestTask<SearchCapabilities> search_support(RequestorContext context) const override;
 
 	NetworkRequestTask<std::vector<SearchSuggestion>> suggest(
 	    RequestorContext context,

@@ -132,6 +132,8 @@ add_library(aniparse ${aniparse_library_type}
 	"include/aniparse/types/Pagination.hpp"
 	"include/aniparse/types/Response.hpp"
 	"src/types/Search.cpp" "include/aniparse/types/Search.hpp"
+	"include/aniparse/catalog/SearchQuery.hpp"
+	"include/aniparse/catalog/SearchCapabilities.hpp"
 	"include/aniparse/types/Serialization.hpp"
 	"src/types/Authentication.cpp" "include/aniparse/types/Authentication.hpp"
 

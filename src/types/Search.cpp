@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <type_traits>
+#include <set>
 
 namespace aniparse {
 namespace {
@@ -35,64 +36,62 @@ constexpr IdentityAxis identity_axes[] = {
 	{ id_namespaces::shikimori, search_keys::shikimori_id },
 };
 
-bool exclusion_denied(const TextQuery& descriptor, const TextQuery& value) {
-	return value.exclusive && !descriptor.exclusive;
+template <typename Capability> struct ValueFor;
+template <> struct ValueFor<TextCapabilities> { using type = TextQuery; };
+template <typename T> struct ValueFor<IntervalCapabilities<T>> { using type = Interval<T>; };
+template <> struct ValueFor<CheckmarkCapabilities> { using type = Checkmark; };
+template <> struct ValueFor<SelectionCapabilities> { using type = SelectionValue; };
+
+bool exclusion_denied(const TextCapabilities& descriptor, const TextQuery& value) {
+    return value.exclusive && !descriptor.supports_exclusion;
 }
 
 template<typename T>
-bool exclusion_denied(const Interval<T>& descriptor, const Interval<T>& value) {
-	return value.exclusive && !descriptor.exclusive;
+bool exclusion_denied(const IntervalCapabilities<T>& descriptor, const Interval<T>& value) {
+    return value.exclusive && !descriptor.supports_exclusion;
 }
 
-bool exclusion_denied(const Checkmark& descriptor, const Checkmark& value) {
-	return value.exclusive && !descriptor.exclusive;
+bool exclusion_denied(const CheckmarkCapabilities& descriptor, const Checkmark& value) {
+    return value.exclusive && !descriptor.supports_exclusion;
 }
 
-bool exclusion_denied(const ItemSelection& descriptor, const ItemSelection& value) {
-	return std::any_of(value.begin(), value.end(), [&](const auto& item) {
-		auto found = descriptor.find(item.first);
-		return found != descriptor.end() && item.second.exclusive && !found->second.exclusive;
-	});
+bool exclusion_denied(const SelectionCapabilities& descriptor, const SelectionValue& value) {
+    return std::any_of(value.excluded.begin(), value.excluded.end(), [&](const auto& token) {
+        const auto found = descriptor.options.find(token);
+        const bool supported = found != descriptor.options.end()
+            ? found->second.supports_exclusion.value_or(descriptor.supports_exclusion)
+            : descriptor.supports_exclusion;
+        return !supported;
+    });
 }
 
-bool multiple_selection_denied(const ItemSelection& descriptor, const ItemSelection& value) {
-	return descriptor.single_selection && value.size() > 1;
+bool value_invalid(const TextCapabilities&, const TextQuery& value) {
+    return value.text.empty();
 }
 
-bool value_invalid(const TextQuery&, const TextQuery& value) {
-	return value.text.empty();
-}
-
-// The descriptor's own bounds are the allowed min/max
 template<typename T>
-bool value_invalid(const Interval<T>& descriptor, const Interval<T>& value) {
-	if (value.from && value.to && *value.to < *value.from) {
-		return true;
-	}
-	if (descriptor.from && value.from && *value.from < *descriptor.from) {
-		return true;
-	}
-	if (descriptor.to && value.to && *descriptor.to < *value.to) {
-		return true;
-	}
-	return false;
+bool value_invalid(const IntervalCapabilities<T>& descriptor, const Interval<T>& value) {
+    if (value.from && value.to && *value.to < *value.from) return true;
+    auto outside = [&](const auto& bound) {
+        return bound && ((descriptor.min && *bound < *descriptor.min)
+            || (descriptor.max && *bound > *descriptor.max));
+    };
+    return outside(value.from) || outside(value.to);
 }
 
-bool value_invalid(const Checkmark&, const Checkmark&) {
-	return false;
-}
+bool value_invalid(const CheckmarkCapabilities&, const Checkmark&) { return false; }
 
-bool value_invalid(const ItemSelection& descriptor, const ItemSelection& value) {
-	// An empty descriptor is an open-vocabulary axis: the source declares the axis but
-	// does not enumerate its tokens (e.g. a source with millions of tags), so any
-	// token is valid. A non-empty descriptor is a closed set — every token must be one
-	// of the declared options.
-	if (descriptor.empty()) {
-		return false;
-	}
-	return std::any_of(value.begin(), value.end(), [&](const auto& item) {
-		return descriptor.find(item.first) == descriptor.end();
-	});
+bool value_invalid(const SelectionCapabilities& descriptor, const SelectionValue& value) {
+    std::set<std::string_view> seen;
+    for (const auto* tokens : {&value.included, &value.excluded}) {
+        for (const auto& token : *tokens) {
+            if (token.empty() || !seen.insert(token).second
+                || (!descriptor.open_vocabulary && !descriptor.options.contains(token))) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 std::string_view reason_text(SearchQueryError::Reason reason) noexcept {
@@ -118,7 +117,7 @@ std::string_view reason_text(SearchQueryError::Reason reason) noexcept {
 } // namespace
 
 std::vector<SearchQueryError> validate_search_query(
-	const SearchItems& supported,
+	const SupportedSearchFilters& supported,
 	const SearchRequestQuery& query) {
 	std::vector<SearchQueryError> errors;
 	for (const auto& [key, value] : query.filters) {
@@ -127,24 +126,26 @@ std::vector<SearchQueryError> validate_search_query(
 			errors.push_back({ .reason = SearchQueryError::Reason::UnknownKey, .key = key });
 			continue;
 		}
-		if (found->second.index() != value.index()) {
-			errors.push_back({ .reason = SearchQueryError::Reason::TypeMismatch, .key = key });
-			continue;
-		}
 		std::visit([&](const auto& descriptor) {
-			const auto& typed = std::get<std::remove_cvref_t<decltype(descriptor)>>(value);
-			if (exclusion_denied(descriptor, typed)) {
-				errors.push_back({ .reason = SearchQueryError::Reason::ExclusionNotSupported, .key = key });
-			}
-			if (value_invalid(descriptor, typed)) {
-				errors.push_back({ .reason = SearchQueryError::Reason::InvalidValue, .key = key });
-			}
-			if constexpr (std::is_same_v<std::remove_cvref_t<decltype(descriptor)>, ItemSelection>) {
-				if (multiple_selection_denied(descriptor, typed)) {
-					errors.push_back({ .reason = SearchQueryError::Reason::MultipleSelectionNotSupported, .key = key });
-				}
-			}
-		}, found->second);
+            using Capability = std::remove_cvref_t<decltype(descriptor)>;
+            using Value = typename ValueFor<Capability>::type;
+            const auto* typed = std::get_if<Value>(&value);
+            if (!typed) {
+                errors.push_back({.reason = SearchQueryError::Reason::TypeMismatch, .key = key});
+                return;
+            }
+            if (exclusion_denied(descriptor, *typed)) {
+                errors.push_back({.reason = SearchQueryError::Reason::ExclusionNotSupported, .key = key});
+            }
+            if (value_invalid(descriptor, *typed)) {
+                errors.push_back({.reason = SearchQueryError::Reason::InvalidValue, .key = key});
+            }
+            if constexpr (std::is_same_v<Capability, SelectionCapabilities>) {
+                if (!descriptor.multiple && typed->included.size() + typed->excluded.size() > 1) {
+                    errors.push_back({.reason = SearchQueryError::Reason::MultipleSelectionNotSupported, .key = key});
+                }
+            }
+        }, found->second);
 	}
 	return errors;
 }
@@ -167,7 +168,7 @@ std::vector<SearchQueryError> validate_sort(
 }
 
 std::vector<SearchQueryError> validate_query(
-	const SearchCompatibilities& support,
+	const SearchCapabilities& support,
 	const SearchRequestQuery& query,
 	const GetFilters& filters) {
 	std::vector<SearchQueryError> errors = validate_search_query(support.supported_filters, query);
@@ -187,10 +188,10 @@ std::string_view search_key_for(std::string_view ns) {
 // The support table is unused for now: only the core names identity keys today, so
 // the answer is the same for every source. The parameter is not dead weight — filter
 // keys are an open vocabulary, so a parser may introduce an identity axis the core
-// does not name, and the day one does, it declares that in its SearchCompatibilities
+// does not name, and the day one does, it declares that in its SearchCapabilities
 // and this reads it there. Taking the table now is what keeps that change invisible
 // to every caller.
-bool is_identity_key(const SearchCompatibilities& /*support*/, std::string_view key) {
+bool is_identity_key(const SearchCapabilities& /*support*/, std::string_view key) {
 	return std::any_of(std::begin(identity_axes), std::end(identity_axes),
 		[&](const IdentityAxis& axis) { return axis.key == key; });
 }

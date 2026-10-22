@@ -39,7 +39,7 @@ struct ImageContainerCompatibilities {
 
 /**
  * @brief How an images root getter advertises what ImagesGetter::latest() accepts.
- * The latest() counterpart of SearchCompatibilities: latest() takes no query and no
+ * The latest() counterpart of SearchCapabilities: latest() takes no query and no
  * filter items, only an ordering, so the sort channel is all there is to declare.
  * Available synchronously (no fetch, unlike ImagesGetter::search_support), and
  * checked against a request by ImagesGetter::validate_latest_filters.
@@ -155,7 +155,7 @@ struct ImagesGetter {
 	 * @return The support table, or a RequestError when it had to be fetched and the
 	 *         fetch failed
 	 */
-	virtual NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext context) const;
+	virtual NetworkRequestTask<SearchCapabilities> search_support(RequestorContext context) const;
 
 	/**
 	 * @brief What latest() accepts: its sort declaration and capability flags.
@@ -205,7 +205,7 @@ struct ImagesGetter {
 
 	/**
 	 * @brief Autocomplete: suggest search tokens for a partial input.
-	 * Advertised via SearchCompatibilities::compatibilities (supports_suggestions);
+	 * Advertised via SearchCapabilities::compatibilities (supports_suggestions);
 	 * NotImplemented by default. @p kind optionally narrows to one search axis — a
 	 * search key (@see search_keys), the same vocabulary as the source's filters and
 	 * as SearchSuggestion::category — best-effort, the source may ignore it. The

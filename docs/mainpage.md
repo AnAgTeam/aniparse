@@ -39,7 +39,7 @@ it a URL and it resolves which parser owns it and what kind of content it is.
 | Handle failures | aniparse::RequestError and aniparse::RequestErrorCode |
 | Pull data out of HTML | aniparse::html::HTMLDocument, aniparse::html::DOMElementView |
 | Pull data out of JSON | aniparse/json/Json.hpp — field lookups that never throw |
-| Offer search filters | aniparse::SearchCompatibilities, aniparse::validate_query |
+| Offer search filters | aniparse::SearchCapabilities, aniparse::validate_query |
 | Route a URL to a parser | aniparse::ParserStore, aniparse::ParsedUrl |
 
 ## Errors

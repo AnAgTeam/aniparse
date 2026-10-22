@@ -52,7 +52,7 @@ namespace {
 	}
 } // namespace
 
-NetworkRequestTask<SearchCompatibilities> BooruImagesGetter::search_support(RequestorContext) const {
+NetworkRequestTask<SearchCapabilities> BooruImagesGetter::search_support(RequestorContext) const {
 	co_return site_.engine().search_support();
 }
 

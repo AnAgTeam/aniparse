@@ -10,7 +10,7 @@
  * @file
  * The capability vocabulary: one flag set shared by every "what can this thing
  * do?" descriptor in the library — the parser-level @ref aniparse::ParserCompatibilities,
- * and the per-getter tables (SearchCompatibilities, MangaGetterCompatibilities,
+ * and the per-getter tables (SearchCapabilities, MangaGetterCompatibilities,
  * …). The bits live in one namespace so that a capability means the same thing
  * wherever it is advertised; which descriptor a given bit is meaningful on is
  * stated on the bit itself.
@@ -33,7 +33,7 @@ using CompatibilitiesFlags = FlagsBitfield<64, struct CompatibilitiesFlagsTag>;
 
 /**
  * @brief The capability bits a parser or a getter can advertise.
- * @see CompatibilitiesFlags, ParserCompatibilities, SearchCompatibilities
+ * @see CompatibilitiesFlags, ParserCompatibilities, SearchCapabilities
  */
 namespace aniparse::compatibilities_flags {
 /**
@@ -84,7 +84,7 @@ inline constexpr auto supports_commenting    = CompatibilitiesFlags::make_bit(10
 inline constexpr auto supports_online_lists  = CompatibilitiesFlags::make_bit(11);
 
 /// The source can suggest search tokens for a partial input (autocomplete). A
-/// getter advertises it in SearchCompatibilities::compatibilities. @see suggest
+/// getter advertises it in SearchCapabilities::compatibilities. @see suggest
 inline constexpr auto supports_suggestions   = CompatibilitiesFlags::make_bit(14);
 
 /// The anime source exposes a (team x player) track axis to browse before

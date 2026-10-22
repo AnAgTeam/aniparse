@@ -8,22 +8,27 @@
 #include <aniparse/catalog/content/Catalog.hpp>
 
 #include <algorithm>
+#include <type_traits>
 
 using namespace aniparse;
+static_assert(!std::is_constructible_v<SearchFilterValue, TextCapabilities>);
+static_assert(!std::is_constructible_v<SearchFilterCapabilities, TextQuery>);
+static_assert(!std::is_constructible_v<SearchFilterValue, SelectionCapabilities>);
+static_assert(!std::is_constructible_v<SearchFilterCapabilities, SelectionValue>);
 
 namespace {
 
-SearchItems make_supported() {
-	return {
-		{ std::string(search_keys::tag), TextQuery{ .exclusive = true } },
-		{ std::string(search_keys::title), TextQuery{ .exclusive = false } },
-		{ std::string(search_keys::pages), IntInterval{ .from = 1, .to = 1000, .exclusive = false } },
-		{ "language", ItemSelection{
-			{ "en", { .exclusive = true } },
-			{ "ru", { .exclusive = false } },
-		} },
-		{ "uncensored", Checkmark{ .exclusive = false } },
-	};
+SupportedSearchFilters make_supported() {
+    return {
+        {std::string(search_keys::tag), TextCapabilities{.supports_exclusion = true}},
+        {std::string(search_keys::title), TextCapabilities{}},
+        {std::string(search_keys::pages), IntIntervalCapabilities{.min = 1, .max = 1000}},
+        {"language", SelectionCapabilities{.options = {
+            {"en", {.name = "English", .supports_exclusion = true}},
+            {"ru", {.name = "Russian", .supports_exclusion = false}},
+        }}},
+        {"uncensored", CheckmarkCapabilities{}},
+    };
 }
 
 bool has_error(const std::vector<SearchQueryError>& errors, SearchQueryError::Reason reason, std::string_view key) {
@@ -44,7 +49,7 @@ TEST_CASE("Search validation accepts a query matching the declaration") {
 		.filters = {
 			{ std::string(search_keys::tag), TextQuery{ .text = "vanilla", .exclusive = true } },
 			{ std::string(search_keys::pages), IntInterval{ .from = 10, .to = 100 } },
-			{ "language", ItemSelection{ { "en", { .exclusive = true } } } },
+			{ "language", SelectionValue{.excluded = {"en"}} },
 			{ "uncensored", Checkmark{} },
 		},
 	};
@@ -83,10 +88,7 @@ TEST_CASE("Search validation rejects unsupported exclusion") {
 			{ std::string(search_keys::title), TextQuery{ .text = "name", .exclusive = true } },
 			{ std::string(search_keys::pages), IntInterval{ .from = 1, .exclusive = true } },
 			// the "ru" item forbids exclusion, "en" allows it
-			{ "language", ItemSelection{
-				{ "en", { .exclusive = true } },
-				{ "ru", { .exclusive = true } },
-			} },
+			{ "language", SelectionValue{.excluded = {"en", "ru"}} },
 		},
 	};
 
@@ -103,7 +105,7 @@ TEST_CASE("Search validation rejects malformed values") {
 			{ std::string(search_keys::tag), TextQuery{ .text = "", .exclusive = true } },
 			// inverted interval, and 2000 is above the declared max of 1000
 			{ std::string(search_keys::pages), IntInterval{ .from = 2000, .to = 5 } },
-			{ "language", ItemSelection{ { "jp", {} } } },
+			{ "language", SelectionValue{.included = {"jp"}} },
 		},
 	};
 
@@ -115,14 +117,11 @@ TEST_CASE("Search validation rejects malformed values") {
 }
 
 TEST_CASE("Search validation rejects multiple values on a single-selection axis") {
-	SearchItems supported = make_supported();
-	auto& language = std::get<ItemSelection>(supported.at("language"));
-	language.single_selection = true;
+	SupportedSearchFilters supported = make_supported();
+	auto& language = std::get<SelectionCapabilities>(supported.at("language"));
+	language.multiple = false;
 	SearchRequestQuery query{
-		.filters = { { "language", ItemSelection{
-			{ "en", {} },
-			{ "ru", {} },
-		} } },
+		.filters = { { "language", SelectionValue{.included = {"en", "ru"}} } },
 	};
 
 	auto errors = validate_search_query(supported, query);
@@ -179,7 +178,7 @@ TEST_CASE("Search validation describes all violations in one line") {
 
 namespace {
 
-SearchCompatibilities filtering_support() {
+SearchCapabilities filtering_support() {
 	return {
 		.supported_filters = make_supported(),
 		.supported_sorts   = { { std::string(sort_keys::popularity), {} } },
@@ -187,7 +186,7 @@ SearchCompatibilities filtering_support() {
 }
 
 struct FilteringRootGetter : CatalogRootGetter {
-	NetworkRequestTask<SearchCompatibilities> search_support_for(RequestorContext) const override {
+	NetworkRequestTask<SearchCapabilities> search_support_for(RequestorContext) const override {
 		co_return filtering_support();
 	}
 
@@ -225,8 +224,8 @@ TEST_CASE("CatalogRootGetter validates against its own declaration") {
 }
 
 TEST_CASE("Identity keys are told apart from filters") {
-	SearchCompatibilities support{ .supported_filters = make_supported() };
-	support.supported_filters.emplace(std::string(search_keys::mal_id), ItemSelection{});
+	SearchCapabilities support{ .supported_filters = make_supported() };
+	support.supported_filters.emplace(std::string(search_keys::mal_id), SelectionCapabilities{.open_vocabulary = true});
 
 	REQUIRE(is_identity_key(support, search_keys::mal_id));
 	REQUIRE_FALSE(is_identity_key(support, search_keys::tag));
@@ -245,6 +244,78 @@ TEST_CASE("An id namespace maps to the key that looks it up") {
 	REQUIRE(search_key_for(search_keys::mal_id).empty());
 
 	// Every key a namespace maps to is one a consumer can recognise as a lookup.
-	SearchCompatibilities support;
+	SearchCapabilities support;
 	REQUIRE(is_identity_key(support, search_key_for(id_namespaces::anilist)));
+}
+
+TEST_CASE("Open selection vocabularies retain suggested options and accept custom tokens", "[search-capabilities]") {
+    SupportedSearchFilters support{{"tag", SelectionCapabilities{
+        .options = {{"known", {.name = "Known option"}}},
+        .open_vocabulary = true,
+        .supports_exclusion = true,
+    }}};
+    SearchRequestQuery query{.filters = {{"tag", SelectionValue{
+        .included = {"known", "custom"}, .excluded = {"another-custom"}}}}};
+    CHECK(validate_search_query(support, query).empty());
+    auto& axis = std::get<SelectionCapabilities>(support.at("tag"));
+    axis.open_vocabulary = false;
+    CHECK(has_error(validate_search_query(support, query), SearchQueryError::Reason::InvalidValue, "tag"));
+}
+
+TEST_CASE("Empty options do not implicitly open a selection vocabulary", "[search-capabilities]") {
+    SupportedSearchFilters support{{"tag", SelectionCapabilities{}}};
+    SearchRequestQuery query{.filters = {{"tag", SelectionValue{.included = {"custom"}}}}};
+    CHECK(has_error(validate_search_query(support, query), SearchQueryError::Reason::InvalidValue, "tag"));
+    std::get<SelectionCapabilities>(support.at("tag")).open_vocabulary = true;
+    CHECK(validate_search_query(support, query).empty());
+}
+
+TEST_CASE("Selection exclusion uses the axis default and explicit option overrides", "[search-capabilities]") {
+    SupportedSearchFilters support{{"tag", SelectionCapabilities{
+        .options = {{"denied", {.supports_exclusion = false}}, {"allowed", {}}},
+        .open_vocabulary = true, .supports_exclusion = true,
+    }}};
+    SearchRequestQuery query{.filters = {{"tag", SelectionValue{.excluded = {"allowed", "custom"}}}}};
+    CHECK(validate_search_query(support, query).empty());
+    std::get<SelectionValue>(query.filters.at("tag")).excluded.push_back("denied");
+    CHECK(has_error(validate_search_query(support, query), SearchQueryError::Reason::ExclusionNotSupported, "tag"));
+}
+
+TEST_CASE("Selection values reject empty duplicate and contradictory tokens", "[search-capabilities]") {
+    SupportedSearchFilters support{{"tag", SelectionCapabilities{
+        .open_vocabulary = true, .supports_exclusion = true}}};
+    for (const auto& value : {SelectionValue{.included = {""}},
+            SelectionValue{.included = {"x", "x"}},
+            SelectionValue{.included = {"x"}, .excluded = {"x"}}}) {
+        SearchRequestQuery query{.filters = {{"tag", value}}};
+        CHECK(has_error(validate_search_query(support, query), SearchQueryError::Reason::InvalidValue, "tag"));
+    }
+}
+
+TEST_CASE("Every supplied interval endpoint respects capability bounds", "[search-capabilities]") {
+    SupportedSearchFilters support{{"range", IntIntervalCapabilities{.min = 1, .max = 10}}};
+    for (const auto& value : {IntInterval{.from = 11}, IntInterval{.to = 0}}) {
+        SearchRequestQuery query{.filters = {{"range", value}}};
+        CHECK(has_error(validate_search_query(support, query), SearchQueryError::Reason::InvalidValue, "range"));
+    }
+}
+
+TEST_CASE("Time interval values validate against their distinct capabilities", "[search-capabilities]") {
+    using namespace std::chrono;
+    const auto lower = system_clock::time_point{seconds{100}};
+    const auto upper = system_clock::time_point{seconds{200}};
+    SupportedSearchFilters support{
+        {"absolute", TimeIntervalCapabilities{.min = lower, .max = upper}},
+        {"relative", RelativeTimeIntervalCapabilities{.min = seconds{1}, .max = seconds{30}, .supports_exclusion = true}},
+    };
+    SearchRequestQuery query{.filters = {
+        {"absolute", TimeInterval{.from = lower, .to = upper}},
+        {"relative", RelativeTimeInterval{.from = seconds{5}, .exclusive = true}},
+    }};
+    CHECK(validate_search_query(support, query).empty());
+    query.filters["absolute"] = TimeInterval{.to = lower - seconds{1}};
+    query.filters["relative"] = RelativeTimeInterval{.from = seconds{31}};
+    CHECK(validate_search_query(support, query).size() == 2);
+    query.filters["relative"] = TimeInterval{.from = lower};
+    CHECK(has_error(validate_search_query(support, query), SearchQueryError::Reason::TypeMismatch, "relative"));
 }

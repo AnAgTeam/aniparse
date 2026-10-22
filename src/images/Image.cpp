@@ -21,8 +21,8 @@ NetworkRequestTask<PageResults<Comment>> ImageContainerGetter::comments(
 }
 
 
-NetworkRequestTask<SearchCompatibilities> ImagesGetter::search_support(RequestorContext) const {
-	co_return SearchCompatibilities{};
+NetworkRequestTask<SearchCapabilities> ImagesGetter::search_support(RequestorContext) const {
+	co_return SearchCapabilities{};
 }
 
 ImagesGetterRootCompatibilities ImagesGetter::latest_support() const noexcept {

@@ -47,7 +47,7 @@ public:
 	 * @param context Request context.
 	 * @return Filter support, or a request error.
 	 */
-	NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext context) const;
+	NetworkRequestTask<SearchCapabilities> search_support(RequestorContext context) const;
 
 	/**
 	 * @brief Read ordering support for the selected catalog's latest operation.
@@ -114,7 +114,7 @@ protected:
 	 * @param context Request context.
 	 * @return Support, or an error; empty by default.
 	 */
-	virtual NetworkRequestTask<SearchCompatibilities> search_support_for(RequestorContext context) const;
+	virtual NetworkRequestTask<SearchCapabilities> search_support_for(RequestorContext context) const;
 
 	/**
 	 * @brief Implement latest declarations for the bound scope.

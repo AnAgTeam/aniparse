@@ -65,7 +65,7 @@ struct BooruEngine {
 	 * filter set.
 	 * @return The support table for the family's listing/search surface
 	 */
-	[[nodiscard]] virtual SearchCompatibilities search_support() const = 0;
+	[[nodiscard]] virtual SearchCapabilities search_support() const = 0;
 
 	/**
 	 * @brief A post-list request against @p base for @p tags with @p filters paging applied;

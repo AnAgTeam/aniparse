@@ -210,8 +210,8 @@ protected:
 
 	// Describe the manga search capabilities.
 	// This covers filters, sorting, ...
-	NetworkRequestTask<SearchCompatibilities> search_support_for(RequestorContext) const override {
-		co_return SearchCompatibilities{
+	NetworkRequestTask<SearchCapabilities> search_support_for(RequestorContext) const override {
+		co_return SearchCapabilities{
 			// no sort, no filters
 		};
 	}

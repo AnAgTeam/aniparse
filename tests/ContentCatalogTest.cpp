@@ -116,9 +116,9 @@ struct MixedRoot : CatalogRootGetter {
         if (scope().id != "mixed") co_return make_response_error(RequestErrorCode::NotImplemented, "This catalog has no recent feed");
         co_return co_await search_items(std::move(ctx), {}, filters);
     }
-    NetworkRequestTask<SearchCompatibilities> search_support_for(RequestorContext) const override {
-        SearchCompatibilities support;
-        support.supported_filters.emplace(scope().id, TextQuery{});
+    NetworkRequestTask<SearchCapabilities> search_support_for(RequestorContext) const override {
+        SearchCapabilities support;
+        support.supported_filters.emplace(scope().id, TextCapabilities{});
         co_return support;
     }
     CatalogLatestSupport latest_support_for() const noexcept override {

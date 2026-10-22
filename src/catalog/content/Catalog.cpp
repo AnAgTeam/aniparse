@@ -7,7 +7,7 @@ namespace aniparse {
 
 CatalogRootGetter::CatalogRootGetter(CatalogScope scope) : scope_(std::move(scope)) {}
 
-NetworkRequestTask<SearchCompatibilities> CatalogRootGetter::search_support(RequestorContext context) const {
+NetworkRequestTask<SearchCapabilities> CatalogRootGetter::search_support(RequestorContext context) const {
 	co_return co_await search_support_for(std::move(context));
 }
 
@@ -57,7 +57,7 @@ NetworkRequestTask<CatalogEntry> CatalogRootGetter::from_serialized(SerializedGe
 	co_return entry;
 }
 
-NetworkRequestTask<SearchCompatibilities> CatalogRootGetter::search_support_for(RequestorContext) const { co_return SearchCompatibilities{}; }
+NetworkRequestTask<SearchCapabilities> CatalogRootGetter::search_support_for(RequestorContext) const { co_return SearchCapabilities{}; }
 CatalogLatestSupport CatalogRootGetter::latest_support_for() const noexcept { return {}; }
 NetworkRequestTask<PageResults<CatalogEntry>> CatalogRootGetter::search_items(RequestorContext, SearchRequestQuery, GetFilters) const {
 	co_return make_response_error(RequestErrorCode::NotImplemented, "The catalog cannot search");
