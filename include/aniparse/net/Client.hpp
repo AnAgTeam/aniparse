@@ -78,7 +78,7 @@ public:
 
 	ClientConfig config() const;
 
-	void set_config(ClientConfig new_config) override;
+	void apply_client_config(ClientConfig new_config) override;
 
 	std::shared_ptr<CookieJar> make_cookie_jar() override;
 

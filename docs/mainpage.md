@@ -15,11 +15,11 @@ substantially.
 A **aniparse::Parser** is one content source. It declares the domains it handles
 and exposes *getters* — the objects that actually fetch and parse:
 
-- **aniparse::MangaRootGetter** — search, latest, autocomplete; hands back a
-  `MangaGetter` per title, which in turn yields chapters and pages.
-- **aniparse::AnimeRootGetter** — the same shape for anime: episodes, then the
-  video sources behind each one.
-- **aniparse::ImagesGetter** — image containers (posts, pools, galleries).
+- **aniparse::CatalogRootGetter** — search, latest, autocomplete and URL opening
+  for a selected catalog scope; returns cards with manga, anime, or both getters.
+- **aniparse::MangaGetter** and **aniparse::AnimeGetter** — operate on one work:
+  metadata, chapters and pages, or episodes and video sources.
+- **aniparse::ImagesGetter** — the separate image-container catalog API.
 
 Getters never talk to the network directly. They run through a
 **aniparse::RequestorContext**, which carries the parser's config, cookies and
@@ -34,7 +34,7 @@ it a URL and it resolves which parser owns it and what kind of content it is.
 
 | If you want to… | Start at |
 |---|---|
-| Write a new source | aniparse::Parser, then aniparse::MangaRootGetter |
+| Write a new source | aniparse::Parser, then aniparse::CatalogRootGetter |
 | Issue requests | aniparse::RequestorContext — `request`, `request_html`, `request_json` |
 | Handle failures | aniparse::RequestError and aniparse::RequestErrorCode |
 | Pull data out of HTML | aniparse::html::HTMLDocument, aniparse::html::DOMElementView |

@@ -173,17 +173,17 @@ struct Series {
  * A site that catalogues both numbers them in SEPARATE id spaces: the same work
  * is one id as a manga and an unrelated id as its anime (on MyAnimeList, Frieren
  * is manga 126287 and anime 52991). A consumer holding both halves of one work
- * would collide them without this. Sites with a single catalogue still state it —
+ * would collide them without this. Sites with a single catalog still state it —
  * an AniDB id is an anime id.
  */
 enum class MediaKind {
-	Anime, ///< The id addresses the site's anime catalogue.
-	Manga, ///< The id addresses the site's manga (or other printed-work) catalogue.
+	Anime, ///< The id addresses the site's anime catalog.
+	Manga, ///< The id addresses the site's manga (or other printed-work) catalog.
 };
 
 /**
  * @brief An identifier this item carries on another site, qualified by the
- * vocabulary and catalogue that own it — e.g.
+ * vocabulary and catalog that own it — e.g.
  * { id_namespaces::mal, MediaKind::Anime, "52991" }.
  *
  * The consumer's cross-source anchor. A source emits whatever foreign ids it
@@ -214,7 +214,7 @@ struct ExternalId {
 	 * The owning vocabulary. A well-known constant from @ref aniparse::id_namespaces
 	 * where one fits; the field is a plain string and the vocabulary is open, so a
 	 * parser may mint a namespace this header does not list. Opaque: matched whole,
-	 * never taken apart — the catalogue is @ref kind, not a suffix to be parsed off.
+	 * never taken apart — the catalog is @ref kind, not a suffix to be parsed off.
 	 */
 	std::string ns;
 	/**
@@ -231,7 +231,7 @@ struct ExternalId {
 
 	/**
 	 * @brief Equality over all three fields, all compared verbatim.
-	 * Two ids match only when they name the same identifier in the same catalogue of
+	 * Two ids match only when they name the same identifier in the same catalog of
 	 * the same vocabulary — which is exactly the join a consumer performs to decide
 	 * that two items from two parsers are one work.
 	 */
@@ -265,13 +265,13 @@ struct ExternalId {
  * @see ExternalId, MangaGetter::related, similar
  */
 struct RelatedWork {
-	/// Which catalogue the related work lives in — the axis that makes this
+	/// Which catalog the related work lives in — the axis that makes this
 	/// cross-media. Equal to the item's own medium for a sequel or a spin-off;
 	/// different for an adaptation.
 	MediaKind kind = MediaKind::Manga;
 	/**
 	 * How the source says the two are related, in the source's own word ("adaptation",
-	 * "sequel", "side_story", "alternative", ...). Free text on purpose: every catalogue
+	 * "sequel", "side_story", "alternative", ...). Free text on purpose: every catalog
 	 * has its own relation vocabulary, and flattening them into an enum would either
 	 * lose the distinctions a source draws or freeze one site's taxonomy into the model.
 	 * Empty when the source states a relation without naming it.
@@ -281,7 +281,7 @@ struct RelatedWork {
 	std::string title;
 	/// Cover art, when the source hands it out with the relation.
 	std::vector<Image> previews;
-	/// The work's ids on sites that catalogue @c kind — how a consumer opens it on a
+	/// The work's ids on sites that catalog @c kind — how a consumer opens it on a
 	/// source this parser has nothing to do with. Empty when the source names no ids.
 	std::vector<ExternalId> external_ids;
 	/// Set when THIS parser can open the work directly: pass it to the root getter of
@@ -677,8 +677,11 @@ struct MediaInfo {
 	/// @c nullopt = the source does not state it. Sources differ on what counts as an
 	/// update, so this orders items within one source only.
 	std::optional<ModelDate> update_time;
-	/// When the item was first published/aired. @c nullopt = the source does not state
-	/// it — common when only a year is known. @see ModelDate for coarse precisions.
+	/// When the item first became available to read, watch, or otherwise consume.
+	/// @c nullopt = the source does not state an actual availability date, including
+	/// when it only announces a future premiere. A planned installment belongs in
+	/// the domain-specific upcoming-installment field instead. @see ModelDate for
+	/// coarse precisions.
 	std::optional<ModelDate> release_time;
 	/// Publication/airing state (ongoing / released / announced / source-specific). A
 	/// default-constructed status (empty name) = the source states none, and reads as

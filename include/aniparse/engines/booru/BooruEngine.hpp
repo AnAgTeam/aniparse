@@ -40,7 +40,7 @@ struct BooruEngine {
 	 * @brief Headers every request carries (a descriptive User-Agent, at minimum). A
 	 * family-level default; the host is site data (@see BooruSite::api_hosts).
 	 *
-	 * Seeded onto the parser's config once (Parser::configure), not stamped per request.
+	 * Seeded onto the parser's config once (ParserProfile::configure), not stamped per request.
 	 * @return The header set every request of a site of this family goes out with
 	 */
 	[[nodiscard]] virtual Headers api_headers() const = 0;

@@ -45,7 +45,7 @@ struct NullClient final : aniparse::ClientContext {
 	aniparse::NetworkRequestTask<aniparse::ResponseData> do_request(aniparse::ConfiguredPostMultipartRequest) override {
 		co_return aniparse::make_response_error(aniparse::RequestErrorCode::NotImplemented, "");
 	}
-	void set_config(aniparse::ClientConfig) override {}
+	void apply_client_config(aniparse::ClientConfig) override {}
 	std::shared_ptr<aniparse::CookieJar> make_cookie_jar() override { return nullptr; }
 };
 

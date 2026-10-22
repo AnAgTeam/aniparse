@@ -18,11 +18,15 @@ namespace aniparse::engines {
  */
 class BooruParser : public Parser {
 public:
+
 	explicit BooruParser(const BooruSite& site) : site_(site) {}
 
 	ParserInfo info() const override;
 	std::string identifier() const override;
-	GetterSuggestionType suggest_getter(const ParsedUrl& url) const override;
+	/**
+	 * @copydoc aniparse::Parser::suggest_getter
+	 */
+	GetterSuggestionResult suggest_getter(const ParsedUrl& url) const override;
 	/**
 	 * @brief What the source declares it can do.
 	 * The descriptor's own flags plus supports_images_store, which is always set: a
@@ -33,21 +37,15 @@ public:
 	 */
 	ParserCompatibilities compatibilities() const override;
 	void emplace_domains(EmplaceDomainsContext& context) const override;
-	void configure(ParserConfig& config) const override;
-	std::span<const std::string_view> mirrors() const override;
+
 	std::unique_ptr<ImagesGetter> images_getter() const override;
 
-	/// Fold static query-param credentials (@ref BooruStaticParamAuth) into a fresh
-	/// config, or report NotImplemented for an anonymous site. No network round-trip.
-	NetworkRequestTask<std::shared_ptr<const ParserConfig>> authenticate_context(
-	    RequestorContext context,
-	    AuthenticationData data) override;
-
-	/// The url_params that carry the durable credential, per the site's auth model;
-	/// empty for an anonymous site.
-	AuthKeys auth_keys() const noexcept override;
-
 protected:
+    /**
+     * @copydoc Parser::make_profile
+     */
+    std::unique_ptr<ParserProfile> make_profile(ProfileInfo info) const override;
+
 	const BooruSite& site_;
 };
 

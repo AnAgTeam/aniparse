@@ -5,7 +5,7 @@
  */
 #include "CoroTest.hpp"
 
-#include <aniparse/net/Client.hpp>
+#include <aniparse/catalog/content/Catalog.hpp>
 #include <aniparse/manga/Manga.hpp>
 
 #include <memory>
@@ -14,7 +14,7 @@ using namespace aniparse;
 
 namespace {
 
-// The default MangaGetter/MangaRootGetter methods ignore the context, so this
+// The default MangaGetter/CatalogRootGetter methods ignore the context, so this
 // client only needs to exist; its request paths are never taken.
 struct NullClient : ClientContext {
 	NetworkRequestTask<ResponseData> do_request(ConfiguredGetRequest) override {
@@ -26,7 +26,7 @@ struct NullClient : ClientContext {
 	NetworkRequestTask<ResponseData> do_request(ConfiguredPostMultipartRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	void set_config(ClientConfig) override {
+	void apply_client_config(ClientConfig) override {
 	}
 	std::shared_ptr<CookieJar> make_cookie_jar() override {
 		return nullptr;
@@ -53,35 +53,31 @@ struct StubMangaGetter : MangaGetter {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
 	std::string canonical_url(RequestorContext) const override {
-		return "https://example.invalid/manga/stub";
+		return "https://example.com/manga/stub";
 	}
 	NetworkRequestTask<SerializedGetterData> serialize() const override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
 };
 
-struct StubMangaRootGetter : MangaRootGetter {
-	NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData) const override {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "");
-	}
-};
+struct StubCatalogGetter : CatalogRootGetter {};
 
 } // namespace
 
-TEST_CASE("MangaRootGetter default support declarations are empty") {
-	StubMangaRootGetter getter;
+TEST_CASE("CatalogRootGetter default support declarations are empty") {
+	StubCatalogGetter getter;
 
 	auto search = coro::sync_wait(getter.search_support(make_context()));
 	REQUIRE(search);
 	CHECK(search->supported_filters.empty());
 	CHECK(search->supported_sorts.empty());
 
-	MangaGetterRootCompatibilities latest = getter.latest_support();
+	CatalogLatestSupport latest = getter.latest_support();
 	CHECK(latest.supported_sorts.empty());
 }
 
-CORO_TEST_CASE("MangaRootGetter search/latest/parse_url default to NotImplemented") {
-	StubMangaRootGetter getter;
+CORO_TEST_CASE("CatalogRootGetter search/latest/parse_url default to NotImplemented") {
+	StubCatalogGetter getter;
 	RequestorContext context = make_context();
 
 	auto searched = co_await getter.search(context, SearchRequestQuery{}, GetFilters{});
@@ -96,7 +92,7 @@ CORO_TEST_CASE("MangaRootGetter search/latest/parse_url default to NotImplemente
 	REQUIRE_FALSE(parsed.has_value());
 	CHECK(parsed.error().code == RequestErrorCode::NotImplemented);
 
-	auto restored = co_await getter.from_serialized(SerializedGetterData{});
+	auto restored = co_await getter.from_serialized(SerializedGetterData{}, MediaKind::Manga);
 	REQUIRE_FALSE(restored.has_value());
 	CHECK(restored.error().code == RequestErrorCode::NotImplemented);
 }

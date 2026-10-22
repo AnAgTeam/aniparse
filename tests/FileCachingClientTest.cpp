@@ -28,7 +28,7 @@ struct CountingUpstream : ClientContext {
 		++calls;
 		co_return ResponseData{ .status_code = 200, .body = body };
 	}
-	void set_config(ClientConfig) override {}
+	void apply_client_config(ClientConfig) override {}
 	std::shared_ptr<CookieJar> make_cookie_jar() override { return nullptr; }
 
 	int         calls = 0;

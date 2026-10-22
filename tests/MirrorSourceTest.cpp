@@ -33,7 +33,7 @@ struct NullClient : ClientContext {
 	NetworkRequestTask<ResponseData> do_request(ConfiguredPostMultipartRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	void set_config(ClientConfig) override {}
+	void apply_client_config(ClientConfig) override {}
 	std::shared_ptr<CookieJar> make_cookie_jar() override { return nullptr; }
 };
 
@@ -43,25 +43,30 @@ constexpr std::array builtin = { "https://a.example"sv, "https://b.example"sv };
 using OverrideMap = std::map<std::string, std::vector<std::string>, std::less<>>;
 using CanonicalBaseMap = std::map<std::string, std::string, std::less<>>;
 
+std::shared_ptr<const MirrorSource> profile_source(OverrideMap mirrors, CanonicalBaseMap origins = {}) {
+    MirrorSource::ProfileMirrors profile_mirrors;
+    MirrorSource::ProfileOrigins profile_origins;
+    for (auto& [id, urls] : mirrors) profile_mirrors.emplace(std::make_pair(id, "main"), std::move(urls));
+    for (auto& [id, url] : origins) profile_origins.emplace(std::make_pair(id, "main"), std::move(url));
+    return std::make_shared<const MirrorSource>(OverrideMap{}, std::move(profile_mirrors), std::move(profile_origins));
+}
+
 std::shared_ptr<MirrorSourceHolder> holder_with(OverrideMap overrides) {
-	return std::make_shared<MirrorSourceHolder>(
-	    std::make_shared<const MirrorSource>(std::move(overrides)));
+    return std::make_shared<MirrorSourceHolder>(profile_source(std::move(overrides)));
 }
 
 std::shared_ptr<ParserConfig> config_for(std::string parser_id, size_t alt_link) {
 	auto config       = std::make_shared<ParserConfig>();
 	config->parser_id = std::move(parser_id);
+	config->profile_id = default_profile_id;
 	config->alt_link  = alt_link;
 	return config;
 }
 
 // A minimal parser that declares a built-in mirror list, to exercise
 // mirror_choices() overlaying a catalog override onto it.
-struct MirrorParser : Parser {
-	ParserInfo info() const override { return { .name = "MirrorParser" }; }
-	std::string identifier() const override { return "MirrorParser"; }
-	ParserCompatibilities compatibilities() const override { return {}; }
-	void emplace_domains(EmplaceDomainsContext&) const override {}
+struct MirrorProfile : ParserProfile {
+    MirrorProfile() : ParserProfile("MirrorParser", {"main", "Default"}) {}
 	std::span<const std::string_view> mirrors() const override {
 		static constexpr std::array<std::string_view, 2> urls{ "https://a.example", "https://b.example" };
 		return urls;
@@ -122,13 +127,14 @@ TEST_CASE("MirrorSource returns an override list only for a known parser") {
 }
 
 TEST_CASE("MirrorSource returns a canonical frontend origin only for a known parser") {
-	MirrorSource source(OverrideMap{}, CanonicalBaseMap{
+	auto owned_source = profile_source(OverrideMap{}, CanonicalBaseMap{
 	    { "ParserA", "https://frontend.example" },
 	});
+	const auto& source = *owned_source;
 	CHECK_FALSE(source.empty_source());
-	REQUIRE(source.canonical_base_for("ParserA"));
-	CHECK(*source.canonical_base_for("ParserA") == "https://frontend.example");
-	CHECK(source.canonical_base_for("Unknown") == nullptr);
+	REQUIRE(source.canonical_base_for("ParserA", "main"));
+	CHECK(*source.canonical_base_for("ParserA", "main") == "https://frontend.example");
+	CHECK(source.canonical_base_for("Unknown", "main") == nullptr);
 }
 
 TEST_CASE("MirrorSourceHolder defaults to a non-null empty source and swaps") {
@@ -172,7 +178,7 @@ TEST_CASE("RequestorContext canonical_base_url uses the catalog override keyed b
 	auto services     = std::make_shared<ServiceState>();
 	services->client  = std::make_shared<NullClient>();
 	services->mirrors = std::make_shared<MirrorSourceHolder>(
-	    std::make_shared<const MirrorSource>(OverrideMap{}, CanonicalBaseMap{
+	    profile_source(OverrideMap{}, CanonicalBaseMap{
 	                                                       { "ParserA", "https://frontend.example" },
 	                                                   }));
 
@@ -194,8 +200,7 @@ TEST_CASE("RequestorContext snapshots mirrors at construction, immune to a later
 	CHECK(pinned == "https://old.example");
 
 	// A catalog apply swaps the holder after the context was built.
-	services->mirrors->set(std::make_shared<const MirrorSource>(
-	    OverrideMap{ { "ParserA", { "https://new.example" } } }));
+	services->mirrors->set(profile_source(OverrideMap{ { "ParserA", { "https://new.example" } } }));
 
 	// The context pins its snapshot by refcount, so the swap does not free the old
 	// source: a view obtained earlier is still readable and unchanged.
@@ -210,7 +215,7 @@ TEST_CASE("RequestorContext snapshots canonical frontend origins at construction
 	auto services     = std::make_shared<ServiceState>();
 	services->client  = std::make_shared<NullClient>();
 	services->mirrors = std::make_shared<MirrorSourceHolder>(
-	    std::make_shared<const MirrorSource>(OverrideMap{}, CanonicalBaseMap{
+	    profile_source(OverrideMap{}, CanonicalBaseMap{
 	                                                       { "ParserA", "https://old.example" },
 	                                                   }));
 
@@ -218,8 +223,7 @@ TEST_CASE("RequestorContext snapshots canonical frontend origins at construction
 	std::string_view pinned = live.canonical_base_url("https://seed.example");
 	CHECK(pinned == "https://old.example");
 
-	services->mirrors->set(std::make_shared<const MirrorSource>(
-	    OverrideMap{}, CanonicalBaseMap{ { "ParserA", "https://new.example" } }));
+	services->mirrors->set(profile_source(OverrideMap{}, CanonicalBaseMap{ { "ParserA", "https://new.example" } }));
 
 	CHECK(pinned == "https://old.example");
 	CHECK(live.canonical_base_url("https://seed.example") == "https://old.example");
@@ -228,7 +232,7 @@ TEST_CASE("RequestorContext snapshots canonical frontend origins at construction
 }
 
 TEST_CASE("Parser::mirror_choices returns the built-in mirrors without a catalog override") {
-	MirrorParser parser;
+	MirrorProfile parser;
 	auto client = std::make_shared<NullClient>();
 	RequestorContext context(client, nullptr, config_for("MirrorParser", 0));
 
@@ -242,10 +246,40 @@ TEST_CASE("Parser::mirror_choices reflects a catalog override keyed by parser id
 	services->mirrors = holder_with(OverrideMap{
 	    { "MirrorParser", { "https://live1.example", "https://live2.example", "https://live3.example" } } });
 
-	MirrorParser parser;
+	MirrorProfile parser;
 	RequestorContext context(services, config_for("MirrorParser", 0));
 
 	// The picker now shows the live (overridden) mirrors, not the built-in list.
 	CHECK(urls_of(parser.mirror_choices(context)) ==
 	      std::vector<std::string>{ "https://live1.example", "https://live2.example", "https://live3.example" });
+}
+
+TEST_CASE("Profile mirrors and origins do not inherit another profile's overrides", "[profiles]") {
+    auto services = std::make_shared<ServiceState>();
+    services->client = std::make_shared<NullClient>();
+    services->mirrors = std::make_shared<MirrorSourceHolder>(
+        std::make_shared<const MirrorSource>(
+            OverrideMap{{"Provider", {"https://legacy.example"}}},
+            MirrorSource::ProfileMirrors{
+                {{"Provider", "manga"}, {"https://manga.example"}},
+                {{"Provider", "anime"}, {"https://anime.example"}},
+            },
+            MirrorSource::ProfileOrigins{
+                {{"Provider", "manga"}, "https://manga-front.example"},
+            }));
+    auto config = config_for("Provider", 0);
+    config->profile_id = "manga";
+    RequestorContext manga(services, config);
+    CHECK(manga.base_url(builtin) == "https://manga.example");
+    CHECK(manga.canonical_base_url("https://seed.example") == "https://manga-front.example");
+    auto anime_config = config_for("Provider", 0);
+    anime_config->profile_id = "anime";
+    RequestorContext anime(services, anime_config);
+    CHECK(anime.base_url(builtin) == "https://anime.example");
+    CHECK(anime.canonical_base_url("https://seed.example") == "https://seed.example");
+    auto main_config = config_for("Provider", 0);
+    main_config->profile_id = "main";
+    RequestorContext main(services, main_config);
+    CHECK(main.base_url(builtin) == builtin.front());
+    CHECK(main.canonical_base_url("https://seed.example") == "https://seed.example");
 }

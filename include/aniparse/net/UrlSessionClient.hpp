@@ -81,7 +81,7 @@ public:
 	 * which is exactly the contract.
 	 * @param config The transport-wide configuration to apply
 	 */
-	void set_config(ClientConfig config) override;
+	void apply_client_config(ClientConfig config) override;
 
 	/**
 	 * @brief Mint an empty cookie jar for a parser's session.

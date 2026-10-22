@@ -85,6 +85,10 @@ find_package(tl-expected CONFIG REQUIRED)
 # ---- ADD LIBRARY
 
 add_library(aniparse ${aniparse_library_type}
+    "src/ParserProfile.cpp" "include/aniparse/ParserProfile.hpp"
+	"src/catalog/content/Catalog.cpp" "include/aniparse/catalog/content/Catalog.hpp"
+	"src/catalog/content/Entry.cpp" "include/aniparse/catalog/content/Entry.hpp"
+	"include/aniparse/catalog/content/Scope.hpp"
 	"src/AniParse.cpp" "include/aniparse/AniParse.hpp"
 	"src/Version.cpp" "include/aniparse/Version.hpp"
 	"include/aniparse/utility/FlagsBitfield.hpp"

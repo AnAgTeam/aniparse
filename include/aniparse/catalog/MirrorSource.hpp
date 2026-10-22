@@ -74,19 +74,26 @@ private:
  */
 class MirrorSource {
 public:
+	/**
+	 * @brief Override keys identify a parser and one of its request profiles.
+	 */
+	using ProfileKey = std::pair<std::string, std::string>;
+	using ProfileMirrors = std::map<ProfileKey, std::vector<std::string>>;
+	using ProfileOrigins = std::map<ProfileKey, std::string>;
+
 	MirrorSource() = default;
 
 	/**
-	 * @brief Build from parser-scoped mirror and canonical-origin overrides.
-	 * @param overrides Mirror lists keyed by parser identifier.
-	 * @param canonical_base_urls Canonical frontend origins keyed by parser
-	 * identifier. Each origin shares this immutable source and therefore the same
-	 * request-time snapshot as its parser's mirrors.
+	 * @brief Build extractor mirrors and profile-specific request origins.
+	 * @param overrides Mirror lists for explicit-ID consumers such as extractors.
+	 * @param profile_mirrors Overrides keyed by parser ID and profile ID.
+	 * @param profile_origins Frontend origins keyed by parser ID and profile ID.
 	 */
 	explicit MirrorSource(
 	    std::map<std::string, std::vector<std::string>, std::less<>> overrides,
-	    std::map<std::string, std::string, std::less<>> canonical_base_urls = {})
-	    : overrides_(std::move(overrides)), canonical_base_urls_(std::move(canonical_base_urls)) {}
+		ProfileMirrors profile_mirrors = {}, ProfileOrigins profile_origins = {})
+		: overrides_(std::move(overrides)),
+		  profile_mirrors_(std::move(profile_mirrors)), profile_origins_(std::move(profile_origins)) {}
 
 	/**
 	 * @brief The override list for @p parser_id, if present.
@@ -100,24 +107,41 @@ public:
 	}
 
 	/**
-	 * @brief The catalog canonical frontend origin for @p parser_id, if present.
-	 * @param parser_id Parser identifier stamped into the request config.
-	 * @return A pointer to the origin, or nullptr when the parser keeps its
-	 * built-in fallback. Valid while this source lives.
+	 * @brief Resolve a profile's mirror override without crossing profile boundaries.
+	 * @param parser_id Stable owning parser identifier.
+	 * @param profile_id Stable profile identifier stamped by ParserProfile::make_config.
+	 * @return A list owned by this source, or nullptr for built-in fallback.
 	 */
-	[[nodiscard]] const std::string* canonical_base_for(std::string_view parser_id) const {
-		auto it = canonical_base_urls_.find(parser_id);
-		return it == canonical_base_urls_.end() ? nullptr : &it->second;
+	const std::vector<std::string>* list_for(
+		std::string_view parser_id, std::string_view profile_id) const {
+		auto it = profile_mirrors_.find({std::string(parser_id), std::string(profile_id)});
+		if (it != profile_mirrors_.end()) return &it->second;
+		return nullptr;
+	}
+
+	/**
+	 * @brief Resolve a profile's canonical origin independently of other profiles.
+	 * @param parser_id Stable owning parser identifier.
+	 * @param profile_id Stable profile identifier stamped by ParserProfile::make_config.
+	 * @return An origin owned by this source, or nullptr for built-in fallback.
+	 */
+	const std::string* canonical_base_for(
+		std::string_view parser_id, std::string_view profile_id) const {
+		auto it = profile_origins_.find({std::string(parser_id), std::string(profile_id)});
+		if (it != profile_origins_.end()) return &it->second;
+		return nullptr;
 	}
 
 	/// @return true if the source carries no overrides (every parser falls back).
 	[[nodiscard]] bool empty_source() const noexcept {
-		return overrides_.empty() && canonical_base_urls_.empty();
+		return overrides_.empty()
+			&& profile_mirrors_.empty() && profile_origins_.empty();
 	}
 
 private:
 	std::map<std::string, std::vector<std::string>, std::less<>> overrides_;
-	std::map<std::string, std::string, std::less<>> canonical_base_urls_;
+	ProfileMirrors profile_mirrors_;
+	ProfileOrigins profile_origins_;
 };
 
 /**

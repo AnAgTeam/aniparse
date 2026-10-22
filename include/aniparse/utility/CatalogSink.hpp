@@ -7,7 +7,6 @@
 #include "aniparse/utility/RegexSource.hpp"
 
 #include <map>
-#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -99,10 +98,8 @@ inline constexpr bool always_false = false;
  * into via `emplace_catalog()`.
  *
  * One sink serves one owner (a parser or extractor identifier); the catalog
- * dumper collects the recorded data afterwards. Two channels are declarative:
- * the owner's selector/pattern SETS (@ref emplace_set) and its canonical base
- * URL (@ref set_canonical_base_url). Both are optional: an owner that declares
- * nothing simply has no hotfix channel and no canonical URL on the wire.
+ * dumper collects the recorded selector and pattern sets afterwards.
+ * Request origins are declared by ParserProfile, independently of this sink.
  *
  * The sink is valid only for the duration of the emplace_catalog call — an
  * owner must not retain it.
@@ -153,23 +150,10 @@ public:
 		}
 	}
 
-	/**
-	 * @brief Record the owner's canonical base URL (its public frontend origin).
-	 * There is deliberately NO default (e.g. first mirror): an owner that does
-	 * not call this has no canonical_base_url channel on the wire.
-	 * @param url The canonical base URL.
-	 * @throws std::logic_error on a second call (one owner, one canonical URL).
-	 */
-	void set_canonical_base_url(std::string url);
-
 	/// @return The recorded selector key -> literal table (empty if none declared).
 	[[nodiscard]] const RecordedSet& selectors() const noexcept { return selectors_; }
 	/// @return The recorded pattern key -> literal table (empty if none declared).
 	[[nodiscard]] const RecordedSet& patterns() const noexcept { return patterns_; }
-	/// @return The canonical base URL, or nullopt when none was declared.
-	[[nodiscard]] const std::optional<std::string>& canonical_base_url() const noexcept {
-		return canonical_base_url_;
-	}
 	/// @return The owner identifier the sink was created for.
 	[[nodiscard]] std::string_view owner_id() const noexcept { return owner_id_; }
 
@@ -181,7 +165,6 @@ private:
 	std::string owner_id_;
 	RecordedSet selectors_;
 	RecordedSet patterns_;
-	std::optional<std::string> canonical_base_url_;
 };
 
 } // namespace aniparse

@@ -351,7 +351,7 @@ UrlSessionClient::~UrlSessionClient() {
 	}
 }
 
-void UrlSessionClient::set_config(ClientConfig config) {
+void UrlSessionClient::apply_client_config(ClientConfig config) {
 	impl_->max_retries.store(config.max_retries.value_or(default_max_retries));
 
 	// The delegate is shared with the session already running, so a swap would be seen

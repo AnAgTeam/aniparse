@@ -76,7 +76,7 @@ enum class RequestErrorCode {
 	/// The operation cannot complete without an interactive step the library
 	/// cannot perform headlessly — a captcha, a social-OAuth or in-browser login,
 	/// a 2FA prompt. The caller chooses the sign-in flow up front from
-	/// Parser::auth_info and collects the credential accordingly; this is the
+	/// ParserProfile::auth_info and collects the credential accordingly; this is the
 	/// escalation signal for when a *headless* attempt (authenticate_context with a
 	/// username/password) turns out to need that interaction after all, telling the
 	/// caller to fall back to the interactive flow auth_info describes. Distinct

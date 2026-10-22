@@ -61,7 +61,6 @@ TEST_CASE("CatalogSink records a selector set's (key, literal) pairs") {
 	    { "info.title", "h1.main" },
 	});
 	CHECK(sink.patterns().empty());
-	CHECK_FALSE(sink.canonical_base_url().has_value());
 }
 
 TEST_CASE("CatalogSink records a pattern set's (key, literal) pairs") {
@@ -79,19 +78,10 @@ TEST_CASE("CatalogSink rejects a key colliding across the owner's sets") {
 	CHECK_THROWS_AS(sink.emplace_set<CollidingSelectors>(), std::logic_error);
 }
 
-TEST_CASE("CatalogSink rejects a second canonical base URL") {
-	CatalogSink sink("ExampleParser");
-	sink.set_canonical_base_url("https://example.org");
-	CHECK(sink.canonical_base_url() == "https://example.org");
-	CHECK_THROWS_AS(sink.set_canonical_base_url("https://mirror.example.org"),
-	                std::logic_error);
-}
-
 TEST_CASE("CatalogSink with no declarations emits nothing") {
 	CatalogSink sink("QuietParser");
 	CHECK(sink.selectors().empty());
 	CHECK(sink.patterns().empty());
-	CHECK_FALSE(sink.canonical_base_url().has_value());
 	CHECK(sink.owner_id() == "QuietParser"sv);
 }
 

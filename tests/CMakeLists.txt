@@ -13,12 +13,16 @@ add_executable(aniparse-tests
 	"ParsedUrlTest.cpp"
 	"ModelTest.cpp"
 	"AuthExportTest.cpp"
+	"ParserProfileTest.cpp"
+	"RequestorContextTest.cpp"
+	"MirrorSourceTest.cpp"
 	"StrongBitsetTest.cpp"
 	"ParserStoreTest.cpp"
 	"VideoExtractorTest.cpp"
 	"ResourceAdapterTest.cpp"
 	"CatalogTest.cpp"
 	"CatalogManagerTest.cpp"
+	"ProfileCatalogTest.cpp"
 	"HTMLParseTests.cpp"
 	"HtmlTextTest.cpp"
 	"NumberTest.cpp"
@@ -34,6 +38,8 @@ add_executable(aniparse-tests
 	"RepublishableTest.cpp"
 	"FileCachingClientTest.cpp"
 	"ImagesDefaultsTest.cpp"
+	"ContentCatalogTest.cpp"
+	"MangaDefaultsTest.cpp"
 )
 
 set_property(TARGET aniparse-tests PROPERTY CXX_STANDARD 23)
@@ -45,10 +51,7 @@ add_test(NAME aniparse-tests COMMAND aniparse-tests)
 if (ANIPARSE_CURL_BACKEND)
 	add_executable(aniparse-tests-backend
 		"catch_amalgamated.cpp" "catch_amalgamated.hpp"
-		"MangaDefaultsTest.cpp"
 		"CookiesAndConfigTest.cpp"
-		"RequestorContextTest.cpp"
-		"MirrorSourceTest.cpp"
 	)
 
 	set_property(TARGET aniparse-tests-backend PROPERTY CXX_STANDARD 23)

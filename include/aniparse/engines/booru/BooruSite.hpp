@@ -18,7 +18,7 @@ struct BooruEngine;
  * @brief Static query-param credentials — a user id + api key pair carried as query
  * params. The username is stamped into @ref user_param and the password into @ref key_param of the
  * config's url_params, with no network round-trip: booru credentials are static
- * parameters that ride on every request. @see BooruParser::authenticate_context
+ * parameters that ride on every request. @see ParserProfile::authenticate_context
  */
 struct BooruStaticParamAuth {
 	std::string_view user_param; ///< url_param the username (user id) is stamped into.
@@ -44,7 +44,7 @@ struct BooruSite {
 	/// The hosts this source owns, for URL routing (Parser::emplace_domains). The
 	/// built-in set; a catalog refresh unions volatile domains onto it.
 	std::span<const std::string_view> domains;
-	/// The API fetch host(s) — the built-in mirror set (Parser::mirrors), routed
+	/// The API fetch host(s) — the built-in mirror set (ParserProfile::mirrors), routed
 	/// through RequestorContext::base_url so a catalog override can move them. Distinct
 	/// from @ref domains (URL-routing ownership): two sites running the same engine
 	/// differ here (their own API hosts).

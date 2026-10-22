@@ -11,6 +11,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <utility>
 
 /**
  * @file
@@ -59,32 +60,20 @@ struct SignatureVerifier {
 };
 
 /**
- * @brief A verified, parsed catalog. @c domains maps a parser identifier to the
- * extra domains it should route (for ParserStore::refresh_domains); @c mirrors
- * maps a parser identifier to its ordered fetch base URLs and
- * @c canonical_base_urls maps it to a public frontend origin (both for
- * MirrorSource);
- * @c extractor_domains / @c extractor_mirrors are the same pair for video
- * extractors, keyed by extractor identifier; @c selectors maps a stable selector
- * name (e.g. "example.info.description") to
- * its override CSS, a flat table fed straight into a SelectorSource. Filters
- * join later. @c patterns / @c extractor_patterns map an owner identifier to its
- * regex overrides (short key -> pattern text), fed into a RegexSource.
+ * @brief A verified catalog of parser domains, profile origins, selectors and patterns.
+ *
+ * Parser request origins are keyed by parser and profile ID. Extractor domains
+ * and mirrors are keyed by extractor ID in separate maps. Selectors retain their
+ * fully qualified flat keys; regex patterns are scoped by owner ID.
  */
 struct CatalogData {
 	uint64_t revision = 0;
 	std::map<std::string, std::vector<std::string>, std::less<>> domains;
-	/// Per-parser ordered fetch base URLs (for MirrorSource), keyed by the same
-	/// parser identifier as @c domains. Distinct from @c domains: a routing domain
-	/// only recognises a URL, a mirror is a live base URL fetched from; they may
-	/// overlap (a frontend host is both) and CatalogManager unions mirror hosts
-	/// into routing so listing a mirror also makes it route.
-	std::map<std::string, std::vector<std::string>, std::less<>> mirrors;
-	/// Per-parser canonical frontend origins. This is deliberately separate from
-	/// @c mirrors: a source can fetch from an API host while sharing links, web
-	/// authentication, and Referer headers against a different frontend origin.
-	/// CatalogManager unions the origin host into routing like a mirror host.
-	std::map<std::string, std::string, std::less<>> canonical_base_urls;
+	/// Profile-specific mirror lists keyed by (parser ID, profile ID). No parser-wide
+	/// fallback is inherited by any profile.
+	std::map<std::pair<std::string, std::string>, std::vector<std::string>> profile_mirrors;
+	/// Profile-specific canonical frontend origins, keyed by parser and profile ID.
+	std::map<std::pair<std::string, std::string>, std::string> profile_canonical_base_urls;
 	/// Per-extractor extra routing domains (for VideoExtractorStore::refresh_domains),
 	/// keyed by VideoExtractor::identifier(). Kept in separate maps from the parser
 	/// ones so a parser and an extractor sharing an identifier never alias each

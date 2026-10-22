@@ -11,7 +11,7 @@
 //   - a JS array embedded in a <script>, extracted as JSON
 // Pair it with example_net, which shows how such a page is fetched in the first
 // place. Keeping the input on disk makes this example deterministic and offline.
-#include <aniparse/net/Client.hpp>
+#include "ExampleClient.hpp"
 #include <aniparse/ClientContext.hpp>
 #include <aniparse/cache/ResourceCache.hpp>
 #include <aniparse/html/HTMLParser.hpp>
@@ -110,7 +110,7 @@ int main() {
 	// A RequestorContext is what a parser's getters receive; here we build one only
 	// to reach its selector cache via resources(). No request is made — the HTML
 	// already came from the fixture on disk.
-	RequestorContext context(std::make_shared<AsyncClient>(), nullptr, nullptr);
+	RequestorContext context(examples::make_client(), nullptr, nullptr);
 	extract_cards(context, document);
 
 	// Many sites ship data as a JS literal rather than as markup. parse_json_var

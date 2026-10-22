@@ -4,6 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
+#include "aniparse/utility/AtomicSharedPtr.hpp"
 #include "aniparse/types/Request.hpp"
 #include "aniparse/types/Response.hpp"
 #include "aniparse/net/CookieJar.hpp"
@@ -59,13 +60,13 @@ struct ClientProxy {
 /**
  * @brief Parser configuration for all its requests
  *
- * The per-parser half of the configuration (the transport-wide half is
+ * The per-profile half of the configuration (the transport-wide half is
  * @ref ClientConfig): whatever a parser needs stamped onto every request it makes —
  * its default headers and url params, the cookie jar holding its session, and its
  * selected mirror. A @ref RequestorContext applies it to each outgoing request.
  *
  * A config for a given parser is not written by hand: it is *derived*, by handing a
- * base config to Parser::make_config and adopting the result via
+ * profile to create a fresh config with ParserProfile::make_config and adopting it via
  * RequestorContext::new_with_config. That derivation is what stamps @ref parser_id and
  * seeds the parser's defaults, and it is mandatory before any getter of that parser
  * runs — see RequestorContext::new_with_config.
@@ -76,7 +77,7 @@ struct ParserConfig {
 	/// win: the config fills in only the names the request left unset.
 	Headers headers;
 	/// Query params appended to every request — the seam static credentials
-	/// (an api key, a user id) ride on. @see Parser::authenticate_context
+	/// (an api key, a user id) ride on. @see ParserProfile::authenticate_context
 	std::map<std::string, std::string> url_params;
 	/// The session: the jar every request of this config reads and writes cookies
 	/// through. Provisioned by the context (from the client backend) when null, so a
@@ -86,10 +87,11 @@ struct ParserConfig {
 	ParserConfigFlags flags;
 
 	/// Identifier of the parser this config was derived for, stamped by
-	/// Parser::make_config. Lets request-time services keyed by parser (mirror
+	/// ParserProfile::make_config. Lets request-time services keyed by parser (mirror
 	/// overrides) find this parser's entry without the getter naming its own id.
 	/// Empty on a config that was not derived through make_config.
 	std::string parser_id;
+	std::string profile_id; ///< Stable profile ID, stamped by ParserProfile::make_config.
 
 	/// Selected alternative link (mirror) index. @see AltLink, RequestorContext::alt_link
 	size_t alt_link = 0;
@@ -101,7 +103,15 @@ struct ParserConfig {
 };
 
 /**
- * @brief Transport-wide configuration of a @ref ClientContext.
+ * @brief Application-wide HTTP defaults; source and request headers take priority.
+ * @note Credentials belong in a profile configuration, not in these defaults.
+ */
+struct RequestDefaults {
+    Headers headers; ///< Fallback headers, matched without regard to case.
+};
+
+/**
+ * @brief Transport settings and application request defaults for a ClientContext.
  *
  * Applies to every request the client performs, whatever parser issued it — this is
  * the host application's knob (proxy, timeout, retry budget), as opposed to
@@ -110,6 +120,8 @@ struct ParserConfig {
  * @see ClientContext::set_config
  */
 struct ClientConfig {
+    RequestDefaults request_defaults; ///< Applied by the common request context.
+
 	/// Proxy to route every request through; unset for a direct connection.
 	std::optional<ClientProxy> proxy;
 	/// How many times a request is retried after a transport failure (timeout,
@@ -176,7 +188,20 @@ struct ClientContext {
 	 * sharing this client sees the change. @see ParserConfig for per-parser settings.
 	 * @param config The transport-wide configuration to apply
 	 */
-	virtual void set_config(ClientConfig config) = 0;
+	void set_config(ClientConfig config);
+
+    /**
+     * @brief Read the currently published application request defaults.
+     * @return An owned snapshot, unaffected by subsequent configuration updates.
+     */
+    RequestDefaults request_defaults() const;
+
+    /**
+     * @brief Apply transport settings for a configuration update.
+     * @param config The new client configuration; common defaults are handled by the base.
+     * @note Backends implement this hook instead of overriding set_config.
+     */
+    virtual void apply_client_config(ClientConfig config) = 0;
 
 	/**
 	 * @brief Create an empty cookie jar this client can drive.
@@ -188,6 +213,9 @@ struct ClientContext {
 	 * @return A fresh empty jar, or nullptr for a backend that manages cookies itself
 	 */
 	virtual std::shared_ptr<CookieJar> make_cookie_jar() = 0;
+private:
+    AtomicSharedPtr<const RequestDefaults> request_defaults_;
+
 };
 
 /// Severity of a message handed to a @ref LoggerContext, ordered from least to most
@@ -216,7 +244,7 @@ struct LoggerContext {
 	 * @param message_type Prefix to message. ("INFO", "ERROR", etc.)
 	 * @param message Message text to output
 	 * @param parser_id Identifier of the parser the message originates from (the value
-	 *        Parser::make_config stamped into the emitting context's config). Empty when
+	 *        ParserProfile::make_config stamped into the emitting context's config). Empty when
 	 *        the source is not tied to a parser — a context whose config never went
 	 *        through make_config.
 	 * @param loc Call site the message originates from, for diagnostics
@@ -284,7 +312,7 @@ struct ServiceState {
  * Copies of a context, and contexts derived through @ref new_with_config /
  * @ref new_with_logger, share the same services and hence the same cache and client.
  *
- * The config a context carries must be one derived by Parser::make_config for the
+ * The config a context carries must be one derived by ParserProfile::make_config for the
  * parser whose getter is about to run — @see new_with_config for the contract.
  * @see ParserConfig
  */
@@ -322,7 +350,7 @@ public:
 	 * The config is applied on the way out: its headers fill in the names the request
 	 * left unset (an explicit request header always wins), its url params are appended,
 	 * its cookie jar carries the session, and its modifiers run last.
-	 * @note Only meaningful on a context carrying a config derived by Parser::make_config
+	 * @note Only meaningful on a context carrying a config derived by ParserProfile::make_config
 	 *       (adopted via @ref new_with_config): an underived config has none of the
 	 *       parser's default headers/cookies, and sources answer such a request with a
 	 *       4xx rather than data.
@@ -519,7 +547,7 @@ public:
 	 * literals.
 	 *
 	 * The set is compiled against the overrides of THIS context's parser (the id
-	 * Parser::make_config stamped into the config) and cached by (parser id, set
+	 * ParserProfile::make_config stamped into the config) and cached by (parser id, set
 	 * type) inside the selector-source holder — so two parsers sharing one set
 	 * type (an engine family) each get their own copy with their own overrides,
 	 * never a neighbour's. The getter names only the set type; it names neither
@@ -555,7 +583,7 @@ public:
 	 * context's scoped regex source, falling back to the set's built-in literals.
 	 *
 	 * The set is compiled against the overrides of THIS context's parser (the id
-	 * Parser::make_config stamped into the config) and cached by (parser id, set
+	 * ParserProfile::make_config stamped into the config) and cached by (parser id, set
 	 * type) inside the regex-source holder — the same discipline as
 	 * @ref selectors. The getter names only the set type.
 	 * @tparam T Pattern set type exposing `static T create(const RegexSource&)`
@@ -574,7 +602,7 @@ public:
 	 * which carry no stamped ParserConfig and so name their own stable identifier
 	 * as the override scope. Parsers must call the no-argument @ref patterns()
 	 * instead: their overrides are scoped by the parser identity
-	 * Parser::make_config stamped into the config, and naming an id by hand can
+	 * ParserProfile::make_config stamped into the config, and naming an id by hand can
 	 * only mis-scope them.
 	 * @tparam T Pattern set type exposing `static T create(const RegexSource&)`
 	 * @param id The extractor's stable identifier (@see VideoExtractor::identifier).
@@ -596,7 +624,7 @@ public:
 	 * (if any) combined with the getter's built-in @p builtin fallback.
 	 *
 	 * The override is looked up by the parser identity stamped into the config by
-	 * Parser::make_config, against a mirror snapshot taken once when this context
+	 * ParserProfile::make_config, against a mirror snapshot taken once when this context
 	 * was built — so the whole operation reads one consistent mirror set even if
 	 * the catalog swaps mid-request. The getter passes only its own built-in list;
 	 * it names neither its id nor the override.
@@ -605,7 +633,7 @@ public:
 	 */
 	[[nodiscard]] Mirrors mirrors(std::span<const std::string_view> builtin) const {
 		const std::vector<std::string>* override_list =
-		    mirror_snapshot_ ? mirror_snapshot_->list_for(config_->parser_id) : nullptr;
+		    mirror_snapshot_ ? mirror_snapshot_->list_for(config_->parser_id, config_->profile_id) : nullptr;
 		return Mirrors{ override_list, builtin };
 	}
 
@@ -617,7 +645,7 @@ public:
 	 * which carry no stamped ParserConfig and so name their own stable
 	 * identifier as the override key. Parsers must call the single-argument
 	 * @ref mirrors() instead: their override is keyed by the parser identity
-	 * Parser::make_config stamped into the config, and naming an id by hand can
+	 * ParserProfile::make_config stamped into the config, and naming an id by hand can
 	 * only mis-key it.
 	 * @param id The extractor's stable identifier (@see VideoExtractor::identifier).
 	 * @param builtin The caller's built-in fallback base URLs.
@@ -656,7 +684,7 @@ public:
 	 */
 	[[nodiscard]] std::string_view canonical_base_url(std::string_view builtin) const {
 		const std::string* override_url =
-		    mirror_snapshot_ ? mirror_snapshot_->canonical_base_for(config_->parser_id) : nullptr;
+		    mirror_snapshot_ ? mirror_snapshot_->canonical_base_for(config_->parser_id, config_->profile_id) : nullptr;
 		return override_url ? std::string_view(*override_url) : builtin;
 	}
 
@@ -674,7 +702,7 @@ public:
 	 * Writes through to the shared config, so every context holding that config sees
 	 * the new selection — this is a user-facing switch ("use this mirror"), not a
 	 * per-request one. An index past the end of the mirror view resolves to an empty
-	 * base URL, so a caller should pick from Parser::mirror_choices.
+	 * base URL, so a caller should pick from ParserProfile::mirror_choices.
 	 * @param alt_link Index into the resolved mirror view
 	 */
 	void set_alt_link(size_t alt_link);
@@ -702,9 +730,9 @@ public:
 	 * often skip. Before calling any getter of a parser, a caller must derive that
 	 * parser's config and adopt it here:
 	 * @code
-	 * auto config  = parser.make_config(context.config());
+	 * auto config  = parser.profile(default_profile_id)->make_config();
 	 * auto ready   = context.new_with_config(config);
-	 * auto results = co_await parser.mangas_getter()->latest(ready, filters);
+	 * auto results = co_await parser.catalog_getter("main")->latest(ready, filters);
 	 * @endcode
 	 * make_config is what stamps the parser's identity (without which request-time
 	 * services keyed by parser — a catalog's mirror overrides — cannot find the

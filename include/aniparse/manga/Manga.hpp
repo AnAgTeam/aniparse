@@ -6,12 +6,10 @@
 #pragma once
 // The data model half; this header adds the getter interfaces on top of it.
 #include "aniparse/manga/MangaModel.hpp"
-#include "aniparse/types/ParsedUrl.hpp"
 
 #include "aniparse/types/Flags.hpp"
 #include "aniparse/types/Pagination.hpp"
 #include "aniparse/types/Response.hpp"
-#include "aniparse/types/Search.hpp"
 #include "aniparse/types/Serialization.hpp"
 #include "aniparse/types/Authentication.hpp"
 #include "aniparse/ClientContext.hpp"
@@ -35,7 +33,7 @@ struct AltLink {
  * Equals @p builtin (as AltLinks) when no catalog overrides the context's parser;
  * otherwise the overridden set — so a picker reflects the mirrors actually fetched
  * from, not a stale built-in list. Generic over any source: the override is keyed
- * by the config's parser id carried in @p context. @see Parser::mirror_choices.
+ * by the config's parser id carried in @p context. @see ParserProfile::mirror_choices.
  * @param builtin The source's built-in base URLs (its single source of truth).
  * @param context Context carrying the current mirror snapshot and parser id.
  * @return The resolved mirror descriptors, in selection order.
@@ -62,24 +60,7 @@ struct MangaGetterCompatibilities {
 	CompatibilitiesFlags flags = compatibilities_flags::default_flags;
 };
 
-/**
- * @brief How a manga root getter advertises what MangaRootGetter::latest()
- * accepts. The latest() counterpart of SearchCompatibilities: latest() takes no
- * query and no filter items, only an ordering, so the sort channel is all there
- * is to declare. Available synchronously (no fetch, unlike
- * MangaRootGetter::search_support), and checked against a request by
- * MangaRootGetter::validate_latest_filters.
- */
-struct MangaGetterRootCompatibilities {
-	/// The orderings latest() accepts on GetFilters::sort, as key -> allowed
-	/// directions. Empty (the default) = latest() offers no selectable ordering:
-	/// requesting any sort is a SearchQueryError, and the source's own order applies.
-	SupportedSorts supported_sorts;
-	/// Capability bits that apply to latest(), from the
-	/// aniparse::compatibilities_flags vocabulary (e.g. supports_pagination_uniqueness,
-	/// which tells a consumer whether paging the list can repeat items). Default = none.
-	CompatibilitiesFlags compatibilities = compatibilities_flags::default_flags;
-};
+
 
 /**
  * @brief Interface for getting one specific manga information.
@@ -242,7 +223,7 @@ struct MangaGetter {
 	 * @brief Return this manga's stable, public URL.
 	 *
 	 * The returned absolute URL must route through ParserStore::route_url() and
-	 * reconstruct an equivalent getter through MangaRootGetter::parse_url(). This
+	 * reconstruct an equivalent getter through CatalogRootGetter::parse_url(). This
 	 * method performs no I/O: @p context is supplied only to read the immutable
 	 * volatile-catalog snapshot (in particular canonical_base_url), never to make a
 	 * request. The getter's own identity supplies the remaining path/query data.
@@ -254,7 +235,7 @@ struct MangaGetter {
 	/**
 	 * @brief This getter's identity in a form that survives the process, so a
 	 * consumer can store the manga in a library and rebuild the getter later with
-	 * MangaRootGetter::from_serialized(). Every getter must implement it.
+	 * CatalogRootGetter::from_serialized(). Every getter must implement it.
 	 *
 	 * Encodes identity only, never the fetched info — a restored getter refetches.
 	 * The blob is opaque to the consumer and means nothing away from the parser that
@@ -268,129 +249,6 @@ struct MangaGetter {
 	virtual NetworkRequestTask<SerializedGetterData> serialize() const = 0;
 };
 
-/**
- * @brief Root interface for manga. Used to get pages or general information
- */
-struct MangaRootGetter {
-	virtual ~MangaRootGetter() = default;
 
-	/**
-	 * @brief The search filters and sorts this getter supports.
-	 * Cache-first and async: returns the cached table, fetching it from the source
-	 * (and caching it, e.g. in RequestorContext::resources()) on a cold cache. A
-	 * static-catalog parser just returns its table. Read it once and validate
-	 * synchronously via the free @ref validate_query() for UI pre-flight.
-	 *
-	 * By default returns an empty table: no filter, no sort and no flag declared, so
-	 * validate_query() rejects every filter and every sort. A parser that searches
-	 * overrides it.
-	 * @param context Client to perform HTTP requests
-	 * @return The support table, or a RequestError when it had to be fetched and the
-	 *         fetch failed
-	 */
-	virtual NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext context) const;
-
-	/**
-	 * @brief What latest() accepts: its sort declaration and capability flags.
-	 * Synchronous, unlike search_support() — the table is fixed, not fetched. By
-	 * default returns an empty table, i.e. latest() takes no selectable ordering.
-	 * @return The declaration to check a latest() request against.
-	 * @see validate_latest_filters
-	 */
-	virtual MangaGetterRootCompatibilities latest_support() const noexcept;
-
-	/**
-	 * @brief Check the requested sort against this getter's own
-	 * latest_support(). Same contract as validate_query, for latest().
-	 * @param filters The filters about to be passed to latest(); only the sort
-	 *        channel is checked, as that is all latest() takes.
-	 * @return Empty if the filters are valid; otherwise the violation
-	 */
-	[[nodiscard]] std::vector<SearchQueryError> validate_latest_filters(const GetFilters& filters) const;
-
-	/**
-	 * @brief Search the source's manga catalog by free text and/or structured filters.
-	 * Each result is a ready-to-use getter, typically already carrying its short-card
-	 * info so preview_info() costs no extra request. What @p query and @p filters may
-	 * hold is declared by search_support(); a caller pre-flights them with
-	 * validate_query() rather than spending a request on a filter the source rejects,
-	 * and an implementation that is handed an invalid query reports
-	 * RequestErrorCode::InvalidArguments.
-	 *
-	 * By default reports RequestErrorCode::NotImplemented — a source with no search
-	 * endpoint leaves it alone.
-	 * @param context Client to perform HTTP requests
-	 * @param query Free text plus the structured filter items (@see SearchRequestQuery)
-	 * @param filters Pagination and ordering of the result list
-	 * @return A page of manga getters, or a RequestError
-	 */
-	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> search(
-	    RequestorContext context,
-	    SearchRequestQuery query,
-	    GetFilters filters) const;
-
-	/**
-	 * @brief The source's recently added or recently updated manga — its front page,
-	 * as opposed to an answer to a query. Each result is a ready-to-use getter, as in
-	 * search(). Which orderings @p filters may request is declared by latest_support()
-	 * and checked by validate_latest_filters(); with an empty declaration the source's
-	 * own recency order applies.
-	 *
-	 * By default reports RequestErrorCode::NotImplemented.
-	 * @param context Client to perform HTTP requests
-	 * @param filters Pagination and (where declared) ordering of the list
-	 * @return A page of manga getters, or a RequestError
-	 */
-	virtual NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> latest(
-	    RequestorContext context,
-	    GetFilters filters) const;
-
-	/**
-	 * @brief Autocomplete: suggest search tokens for a partial input.
-	 * Advertised via SearchCompatibilities::compatibilities (supports_suggestions);
-	 * NotImplemented by default. @p kind optionally narrows to one search axis — a
-	 * search key (@see search_keys), the same vocabulary as the source's filters and
-	 * as SearchSuggestion::category — best-effort, the source may ignore it. The
-	 * returned SearchSuggestion::value is a search token that drops straight back
-	 * into search (as that filter's value or a query token).
-	 * @param context Client to perform HTTP requests
-	 * @param partial The token being typed.
-	 * @param kind Optional search axis to complete; nullopt = across the default axis.
-	 * @return Suggestions, most relevant first.
-	 */
-	virtual NetworkRequestTask<std::vector<SearchSuggestion>> suggest(
-	    RequestorContext context,
-	    std::string partial,
-	    std::optional<std::string> kind = std::nullopt) const;
-
-	/**
-	 * @see MangaGetter
-	 * Parse the url and return corresponding getter
-	 * By default reports RequestErrorCode::NotImplemented
-	 * @param context Client to perform HTTP requests
-	 * @param url The url to parse
-	 * @note Reports RequestErrorCode::NotImplemented if the parser does not implement it
-	 * @return Task to get MangaGetter
-	 */
-	virtual NetworkRequestTask<std::unique_ptr<MangaGetter>> parse_url(
-	    RequestorContext context,
-	    ParsedUrl url) const;
-
-	/**
-	 * @brief Rebuild a manga getter from the identity MangaGetter::serialize() emitted
-	 * — how a stored library entry becomes usable again after a restart. Every root
-	 * getter must implement it, and it must keep accepting every form this parser has
-	 * ever emitted (@see SerializedGetterData).
-	 *
-	 * The restored getter carries identity only, no cached info: its first
-	 * preview_info() therefore costs the full detail request. @p data is only
-	 * meaningful to the parser that produced it, so a consumer stores the parser's
-	 * identifier beside the blob and hands the blob back to that same parser.
-	 * @param data The blob a previous serialize() returned, verbatim
-	 * @return A getter addressing the same manga, or a RequestError
-	 *         (RequestErrorCode::InvalidArguments when the blob does not decode)
-	 */
-	virtual NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData data) const = 0;
-};
 
 } // namespace aniparse

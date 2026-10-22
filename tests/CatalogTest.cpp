@@ -102,14 +102,14 @@ TEST_CASE("decode_catalog reads per-parser mirror base URLs alongside domains") 
         "parsers": {
             "ExampleParser": {
                 "domains": ["example.com"],
-                "mirrors": ["https://m0.example.com", "https://m1.example.com"]
+                "profiles": {"main": {"mirrors": ["https://m0.example.com", "https://m1.example.com"]}}
             }
         }
     })";
 	auto result = decode_catalog(payload, "sig", verifier);
 	REQUIRE(result.has_value());
-	REQUIRE(result->mirrors.contains("ExampleParser"));
-	CHECK(result->mirrors.at("ExampleParser") ==
+	REQUIRE(result->profile_mirrors.contains({"ExampleParser", "main"}));
+	CHECK(result->profile_mirrors.at({"ExampleParser", "main"}) ==
 	      std::vector<std::string>{ "https://m0.example.com", "https://m1.example.com" });
 	// domains and mirrors are independent fields on the same parser entry.
 	CHECK(result->domains.at("ExampleParser") == std::vector<std::string>{ "example.com" });
@@ -122,14 +122,14 @@ TEST_CASE("decode_catalog reads a parser canonical frontend origin") {
         "revision": 3,
         "parsers": {
             "ExampleParser": {
-                "canonical_base_url": "https://frontend.example.com"
+                "profiles": {"main": {"canonical_base_url": "https://frontend.example.com"}}
             }
         }
     })";
 	auto result = decode_catalog(payload, "sig", verifier);
 	REQUIRE(result.has_value());
-	REQUIRE(result->canonical_base_urls.contains("ExampleParser"));
-	CHECK(result->canonical_base_urls.at("ExampleParser") == "https://frontend.example.com");
+	REQUIRE(result->profile_canonical_base_urls.contains({"ExampleParser", "main"}));
+	CHECK(result->profile_canonical_base_urls.at({"ExampleParser", "main"}) == "https://frontend.example.com");
 }
 
 TEST_CASE("decode_catalog reads the extractors section into separate maps") {
@@ -138,7 +138,7 @@ TEST_CASE("decode_catalog reads the extractors section into separate maps") {
         "schema_version": 1,
         "revision": 4,
         "parsers": {
-            "SharedId": { "domains": ["parser.example"], "mirrors": ["https://parser-live.example"] }
+            "SharedId": { "domains": ["parser.example"], "profiles": {"main": {"mirrors": ["https://parser-live.example"]}} }
         },
         "extractors": {
             "SharedId": { "domains": ["extractor.example"], "mirrors": ["https://extractor-live.example"] }
@@ -148,7 +148,7 @@ TEST_CASE("decode_catalog reads the extractors section into separate maps") {
 	REQUIRE(result.has_value());
 	// Parser and extractor entries land in separate maps even under the same id.
 	CHECK(result->domains.at("SharedId") == std::vector<std::string>{ "parser.example" });
-	CHECK(result->mirrors.at("SharedId") == std::vector<std::string>{ "https://parser-live.example" });
+	CHECK(result->profile_mirrors.at({"SharedId", "main"}) == std::vector<std::string>{ "https://parser-live.example" });
 	CHECK(result->extractor_domains.at("SharedId") == std::vector<std::string>{ "extractor.example" });
 	CHECK(result->extractor_mirrors.at("SharedId") ==
 	      std::vector<std::string>{ "https://extractor-live.example" });

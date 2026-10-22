@@ -46,23 +46,13 @@ inline constexpr auto supports_inplace_get  = CompatibilitiesFlags::make_bit(0);
 /// ParserCompatibilities by a parser that also hands out an ImagesGetter.
 inline constexpr auto supports_images_store = CompatibilitiesFlags::make_bit(1);
 /// The source offers a browsable anime library. Advertised on
-/// ParserCompatibilities by a parser that also hands out an AnimeRootGetter.
+/// ParserCompatibilities by a parser that also hands out an CatalogRootGetter.
 inline constexpr auto supports_anime_store  = CompatibilitiesFlags::make_bit(2);
 /// The source offers a browsable manga library. Advertised on
-/// ParserCompatibilities by a parser that also hands out a MangaRootGetter.
+/// ParserCompatibilities by a parser that also hands out a CatalogRootGetter.
 inline constexpr auto supports_manga_store  = CompatibilitiesFlags::make_bit(3);
-/// The source hosts the reading path itself: its MangaGetter returns real
-/// chapter_pages(), not only metadata. A metadata-only catalogue (an aggregator
-/// that lists titles but hosts no pages) advertises supports_manga_store WITHOUT
-/// this bit. A consumer uses it to tell a reader from a catalogue and to gate the
-/// reading UI before a request. @see MangaGetter::chapter_pages
-inline constexpr auto supports_reading      = CompatibilitiesFlags::make_bit(16);
-/// The source hosts the watching path itself: its AnimeGetter returns playable
-/// episode_sources(), not only metadata. A metadata-only anime catalogue
-/// advertises supports_anime_store WITHOUT this bit. A consumer uses it to
-/// distinguish a video source from a catalogue and to gate the player UI before
-/// a request. @see AnimeGetter::episode_sources
-inline constexpr auto supports_watching     = CompatibilitiesFlags::make_bit(17);
+// Former reading/watching bit positions 16 and 17 remain unassigned. Catalog
+// landing-page summaries now use CatalogCapabilities::reading and ::watching.
 /// The source offers a browsable video library beyond the anime catalog.
 inline constexpr auto supports_video_store  = CompatibilitiesFlags::make_bit(4);
 /**
@@ -81,7 +71,7 @@ inline constexpr auto adult_source          = CompatibilitiesFlags::make_bit(6);
 inline constexpr auto supports_images_search = CompatibilitiesFlags::make_bit(7);
 /// The source accepts new user accounts, so a consumer may offer a sign-up path.
 /// Registration itself is out of scope for the library — only login exists
-/// (@ref Parser::authenticate_context).
+/// (@ref ParserProfile::authenticate_context).
 inline constexpr auto supports_registration  = CompatibilitiesFlags::make_bit(8);
 /// The source lets an authenticated user rate or vote on items. Declaration only:
 /// no getter exposes voting yet.

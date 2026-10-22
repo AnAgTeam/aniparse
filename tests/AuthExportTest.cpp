@@ -59,23 +59,13 @@ private:
 
 // Implements only the pure-virtual surface; keeps the default auth_keys()
 // (empty) and default export_auth().
-struct StubParser : Parser {
-	ParserInfo info() const override {
-		return { .name = "stub" };
-	}
-	std::string identifier() const override {
-		return "stub";
-	}
-	ParserCompatibilities compatibilities() const override {
-		return {};
-	}
-	void emplace_domains(EmplaceDomainsContext&) const override {
-	}
+struct StubProfile : ParserProfile {
+    StubProfile() : ParserProfile("stub", {"main", "Default"}) {}
 };
 
 // Declares exactly which cookie / header / url-param entries are the durable
 // credential, so export_auth() lifts those and leaves the volatile rest.
-struct CredentialParser : StubParser {
+struct CredentialProfile : StubProfile {
 	AuthKeys auth_keys() const noexcept override {
 		AuthKeys keys;
 		keys.cookies    = {"session"};
@@ -109,7 +99,7 @@ ParserConfig make_authed_config() {
 } // namespace
 
 TEST_CASE("export_auth keeps only the credential-bearing entries") {
-	CredentialParser parser;
+	CredentialProfile parser;
 	ParserConfig config = make_authed_config();
 
 	AuthState state = parser.export_auth(config);
@@ -128,7 +118,7 @@ TEST_CASE("export_auth keeps only the credential-bearing entries") {
 }
 
 TEST_CASE("export_auth then import_auth round-trips the session into a fresh config") {
-	CredentialParser parser;
+	CredentialProfile parser;
 	ParserConfig source = make_authed_config();
 	source.alt_link     = 7;
 
@@ -155,7 +145,7 @@ TEST_CASE("export_auth then import_auth round-trips the session into a fresh con
 }
 
 TEST_CASE("export_auth with no declared keys yields an empty session but keeps alt_link") {
-	StubParser parser;
+	StubProfile parser;
 	ParserConfig config = make_authed_config();
 	config.alt_link     = 5;
 
@@ -168,7 +158,7 @@ TEST_CASE("export_auth with no declared keys yields an empty session but keeps a
 }
 
 TEST_CASE("export_auth tolerates a config without a cookie jar") {
-	CredentialParser parser;
+	CredentialProfile parser;
 	ParserConfig config;
 	config.headers.set("Authorization", "Bearer xyz");
 

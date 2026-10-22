@@ -7,6 +7,7 @@
 #include "aniparse/types/ParsedUrl.hpp"
 
 #include <stdexcept>
+#include <algorithm>
 
 namespace aniparse {
 std::shared_ptr<Parser> ParserStore::add_parser(std::shared_ptr<Parser> parser) {
@@ -76,8 +77,18 @@ std::optional<UrlRoute> ParserStore::route_url(std::string_view url) {
 	if (!found_parser) {
 		return std::nullopt;
 	}
-	GetterSuggestionType type = found_parser->suggest_getter(*parsed);
-	return UrlRoute{ std::move(found_parser), type, std::move(*parsed) };
+	auto suggestion = found_parser->suggest_getter(*parsed);
+	const auto scopes = found_parser->scopes();
+	// A type hint cannot choose between two catalogues with the same media kind.
+	if (!suggestion.scope_id && !scopes.empty()
+	    && suggestion.type != GetterSuggestionType::Images
+	    && suggestion.type != GetterSuggestionType::Video) return std::nullopt;
+	if (suggestion.scope_id) {
+		const bool declared = std::any_of(scopes.begin(), scopes.end(),
+		    [&suggestion](const CatalogScope& scope) { return scope.id == *suggestion.scope_id; });
+		if (!declared) return std::nullopt;
+	}
+	return UrlRoute{ std::move(found_parser), suggestion.type, std::move(*parsed), std::move(suggestion.scope_id) };
 }
 
 std::shared_ptr<Parser> ParserStore::find_by_key(std::string_view key) {

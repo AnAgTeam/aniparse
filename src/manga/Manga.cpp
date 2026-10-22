@@ -58,38 +58,4 @@ NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaGetter::simil
 }
 
 
-NetworkRequestTask<SearchCompatibilities> MangaRootGetter::search_support(RequestorContext) const {
-	co_return SearchCompatibilities{};
-}
-
-MangaGetterRootCompatibilities MangaRootGetter::latest_support() const noexcept {
-	return {};
-}
-
-std::vector<SearchQueryError> MangaRootGetter::validate_latest_filters(const GetFilters& filters) const {
-	return validate_sort(latest_support().supported_sorts, filters.sort);
-}
-
-NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaRootGetter::search(RequestorContext, SearchRequestQuery, GetFilters) const {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot search");
-}
-
-NetworkRequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaRootGetter::latest(RequestorContext, GetFilters) const {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot get latest");
-}
-
-NetworkRequestTask<std::vector<SearchSuggestion>> MangaRootGetter::suggest(
-    RequestorContext,
-    std::string,
-    std::optional<std::string>) const {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot suggest search tokens");
-}
-
-NetworkRequestTask<std::unique_ptr<MangaGetter>> MangaRootGetter::parse_url(RequestorContext, ParsedUrl) const {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot parse url");
-}
-
-NetworkRequestTask<std::unique_ptr<MangaGetter>> MangaRootGetter::from_serialized(SerializedGetterData) const {
-	co_return make_response_error(RequestErrorCode::NotImplemented, "The parser cannot deserialize data");
-}
 } // namespace aniparse

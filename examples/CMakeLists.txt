@@ -28,10 +28,12 @@ target_link_libraries(aniparse-example-parse PRIVATE aniparse)
 
 # Networking showcase: makes real HTTP requests through the curl-backed client
 # via request() / request_html() / request_json(). Needs network access.
-add_executable(aniparse-example-net
-	"${CMAKE_CURRENT_LIST_DIR}/example_net.cpp"
-)
+if (ANIPARSE_CURL_BACKEND)
+	add_executable(aniparse-example-net
+		"${CMAKE_CURRENT_LIST_DIR}/example_net.cpp"
+	)
 
-set_property(TARGET aniparse-example-net PROPERTY CXX_STANDARD 23)
+	set_property(TARGET aniparse-example-net PROPERTY CXX_STANDARD 23)
 
-target_link_libraries(aniparse-example-net PRIVATE aniparse)
+	target_link_libraries(aniparse-example-net PRIVATE aniparse)
+endif()

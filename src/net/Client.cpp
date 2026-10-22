@@ -347,7 +347,7 @@ NetworkRequestTask<ResponseData> AsyncClient::do_request(ConfiguredPostMultipart
 
 // TODO: maybe make max_retries atomic (or who even cares?)
 // Worst case: request uses old retry count. Not a big deal.
-void AsyncClient::set_config(ClientConfig new_config) {
+void AsyncClient::apply_client_config(ClientConfig new_config) {
 	auto new_session = std::make_shared<asyncnet::AsyncSession>(core_);
 	new_session->set_timeout(new_config.timeout);
 

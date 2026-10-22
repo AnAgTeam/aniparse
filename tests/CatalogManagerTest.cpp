@@ -181,15 +181,15 @@ TEST_CASE("CatalogManager swaps catalog mirrors and unions their hosts into rout
 	// A catalog with only mirrors (no separate "domains") for the parser.
 	std::string_view payload = R"({
 		"schema_version": 1, "revision": 4,
-		"parsers": { "ExampleParser": { "mirrors": ["https://live.example", "https://alt.example:8443/base"] } }
+		"parsers": { "ExampleParser": { "profiles": {"main": {"mirrors": ["https://live.example", "https://alt.example:8443/base"]}} } }
 	})";
 	REQUIRE(manager.apply(payload, "sig").has_value());
 
 	// The override reached the holder, keyed by parser id.
 	auto source = services->mirrors->get();
 	REQUIRE(source);
-	REQUIRE(source->list_for("ExampleParser"));
-	CHECK(*source->list_for("ExampleParser") ==
+	REQUIRE(source->list_for("ExampleParser", "main"));
+	CHECK(*source->list_for("ExampleParser", "main") ==
 	      std::vector<std::string>{ "https://live.example", "https://alt.example:8443/base" });
 
 	// Each mirror's host was unioned into routing, even without a "domains" entry —
@@ -210,15 +210,15 @@ TEST_CASE("CatalogManager swaps canonical frontend origins and routes their host
 	std::string_view payload = R"({
 		"schema_version": 1, "revision": 4,
 		"parsers": {
-			"ExampleParser": { "canonical_base_url": "https://frontend.example:8443/path" }
+			"ExampleParser": { "profiles": {"main": {"canonical_base_url": "https://frontend.example:8443/path"}} }
 		}
 	})";
 	REQUIRE(manager.apply(payload, "sig").has_value());
 
 	auto source = services->mirrors->get();
 	REQUIRE(source);
-	REQUIRE(source->canonical_base_for("ExampleParser"));
-	CHECK(*source->canonical_base_for("ExampleParser") == "https://frontend.example:8443/path");
+	REQUIRE(source->canonical_base_for("ExampleParser", "main"));
+	CHECK(*source->canonical_base_for("ExampleParser", "main") == "https://frontend.example:8443/path");
 	CHECK(store.find_for_url("https://frontend.example/title/1"));
 }
 
@@ -237,7 +237,7 @@ TEST_CASE("CatalogManager applies the extractors section to the extractor store 
 
 	std::string_view payload = R"({
 		"schema_version": 1, "revision": 6,
-		"parsers": { "SharedId": { "domains": ["parser.example"], "mirrors": ["https://parser-live.example"] } },
+		"parsers": { "SharedId": { "domains": ["parser.example"], "profiles": {"main": {"mirrors": ["https://parser-live.example"]}} } },
 		"extractors": { "SharedId": { "mirrors": ["https://extractor-live.example:8443/base"] } }
 	})";
 	REQUIRE(manager.apply(payload, "sig").has_value());
@@ -251,8 +251,8 @@ TEST_CASE("CatalogManager applies the extractors section to the extractor store 
 
 	// Mirrors went to separate holders: the parser override in services, the
 	// extractor override in extractor_services — no aliasing under the shared id.
-	REQUIRE(services->mirrors->get()->list_for("SharedId"));
-	CHECK(*services->mirrors->get()->list_for("SharedId") ==
+	REQUIRE(services->mirrors->get()->list_for("SharedId", "main"));
+	CHECK(*services->mirrors->get()->list_for("SharedId", "main") ==
 	      std::vector<std::string>{ "https://parser-live.example" });
 	REQUIRE(extractor_services->mirrors->get()->list_for("SharedId"));
 	CHECK(*extractor_services->mirrors->get()->list_for("SharedId") ==
@@ -281,8 +281,8 @@ TEST_CASE("CatalogManager reset restores static routing and empty override snaps
 		"parsers": {
 			"SharedId": {
 				"domains": ["catalog.example"],
-				"mirrors": ["https://mirror.example"],
-				"canonical_base_url": "https://frontend.example",
+				"profiles": {"main": {"mirrors": ["https://mirror.example"],
+				    "canonical_base_url": "https://frontend.example"}},
 				"patterns": { "info.id": "/x" }
 			}
 		},
@@ -324,4 +324,27 @@ TEST_CASE("CatalogManager without an extractor store ignores the extractors sect
 	})";
 	REQUIRE(manager.apply(payload, "sig").has_value());
 	CHECK(store.find_for_url("https://example.com"));
+}
+
+TEST_CASE("CatalogManager ignores obsolete parser origins including malformed values", "[profile-catalog]") {
+    ParserStore store;
+    store.add_parser(std::make_unique<CatalogParser>("ExampleParser"));
+    StubVerifier verifier(true);
+    auto services = std::make_shared<ServiceState>();
+    services->mirrors = std::make_shared<MirrorSourceHolder>();
+    CatalogManager manager(store, verifier, services);
+    std::string_view payload;
+    SECTION("old valid origins") {
+        payload = R"({"schema_version":1,"revision":1,"parsers":{"ExampleParser":{
+            "mirrors":["https://obsolete.example"],
+            "canonical_base_url":"https://obsolete-front.example"}}})";
+    }
+    SECTION("old malformed origins") {
+        payload = R"({"schema_version":1,"revision":1,"parsers":{"ExampleParser":{
+            "mirrors":42,"canonical_base_url":[]}}})";
+    }
+    REQUIRE(manager.apply(payload, "sig"));
+    CHECK(services->mirrors->get()->empty_source());
+    CHECK_FALSE(store.find_for_url("https://obsolete.example/title/1"));
+    CHECK_FALSE(store.find_for_url("https://obsolete-front.example/title/1"));
 }

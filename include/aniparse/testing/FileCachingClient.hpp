@@ -67,7 +67,7 @@ public:
 		co_return co_await upstream_->do_request(std::move(request));
 	}
 
-	void set_config(ClientConfig config) override {
+	void apply_client_config(ClientConfig config) override {
 		upstream_->set_config(std::move(config));
 	}
 

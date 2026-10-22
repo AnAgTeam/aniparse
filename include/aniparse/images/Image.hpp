@@ -140,7 +140,7 @@ struct ImageContainerGetter {
 
 /**
  * @brief Root interface for an image source: search and browse containers.
- * The images counterpart of MangaRootGetter.
+ * The images counterpart of CatalogRootGetter.
  */
 struct ImagesGetter {
 	virtual ~ImagesGetter() = default;
@@ -150,7 +150,7 @@ struct ImagesGetter {
 	 * Cache-first and async; validate a query against it with the free
 	 * validate_query. By default returns an empty table — no filter, no sort, no
 	 * flag — so validate_query rejects everything until a parser overrides it.
-	 * @see MangaRootGetter::search_support
+	 * @see CatalogRootGetter::search_support
 	 * @param context Client to perform HTTP requests
 	 * @return The support table, or a RequestError when it had to be fetched and the
 	 *         fetch failed
@@ -223,7 +223,7 @@ struct ImagesGetter {
 
 	/**
 	 * @brief Parse a url into the container getter it addresses.
-	 * NotImplemented by default. @see MangaRootGetter::parse_url
+	 * NotImplemented by default. @see CatalogRootGetter::parse_url
 	 * @param context Client to perform HTTP requests
 	 * @param url The url to parse; already split into its parts, and expected to
 	 *        belong to this source (a caller routes it there first). A source with
@@ -242,6 +242,12 @@ struct ImagesGetter {
 	 * usable again after a restart. Every root getter must implement it, and it must
 	 * keep accepting every form this parser has ever emitted (@see
 	 * SerializedGetterData). The restored getter carries identity only, no cached info.
+	 *
+	 * This remains coroutine-returning to preserve one asynchronous compatibility
+	 * boundary for every identity format a parser has shipped. Normal restoration
+	 * must be local: it decodes @p data, performs no network request, and does not
+	 * populate preview data. A parser that must migrate or resolve a legacy identity
+	 * may suspend, but that is an exception rather than a reason to fetch a record.
 	 * @param data The blob a previous serialize() returned, verbatim
 	 * @return A getter addressing the same container, or a RequestError
 	 *         (RequestErrorCode::InvalidArguments when the blob does not decode)

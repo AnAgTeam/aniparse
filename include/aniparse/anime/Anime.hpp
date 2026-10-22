@@ -6,12 +6,10 @@
 #pragma once
 // The data model half; this header adds the getter interfaces on top of it.
 #include "aniparse/anime/AnimeModel.hpp"
-#include "aniparse/types/ParsedUrl.hpp"
 
 #include "aniparse/types/Flags.hpp"
 #include "aniparse/types/Pagination.hpp"
 #include "aniparse/types/Response.hpp"
-#include "aniparse/types/Search.hpp"
 #include "aniparse/types/Serialization.hpp"
 #include "aniparse/types/Authentication.hpp"
 #include "aniparse/ClientContext.hpp"
@@ -38,24 +36,7 @@ struct AnimeGetterCompatibilities {
 	CompatibilitiesFlags flags = compatibilities_flags::default_flags;
 };
 
-/**
- * @brief How an anime root getter advertises what AnimeRootGetter::latest()
- * accepts. The latest() counterpart of SearchCompatibilities: latest() takes no
- * query and no filter items, only an ordering, so the sort channel is all there is
- * to declare. Available synchronously (no fetch, unlike
- * AnimeRootGetter::search_support), and checked against a request by
- * AnimeRootGetter::validate_latest_filters.
- */
-struct AnimeGetterRootCompatibilities {
-	/// The orderings latest() accepts on GetFilters::sort, as key -> allowed
-	/// directions. Empty (the default) = latest() offers no selectable ordering:
-	/// requesting any sort is a SearchQueryError, and the source's own order applies.
-	SupportedSorts supported_sorts;
-	/// Capability bits that apply to latest(), from the
-	/// aniparse::compatibilities_flags vocabulary (e.g. supports_pagination_uniqueness,
-	/// which tells a consumer whether paging the list can repeat items). Default = none.
-	CompatibilitiesFlags compatibilities = compatibilities_flags::default_flags;
-};
+
 
 /**
  * @brief Interface for getting one specific anime's information and video.
@@ -235,7 +216,7 @@ struct AnimeGetter {
 	 * @brief Return this anime's stable, public URL.
 	 *
 	 * The returned absolute URL must route through ParserStore::route_url() and
-	 * reconstruct an equivalent getter through AnimeRootGetter::parse_url(). This
+	 * reconstruct an equivalent getter through CatalogRootGetter::parse_url(). This
 	 * method performs no I/O: @p context is supplied only to read the immutable
 	 * volatile-catalog snapshot (in particular canonical_base_url), never to make a
 	 * request. The getter's own identity supplies the remaining path/query data.
@@ -247,7 +228,7 @@ struct AnimeGetter {
 	/**
 	 * @brief This getter's identity in a form that survives the process, so a
 	 * consumer can store the anime in a library and rebuild the getter later with
-	 * AnimeRootGetter::from_serialized(). Every getter must implement it.
+	 * CatalogRootGetter::from_serialized(). Every getter must implement it.
 	 *
 	 * Encodes identity only, never the fetched info — a restored getter refetches.
 	 * The blob is opaque to the consumer and means nothing away from the parser that
@@ -261,109 +242,6 @@ struct AnimeGetter {
 	virtual NetworkRequestTask<SerializedGetterData> serialize() const = 0;
 };
 
-/**
- * @brief Root interface for an anime source: search and browse titles.
- * The anime counterpart of MangaRootGetter — same surface, exactly.
- */
-struct AnimeRootGetter {
-	virtual ~AnimeRootGetter() = default;
 
-	/**
-	 * @brief The search filters and sorts this getter supports.
-	 * Cache-first and async; validate a query synchronously via the free
-	 * validate_query. By default returns an empty table — no filter, no sort, no
-	 * flag — so validate_query rejects everything until a parser overrides it.
-	 * @see MangaRootGetter::search_support
-	 * @param context Client to perform HTTP requests
-	 * @return The support table, or a RequestError when it had to be fetched and the
-	 *         fetch failed
-	 */
-	virtual NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext context) const;
-
-	/**
-	 * @brief What latest() accepts: its sort declaration and capability flags.
-	 * Synchronous, unlike search_support() — the table is fixed, not fetched. By
-	 * default returns an empty table, i.e. latest() takes no selectable ordering.
-	 * @return The declaration to check a latest() request against.
-	 * @see validate_latest_filters
-	 */
-	virtual AnimeGetterRootCompatibilities latest_support() const noexcept;
-
-	/**
-	 * @brief Check the requested sort against this getter's own latest_support().
-	 * Same contract as validate_query, for latest().
-	 * @param filters The filters about to be passed to latest(); only the sort
-	 *        channel is checked, as that is all latest() takes.
-	 * @return Empty if the filters are valid; otherwise the violation.
-	 */
-	[[nodiscard]] std::vector<SearchQueryError> validate_latest_filters(const GetFilters& filters) const;
-
-	/**
-	 * @brief Search the source's anime catalog by free text and/or structured filters.
-	 * Each result is a ready-to-use getter, typically already carrying its short-card
-	 * info. What @p query and @p filters may hold is declared by search_support() and
-	 * pre-flighted with validate_query. NotImplemented by default.
-	 * @see MangaRootGetter::search
-	 * @param context Client to perform HTTP requests
-	 * @param query Free text plus the structured filter items (@see SearchRequestQuery)
-	 * @param filters Pagination and ordering of the result list
-	 * @return A page of anime getters, or a RequestError
-	 */
-	virtual NetworkRequestTask<PageResults<std::unique_ptr<AnimeGetter>>> search(
-	    RequestorContext context,
-	    SearchRequestQuery query,
-	    GetFilters filters) const;
-
-	/**
-	 * @brief The source's recently added or recently updated anime — its front page,
-	 * as opposed to an answer to a query. Which orderings @p filters may request is
-	 * declared by latest_support(). NotImplemented by default.
-	 * @param context Client to perform HTTP requests
-	 * @param filters Pagination and (where declared) ordering of the list
-	 * @return A page of anime getters, or a RequestError
-	 */
-	virtual NetworkRequestTask<PageResults<std::unique_ptr<AnimeGetter>>> latest(
-	    RequestorContext context,
-	    GetFilters filters) const;
-
-	/**
-	 * @brief Autocomplete: suggest search tokens for a partial input.
-	 * Advertised via SearchCompatibilities::compatibilities (supports_suggestions);
-	 * NotImplemented by default. @see MangaRootGetter::suggest
-	 * @param context Client to perform HTTP requests
-	 * @param partial The token being typed.
-	 * @param kind Optional search axis to complete; nullopt = across the default axis.
-	 * @return Suggestions, most relevant first, or a RequestError
-	 */
-	virtual NetworkRequestTask<std::vector<SearchSuggestion>> suggest(
-	    RequestorContext context,
-	    std::string partial,
-	    std::optional<std::string> kind = std::nullopt) const;
-
-	/**
-	 * @brief Parse a url into the anime getter it addresses.
-	 * NotImplemented by default. @see MangaRootGetter::parse_url
-	 * @param context Client to perform HTTP requests
-	 * @param url The url to parse; already split into its parts, and expected to
-	 *        belong to this source (a caller routes it there first).
-	 * @return A getter for the anime the url addresses, or a RequestError
-	 *         (RequestErrorCode::InvalidArguments when the url addresses no anime here)
-	 */
-	virtual NetworkRequestTask<std::unique_ptr<AnimeGetter>> parse_url(
-	    RequestorContext context,
-	    ParsedUrl url) const;
-
-	/**
-	 * @brief Rebuild an anime getter from the identity AnimeGetter::serialize() emitted
-	 * — how a stored library entry becomes usable again after a restart. Every root
-	 * getter must implement it, and it must keep accepting every form this parser has
-	 * ever emitted (@see SerializedGetterData). The restored getter carries identity
-	 * only, no cached info.
-	 * @param data The blob a previous serialize() returned, verbatim
-	 * @return A getter addressing the same anime, or a RequestError
-	 *         (RequestErrorCode::InvalidArguments when the blob does not decode)
-	 */
-	virtual NetworkRequestTask<std::unique_ptr<AnimeGetter>> from_serialized(SerializedGetterData data) const = 0;
-};
 
 } // namespace aniparse

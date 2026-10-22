@@ -16,13 +16,16 @@
 namespace aniparse {
 
 /**
- * @brief The result of routing a URL: the owning parser, the getter category the
- * URL belongs to, and the parsed URL ready to hand to that category's parse_url.
+ * @brief A routed URL with its provider, selected scope and optional kind hint.
+ *
+ * Use scope_id to select a unified catalog root. The type hint is retained for
+ * legacy sources; it cannot disambiguate multiple scopes with the same kind.
  */
 struct UrlRoute {
-	std::shared_ptr<Parser> parser;
-	GetterSuggestionType    type;
-	ParsedUrl                 url;
+	std::shared_ptr<Parser> parser; ///< Provider that owns the URL.
+	GetterSuggestionType    type; ///< Optional hint or legacy routing category.
+	ParsedUrl                 url; ///< Parsed URL passed to the selected root.
+	std::optional<std::string> scope_id; ///< Selected catalog ID; absent on legacy routes.
 };
 
 /**
@@ -106,10 +109,11 @@ public:
 	[[nodiscard]] std::vector<std::shared_ptr<Parser>> parsers() const;
 
 	/**
-	 * @brief Route a URL to its parser and getter category in one step.
+	 * @brief Route a URL to its provider and catalog scope in one step.
 	 * Parses the URL once, finds the owning parser (domain match + valid_for_url),
 	 * and asks it which getter category the URL is (suggest_getter). The caller
-	 * then calls that category's root getter parse_url with @c route.url.
+	 * then selects catalog_getter(*route.scope_id) and calls parse_url(route.url).
+	 * A legacy route without scope_id still uses its typed factory.
 	 * @param url The URL to route
 	 * @return The route, or nullopt if the URL is unparsable or no parser handles it
 	 */

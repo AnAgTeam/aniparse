@@ -5,7 +5,7 @@
  */
 #include "catch_amalgamated.hpp"
 #include <aniparse/types/Search.hpp>
-#include <aniparse/manga/Manga.hpp>
+#include <aniparse/catalog/content/Catalog.hpp>
 
 #include <algorithm>
 
@@ -32,6 +32,11 @@ bool has_error(const std::vector<SearchQueryError>& errors, SearchQueryError::Re
 }
 
 } // namespace
+
+TEST_CASE("Search vocabulary includes common anime facets") {
+	CHECK(search_keys::season == "season");
+	CHECK(search_keys::episode_duration == "episode_duration");
+}
 
 TEST_CASE("Search validation accepts a query matching the declaration") {
 	SearchRequestQuery query{
@@ -181,23 +186,20 @@ SearchCompatibilities filtering_support() {
 	};
 }
 
-struct FilteringRootGetter : MangaRootGetter {
-	NetworkRequestTask<SearchCompatibilities> search_support(RequestorContext) const override {
+struct FilteringRootGetter : CatalogRootGetter {
+	NetworkRequestTask<SearchCompatibilities> search_support_for(RequestorContext) const override {
 		co_return filtering_support();
 	}
 
-	MangaGetterRootCompatibilities latest_support() const noexcept override {
+	CatalogLatestSupport latest_support_for() const noexcept override {
 		return { .supported_sorts = { { std::string(sort_keys::update_time), { .ascending = true } } } };
 	}
 
-	NetworkRequestTask<std::unique_ptr<MangaGetter>> from_serialized(SerializedGetterData) const override {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "");
-	}
 };
 
 } // namespace
 
-TEST_CASE("MangaRootGetter validates against its own declaration") {
+TEST_CASE("CatalogRootGetter validates against its own declaration") {
 	FilteringRootGetter getter;
 
 	SearchRequestQuery valid{

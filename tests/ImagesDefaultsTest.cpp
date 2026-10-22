@@ -27,7 +27,7 @@ struct NullClient : ClientContext {
 	NetworkRequestTask<ResponseData> do_request(ConfiguredPostMultipartRequest) override {
 		co_return make_response_error(RequestErrorCode::NotImplemented, "");
 	}
-	void set_config(ClientConfig) override {
+	void apply_client_config(ClientConfig) override {
 	}
 	std::shared_ptr<CookieJar> make_cookie_jar() override {
 		return nullptr;

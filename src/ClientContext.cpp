@@ -15,10 +15,22 @@
 
 namespace aniparse {
 
-static void apply_config_to(ClientRequest& any_request, const ParserConfig& config) {
+void ClientContext::set_config(ClientConfig config) {
+    auto defaults = std::make_shared<const RequestDefaults>(config.request_defaults);
+    apply_client_config(std::move(config));
+    request_defaults_.store(std::move(defaults));
+}
+
+RequestDefaults ClientContext::request_defaults() const {
+    auto snapshot = request_defaults_.load();
+    return snapshot ? *snapshot : RequestDefaults{};
+}
+
+static void apply_config_to(ClientRequest& any_request, const ParserConfig& config, const RequestDefaults& defaults) {
 	std::visit([&](auto& request) {
 		// Request headers take priority over config: merge_missing keeps existing names.
 		request.headers.merge_missing(config.headers);
+		request.headers.merge_missing(defaults.headers);
 
 		for (const auto& [key, value] : config.url_params) {
 			request.url_params.add(key, value);
@@ -78,7 +90,7 @@ RequestorContext::RequestorContext(std::shared_ptr<ClientContext> client,
 NetworkRequestTask<ResponseData> RequestorContext::request(GetRequest request) {
 	assert(config_ && services_ && services_->client);
 	ClientRequest any_request = std::move(request);
-	apply_config_to(any_request, *config_);
+	apply_config_to(any_request, *config_, services_->client->request_defaults());
 	assert(std::holds_alternative<GetRequest>(any_request));
 
 	return services_->client->do_request(ConfiguredGetRequest{
@@ -89,7 +101,7 @@ NetworkRequestTask<ResponseData> RequestorContext::request(GetRequest request) {
 NetworkRequestTask<ResponseData> RequestorContext::request(PostRequest request) {
 	assert(config_ && services_ && services_->client);
 	ClientRequest any_request = std::move(request);
-	apply_config_to(any_request, *config_);
+	apply_config_to(any_request, *config_, services_->client->request_defaults());
 	assert(std::holds_alternative<PostRequest>(any_request));
 
 	return services_->client->do_request(ConfiguredPostRequest{
@@ -100,7 +112,7 @@ NetworkRequestTask<ResponseData> RequestorContext::request(PostRequest request) 
 NetworkRequestTask<ResponseData> RequestorContext::request(PostMultipartRequest request) {
 	assert(config_ && services_ && services_->client);
 	ClientRequest any_request = std::move(request);
-	apply_config_to(any_request, *config_);
+	apply_config_to(any_request, *config_, services_->client->request_defaults());
 	assert(std::holds_alternative<PostMultipartRequest>(any_request));
 
 	return services_->client->do_request(ConfiguredPostMultipartRequest{

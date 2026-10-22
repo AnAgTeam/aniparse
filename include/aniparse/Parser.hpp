@@ -8,8 +8,9 @@
 #include "aniparse/types/Flags.hpp"
 #include "aniparse/types/ParseResult.hpp"
 #include "aniparse/types/ParserInfo.hpp"
+#include "aniparse/catalog/content/Scope.hpp"
 #include "aniparse/types/ParsedUrl.hpp"
-#include "aniparse/types/Authentication.hpp"
+#include "aniparse/ParserProfile.hpp"
 #include "aniparse/images/Image.hpp"
 #include "aniparse/manga/Manga.hpp"
 
@@ -18,10 +19,13 @@
 #include <map>
 #include <optional>
 #include <span>
+#include <string_view>
+#include <optional>
+#include <vector>
 
 namespace aniparse {
 struct ImagesGetter;
-struct AnimeRootGetter;
+class CatalogRootGetter;
 class CatalogSink;
 class RequestorContext;
 
@@ -50,26 +54,30 @@ struct EmplaceDomainsContext {
 };
 
 /**
- * @brief Which kind of content a URL points at — the getter category a URL routes
- * to. @see Parser::suggest_getter, ParserStore::route_url
+ * @brief Optional content-type hints and legacy typed URL-routing categories.
+ *
+ * Scoped catalogues are selected by GetterSuggestionResult::scope_id, not this
+ * enum. Mixed URLs may have a valid scope and no single content-type hint.
+ * @see Parser::suggest_getter, ParserStore::route_url
  */
 enum class GetterSuggestionType {
-	Unknown, ///< The parser does not recognize the URL (its default answer), so no getter can take it.
-	Anime,   ///< An anime entry: route to Parser::animes_getter.
+	Unknown, ///< No single kind hint; a scope ID can still identify a known catalog.
+	Anime,   ///< An anime hint; open the selected catalog scope.
 	Images,  ///< An image container (a post, a pool, a gallery): route to Parser::images_getter.
-	Manga,   ///< A manga entry: route to Parser::mangas_getter.
+	Manga,   ///< A manga hint; open the selected catalog scope.
 	Video    ///< A standalone video, outside an anime catalog.
 };
 
 /**
- * @brief The classification of one URL.
- * @note Reserved: @ref Parser::suggest_getter returns the bare
- * GetterSuggestionType today. This wrapper exists so a classification can later
- * carry more than the category without changing that signature's shape.
+ * @brief A URL's selected catalog and optional legacy content-type hint.
+ *
+ * A scope ID selects the root factory, even when several scopes have the same
+ * kind or a mixed scope has no single type hint. With neither scope nor type the
+ * URL is unrecognized. Legacy image/video sources can return type only.
  */
 struct GetterSuggestionResult {
-	/// The getter category the URL belongs to; Unknown when it belongs to none.
-	GetterSuggestionType type;
+	GetterSuggestionType type = GetterSuggestionType::Unknown; ///< Optional kind hint; never selects a scoped root.
+	std::optional<std::string> scope_id; ///< Owned ID passed to Parser::catalog_getter.
 };
 
 /**
@@ -86,15 +94,15 @@ struct GetterSuggestionResult {
  * - **Reach** — @ref emplace_domains declares the hosts the source answers for,
  *   and @ref suggest_getter classifies a URL under them, which together let
  *   ParserStore route an arbitrary URL to this parser and to the right kind of
- *   getter. @ref mirrors declares the base URLs its requests actually go to.
- * - **Capability** — @ref compatibilities, the up-front answer to "does this
- *   source have a manga library / comments / adult content?", so a consumer can
- *   decide what to offer before spending a request.
- * - **Configuration** — @ref make_config derives the config a getter runs on
- *   (fresh session, parser identity, plus whatever @ref configure seeds), and
- *   @ref authenticate_context logs the source in. Login is per source, not per
- *   category: one config authorizes every getter of this parser.
- * - **Getters** — @ref mangas_getter, @ref animes_getter and @ref images_getter —
+ *   getter. ParserProfile::mirrors declares the base URLs its requests actually go to.
+ * - **Catalogs** — @ref scopes lists stable catalog IDs, possible formats and
+ *   per-catalog UI metadata. @ref catalog_getter binds a common root to one ID.
+ *   @ref compatibilities supplies an aggregate summary for legacy consumers.
+ * - **Configuration** — @ref profiles declares independent configuration and login
+ *   profiles. Each catalog selects its profile by ID; user state lives outside
+ *   the parser in ParserConfig / RequestorContext.
+ * - **Getters** — @ref catalog_getter selects a manga/anime scope;
+ *   @ref images_getter retains the separate image-container API —
  *   the root objects that search, list and fetch. A parser implements only the
  *   categories its source has; the rest stay null.
  *
@@ -107,12 +115,12 @@ struct GetterSuggestionResult {
  *
  * ### Implementing a source
  *
- * Derive and implement the four pure virtuals — @ref info, @ref identifier,
- * @ref compatibilities, @ref emplace_domains — then override the getter factory
+ * Derive and implement the three pure virtuals — @ref info, @ref identifier,
+ * @ref emplace_domains — then override the getter factory
  * for each category the source offers, returning a root getter that performs the
  * requests. Everything else has a working default: URL entry is opt-in
- * (@ref suggest_getter), as are per-request defaults (@ref configure), mirrors
- * (@ref mirrors) and login (@ref authenticate_context). Registering the finished
+ * (@ref suggest_getter), as are per-request defaults (ParserProfile::configure), mirrors
+ * (ParserProfile::mirrors) and login (ParserProfile::authenticate_context). Registering the finished
  * parser with a ParserStore is what makes it routable.
  */
 struct Parser {
@@ -133,7 +141,7 @@ struct Parser {
 	 * @brief Check whether the parser can handle the given URL.
 	 * A coarse per-parser gate ("is this URL mine?"), consulted during URL
 	 * routing after the domain matches. By default it is derived from
-	 * @ref suggest_getter (true when a category is suggested), so a parser with
+	 * @ref suggest_getter (true when a scope or legacy category is suggested), so a parser with
 	 * URL entry only overrides suggest_getter. Override this for exotic gating.
 	 * @param url Parsed URL to check
 	 * @return true if the parser handles the URL, false otherwise
@@ -141,23 +149,22 @@ struct Parser {
 	virtual bool valid_for_url(const ParsedUrl& url) const;
 
 	/**
-	 * @brief Suggest which getter category a URL belongs to (Manga / Anime / …).
+	 * @brief Select the catalog for a URL and optionally supply a content-type hint.
 	 * The parser knows its own path/query scheme, so it classifies the URL to
 	 * route parse_url to the right getter. Classify on whatever the URL carries —
-	 * path, query (e.g. YouTube's ?v=), or host. Default: Unknown (no URL entry).
+	 * path, query (e.g. YouTube's ?v=), or host. The default is an empty suggestion.
 	 * @param url Parsed URL
-	 * @return The getter category, or Unknown if the parser does not handle it
+	 * @return Scope selection and optional kind hint, or an empty result when unrecognized.
 	 */
-	virtual GetterSuggestionType suggest_getter(const ParsedUrl& url) const;
+	virtual GetterSuggestionResult suggest_getter(const ParsedUrl& url) const;
 
 	/**
-	 * @see ParserCompatibilities, @see namespace compatibilities_flags
-	 * Get compatibilities, that parser can handle.
-	 * For example, if the parser support anime it should
-	 * set the compatibilities_flags::supports_images_search flag.
-	 * @return Compatibilities of the parser
+	 * @brief Read provider-wide summary metadata for legacy source-list consumers.
+	 * @return The union of scope flags and legacy store-kind bits by default.
+	 * @note New consumers inspect scopes() for catalog-specific kinds and
+	 *       capabilities. Reading and watching are scope-local metadata fields.
 	 */
-	virtual ParserCompatibilities compatibilities() const = 0;
+	virtual ParserCompatibilities compatibilities() const;
 
 	/**
 	 * @see EmplaceDomainsContext
@@ -175,148 +182,36 @@ struct Parser {
 	 * parsed source text: the dumper hands each registered parser a CatalogSink
 	 * and the parser declares what a hotfix may override — its selector sets
 	 * (`sink.emplace_set<...Selectors>()`, which strictly compiles every
-	 * built-in literal through the real engine) and, when it has one, its
-	 * canonical frontend origin (`sink.set_canonical_base_url(...)`).
+	 * built-in literal through the real engine); request origins are
+	 * declared separately through ParserProfile.
 	 *
 	 * Contract: an override DECLARES only — it calls sink methods and never
 	 * stores the sink (valid only for the duration of the call). The empty
-	 * default means "no catalog sets, no canonical URL": such a parser simply
+	 * default means "no catalog sets": such a parser simply
 	 * has no selector hotfix channel, discovered at first use.
 	 * @param sink The sink collecting this parser's catalog defaults
-	 * @throws std::logic_error from the sink on a cross-set key collision or a
-	 *         double canonical URL; a set's broken built-in literal likewise
-	 *         propagates (a programming error the dump must fail on)
+	 * @throws std::logic_error On a cross-set key collision or a broken built-in
+	 * literal; these programming errors must fail catalog generation.
 	 */
 	virtual void emplace_catalog([[maybe_unused]] CatalogSink& sink) const {}
 
 	/**
-	 * @brief Authenticate the parser's service with the given credentials.
-	 *
-	 * Login is per-site (per-parser), not per-category: the returned config
-	 * authorizes every getter of this parser.
-	 *
-	 * Contract: returns a FRESH authenticated config and does NOT mutate the
-	 * passed context. Implementations log in on a new config with its own cookie
-	 * jar (copy the config, clear its cookie_jar, adopt it via new_with_config,
-	 * and perform the login through that context), so the caller's session is left
-	 * untouched — retries and failed logins never pollute it. The caller adopts
-	 * the result via RequestorContext::new_with_config. By default reports
-	 * NotImplemented.
-	 * @param context Client to perform HTTP requests (left unmodified)
-	 * @param data Credentials to authenticate with
-	 * @return Task with a new authenticated config for the caller to adopt
+	 * @brief Enumerate independently configured request profiles.
+	 * @return Stable, nonempty, unique profile IDs and display names.
+	 * @note The default is one anonymous profile named main.
+	 * @throws std::logic_error If the list is empty or IDs are empty or duplicated.
 	 */
-	virtual NetworkRequestTask<std::shared_ptr<const ParserConfig>> authenticate_context(
-	    RequestorContext context,
-	    AuthenticationData data);
+	std::vector<ProfileInfo> profiles() const;
 
 	/**
-	 * @see AuthInfo
-	 * @brief How a user signs in to this source — the flow the client drives.
-	 *
-	 * Consulted BEFORE any login: it tells the client which AuthenticationData
-	 * variant to build (token vs username/password) and which UI to present, so the
-	 * client never guesses. Pure and side-effect-free (no network): a login_url that
-	 * must be computed is resolved lazily when the web view opens, not here. Default:
-	 * empty (the source needs no authentication).
-	 * @return The sign-in descriptor, or nullopt when the source is anonymous.
+	 * @brief Create an independently owned profile without performing network requests.
+	 * @param profile_id Stable ID obtained from profiles() or a catalog scope.
+	 * @return A fresh profile owned by the caller, or nullptr for an unknown ID.
+	 * @note The caller decides how long to retain or share the profile; the parser
+	 * does not cache instances or impose singleton lifetime.
+	 * @throws std::logic_error On invalid descriptors or a mismatched factory result.
 	 */
-	[[nodiscard]] virtual std::optional<AuthInfo> auth_info() const;
-
-	/**
-	 * @brief Resolve this source's sign-in descriptor against a request context.
-	 *
-	 * The default returns the static descriptor from @ref auth_info. Sources with
-	 * a catalog-controlled frontend origin may override it to select a login URL
-	 * from the context's immutable catalog snapshot.
-	 * @param context Parser-configured request context; implementations must not
-	 * perform network I/O or mutate it.
-	 * @return The resolved sign-in descriptor, or nullopt when the source is
-	 * anonymous.
-	 * @note The context is passed by value so the result cannot borrow a caller's
-	 * short-lived context across an asynchronous UI boundary.
-	 */
-	[[nodiscard]] virtual std::optional<AuthInfo> auth_info(RequestorContext context) const;
-
-	/**
-	 * @see AuthKeys
-	 * @brief Names of the credential-bearing config entries to persist.
-	 *
-	 * These identify which cookies / headers / url params of the authenticated
-	 * config are the durable credential and should be copied into an AuthState;
-	 * everything else (volatile session/anti-bot data) is left behind. Default:
-	 * derived from @ref auth_info's fields (their targets grouped by channel), so a
-	 * parser that declares auth_info gets this for free; empty when there is no
-	 * auth_info. Override only for a credential a field list cannot name (e.g. the
-	 * session cookie minted by a username/password login).
-	 * @return The names of the durable credential entries; empty when none.
-	 */
-	virtual AuthKeys auth_keys() const noexcept;
-
-	/**
-	 * @see AuthState
-	 * @brief Distill a persistable session from an authenticated config.
-	 *
-	 * Default: copy the entries named by auth_keys() out of the config. Override
-	 * only for exotic credentials that a name list cannot express (e.g. a token
-	 * parsed out of a response body).
-	 * @param config Authenticated config to export from
-	 * @return The persistable session
-	 */
-	virtual AuthState export_auth(const ParserConfig& config) const;
-
-	/**
-	 * @brief Ready a usable config for this parser from a base config.
-	 *
-	 * The single seam for deriving a config before any getter runs: copies
-	 * @p base, gives the copy a fresh session (its own cookie jar is provisioned
-	 * lazily on adoption, so two instances of a parser never share a login),
-	 * stamps this parser's identity so request-time services keyed by parser
-	 * (mirror overrides) can find it, and applies parser-specific defaults through
-	 * @ref configure. Callers adopt the result via
-	 * RequestorContext::new_with_config. Restoring a saved session is a separate,
-	 * explicit path (assign a deserialized jar to the returned config).
-	 * @param base Base config to derive from.
-	 * @return A fresh derived config, or nullptr if @p base is nullptr.
-	 */
-	[[nodiscard]] std::shared_ptr<ParserConfig> make_config(
-	    std::shared_ptr<const ParserConfig> base) const;
-
-	/**
-	 * @brief Seed parser-specific defaults onto a freshly derived config.
-	 *
-	 * Called by @ref make_config after the common derivation (fresh session,
-	 * identity stamp), so a parser need not repeat these per request. Default:
-	 * no-op. Override to set constant headers/params a parser needs on every
-	 * request (e.g. an API's fixed headers). These are parser-wide, not
-	 * category-specific — one config shape serves all of a parser's getters.
-	 * @param config Config being readied, mutated in place.
-	 */
-	virtual void configure(ParserConfig& config) const;
-
-	/**
-	 * @brief The source's built-in mirrors (full base URLs), in selection order.
-	 *
-	 * A source-level declaration, like @ref emplace_domains(): one mirror set serves
-	 * all of a parser's getters. The single source of truth a getter's fetch path
-	 * (RequestorContext::base_url) and the UI picker (@ref mirror_choices) both read;
-	 * a live catalog override, keyed by @ref identifier, supersedes it at request
-	 * time. Default: none.
-	 * @return The built-in base URLs; empty for a source with no selectable mirrors.
-	 */
-	[[nodiscard]] virtual std::span<const std::string_view> mirrors() const;
-
-	/**
-	 * @brief The mirror choices to show the user, with any live catalog override
-	 * applied.
-	 *
-	 * The built-in @ref mirrors overlaid with the override carried in @p context
-	 * (keyed by this parser's identity, stamped into the config by @ref make_config)
-	 * — so a picker reflects the mirrors actually fetched from, not a stale list.
-	 * @param context Context carrying the current mirror snapshot and parser id.
-	 * @return The resolved mirror descriptors, in selection order.
-	 */
-	[[nodiscard]] std::vector<AltLink> mirror_choices(const RequestorContext& context) const;
+	std::unique_ptr<ParserProfile> profile(std::string_view profile_id) const;
 
 	/**
 	 * @brief The root of the source's image library: image containers (posts,
@@ -324,29 +219,59 @@ struct Parser {
 	 *
 	 * A fresh getter, owned by the caller; getters are cheap and stateless, so one
 	 * may be made per use rather than cached. It carries no config — the caller
-	 * passes a RequestorContext (derived through @ref make_config) into each call.
+	 * passes a RequestorContext (derived through ParserProfile::make_config) into each call.
 	 * Default: nullptr.
 	 * @return The root images getter, or nullptr if the source has no image library.
 	 */
 	virtual std::unique_ptr<ImagesGetter> images_getter() const;
 
 	/**
-	 * @brief The root of the source's manga library: search, latest listings, and a
-	 * per-title getter that yields chapters and pages.
-	 *
-	 * Same ownership contract as @ref images_getter. Default: nullptr.
-	 * @return The root manga getter, or nullptr if the source has no manga library.
+	 * @brief Enumerate this provider's independently selectable catalogues.
+	 * @return Scope descriptors with stable, nonempty, provider-local IDs.
+	 * @note Multiple scopes can advertise the same format. This is metadata only;
+	 *       enumeration performs no requests. Sources without catalogs return an empty list.
+	 * @throws std::logic_error If IDs are empty or duplicated, profile descriptors
+	 * are invalid, or a scope references an undeclared profile.
 	 */
-	virtual std::unique_ptr<MangaRootGetter> mangas_getter() const;
+	std::vector<CatalogScope> scopes() const;
 
 	/**
-	 * @brief The root of the source's anime library: search, latest listings, and a
-	 * per-title getter that yields episodes and their video sources.
-	 *
-	 * Same ownership contract as @ref images_getter. Default: nullptr.
-	 * @return The root anime getter, or nullptr if the source has no anime library.
+	 * @brief Create a common root bound to one explicitly selected catalog.
+	 * @param scope_id Opaque ID obtained from scopes(), copied before returning.
+	 * @return A fresh root, or nullptr for an unknown scope.
+	 * @throws std::logic_error On invalid descriptors, a null factory result, or
+	 * a root bound to another scope or request profile.
+	 * @note No format or capability metadata is used to disable operations.
 	 */
-	virtual std::unique_ptr<AnimeRootGetter> animes_getter() const;
+	std::unique_ptr<CatalogRootGetter> catalog_getter(std::string_view scope_id) const;
+
+protected:
+	/**
+	 * @brief Declare configuration and authentication profiles without I/O.
+	 * @return A nonempty list of descriptors; defaults to the main profile.
+	 */
+	virtual std::vector<ProfileInfo> profile_descriptors() const;
+
+	/**
+	 * @brief Declare independently selectable catalogs without I/O.
+	 * @return Descriptors referencing declared profiles; empty by default.
+	 */
+	virtual std::vector<CatalogScope> scope_descriptors() const;
+
+	/**
+	 * @brief Construct the behavior of a declared profile.
+	 * @param info Owned descriptor selected from profiles().
+	 * @return A fresh profile belonging to this parser with the selected descriptor.
+	 */
+	virtual std::unique_ptr<ParserProfile> make_profile(ProfileInfo info) const;
+
+	/**
+	 * @brief Construct the implementation for an already selected scope.
+	 * @param scope Owned descriptor selected from this provider's scopes().
+	 * @return A non-null root constructed with that descriptor.
+	 */
+	virtual std::unique_ptr<CatalogRootGetter> make_catalog_getter(CatalogScope scope) const;
+
 };
 
 //using ParserProvider = std::function<

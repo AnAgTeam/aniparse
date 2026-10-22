@@ -27,6 +27,13 @@ std::string_view host_of(std::string_view url) noexcept {
 	return url.substr(0, url.find(':'));
 }
 
+void append_host(std::vector<std::string>& hosts, std::string_view url) {
+	std::string host(host_of(url));
+	if (std::find(hosts.begin(), hosts.end(), host) == hosts.end()) {
+		hosts.push_back(std::move(host));
+	}
+}
+
 // A mirror host is also a routable host: union each mirror's host into that
 // entry's routing domains, so listing a mirror makes it route too (a URL pasted
 // from a live mirror resolves without repeating it under "domains").
@@ -36,10 +43,7 @@ void union_mirror_hosts(
 	for (const auto& [id, urls] : mirrors) {
 		std::vector<std::string>& hosts = domains[id];
 		for (const std::string& url : urls) {
-			std::string host(host_of(url));
-			if (std::find(hosts.begin(), hosts.end(), host) == hosts.end()) {
-				hosts.push_back(std::move(host));
-			}
+			append_host(hosts, url);
 		}
 	}
 }
@@ -49,13 +53,9 @@ void union_mirror_hosts(
 // from it without requiring a duplicate domains entry in the catalog.
 void union_canonical_hosts(
     std::map<std::string, std::vector<std::string>, std::less<>>& domains,
-    const std::map<std::string, std::string, std::less<>>& canonical_base_urls) {
-	for (const auto& [id, url] : canonical_base_urls) {
-		std::vector<std::string>& hosts = domains[id];
-		std::string host(host_of(url));
-		if (std::find(hosts.begin(), hosts.end(), host) == hosts.end()) {
-			hosts.push_back(std::move(host));
-		}
+    const MirrorSource::ProfileOrigins& canonical_base_urls) {
+	for (const auto& [key, url] : canonical_base_urls) {
+		append_host(domains[key.first], url);
 	}
 }
 } // namespace
@@ -68,8 +68,12 @@ expected<uint64_t, CatalogError> CatalogManager::apply(std::string_view payload,
 	}
 
 	auto domains = std::move(decoded->domains);
-	union_mirror_hosts(domains, decoded->mirrors);
-	union_canonical_hosts(domains, decoded->canonical_base_urls);
+	for (const auto& [key, urls] : decoded->profile_mirrors) {
+		for (const auto& url : urls) {
+			append_host(domains[key.first], url);
+		}
+	}
+	union_canonical_hosts(domains, decoded->profile_canonical_base_urls);
 
 	// Commit only after a clean decode+verify: rebuild routing, swap mirrors and
 	// selectors, drop stale compiled sets, then advance the revision so the next
@@ -84,8 +88,9 @@ expected<uint64_t, CatalogError> CatalogManager::apply(std::string_view payload,
 	if (services_) {
 		if (services_->mirrors) {
 			services_->mirrors->set(
-			    std::make_shared<const MirrorSource>(std::move(decoded->mirrors),
-			                                         std::move(decoded->canonical_base_urls)));
+			    std::make_shared<const MirrorSource>(std::map<std::string, std::vector<std::string>, std::less<>>{},
+			                                         std::move(decoded->profile_mirrors),
+			                                         std::move(decoded->profile_canonical_base_urls)));
 		}
 		if (services_->selectors) {
 			services_->selectors->set(

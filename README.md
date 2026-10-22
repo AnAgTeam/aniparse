@@ -109,7 +109,7 @@ To write your own source, copy the [parser skeleton](examples/example_manga_pars
 
 ## How it works
 
-A **`Parser`** registers the domains it handles and exposes getters (e.g. `MangaRootGetter`) that fetch and parse content. Getters run through a **`RequestorContext`**, which carries the parser's config, cookies and logger and sits on top of a backend-neutral **`ClientContext`** (curl today). Parsers only ever touch neutral request/response types — so the HTTP backend can be replaced without changing a single parser.
+A **`Parser`** registers the domains it handles and exposes getters (e.g. `CatalogRootGetter`) that fetch and parse content. Getters run through a **`RequestorContext`**, which carries the parser's config, cookies and logger and sits on top of a backend-neutral **`ClientContext`** (curl today). Parsers only ever touch neutral request/response types — so the HTTP backend can be replaced without changing a single parser.
 
 ---
 

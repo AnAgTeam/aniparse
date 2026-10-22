@@ -74,7 +74,7 @@ struct CannedClientMock : ClientContext {
 		this->request = std::move(request);
 		co_return response;
 	}
-	void set_config(ClientConfig config) override {
+	void apply_client_config(ClientConfig config) override {
 		this->config = std::make_unique<ClientConfig>(config);
 	}
 	std::shared_ptr<CookieJar> make_cookie_jar() override {
@@ -108,13 +108,7 @@ struct FreshJarClientMock : CannedClientMock {
 	}
 };
 
-// Minimal concrete root getter: MangaRootGetter is abstract (from_serialized is
-// pure). Everything else uses the base implementation, which is what we test.
-struct DummyMangaRootGetter : MangaRootGetter {
-	asyncnet::NetworkTask<Response<std::unique_ptr<MangaGetter>>> from_serialized(SerializedGetterData) const override {
-		co_return make_response_error(RequestErrorCode::NotImplemented, "n/a");
-	}
-};
+
 
 struct DummyParser : Parser {
 	ParserInfo info() const override { return { .name = "Dummy" }; }
@@ -174,13 +168,10 @@ CORO_TEST_CASE("RequestorContext keeps an existing cookie jar") {
 	co_return;
 }
 
-CORO_TEST_CASE("make_config does not inherit the base cookie jar") {
+CORO_TEST_CASE("make_config creates a fresh identified profile configuration") {
 	DummyParser parser;
 
-	auto base        = std::make_shared<ParserConfig>();
-	base->cookie_jar = std::make_shared<DummyCookieJar>(); // pretend the base carries a live session
-
-	auto derived = parser.make_config(base);
+	auto derived = parser.profile("main")->make_config();
 
 	REQUIRE(derived != nullptr);
 	// A derived config belongs to a distinct instance and must not share the store.
@@ -188,8 +179,8 @@ CORO_TEST_CASE("make_config does not inherit the base cookie jar") {
 	// make_config stamps the parser identity for request-time services.
 	REQUIRE(derived->parser_id == "Dummy");
 
-	// A null base yields a null config (nothing to derive from).
-	REQUIRE(parser.make_config(nullptr) == nullptr);
+	REQUIRE(derived->profile_id == "main");
+	REQUIRE_FALSE(derived->headers.contains("Authorization"));
 
 	co_return;
 }
@@ -223,7 +214,7 @@ CORO_TEST_CASE("RequestorContext stamps the parser id on log messages") {
 	REQUIRE(logger->last_parser_id.empty());
 
 	// A config derived through make_config names the parser on every message.
-	auto derived = plain.new_with_config(parser.make_config(plain.config()));
+	auto derived = plain.new_with_config(parser.profile("main")->make_config());
 	derived.error("derived");
 	REQUIRE(logger->last_level == LogLevel::Error);
 	REQUIRE(logger->last_parser_id == "Dummy");
@@ -233,10 +224,8 @@ CORO_TEST_CASE("RequestorContext stamps the parser id on log messages") {
 
 CORO_TEST_CASE("RequestorContext isolates cookie jars across parser instances") {
 	DummyParser parser;
-	auto base = std::make_shared<ParserConfig>();
-
-	auto config_a = parser.make_config(base);
-	auto config_b = parser.make_config(base);
+	auto config_a = parser.profile("main")->make_config();
+	auto config_b = parser.profile("main")->make_config();
 
 	auto client = std::make_shared<FreshJarClientMock>(std::make_shared<DummyCookieJar>());
 	RequestorContext context_a(client, nullptr, config_a);
@@ -491,4 +480,55 @@ CORO_TEST_CASE("typed helpers forward a transport RequestError unchanged") {
 
 	REQUIRE_FALSE(result.has_value());
 	REQUIRE(result.error().code == RequestErrorCode::NetworkError);
+}
+CORO_TEST_CASE("Request defaults respect header precedence for every HTTP request kind", "[profiles]") {
+    auto client = std::make_shared<CannedClientMock>();
+    ClientConfig client_config;
+    client_config.request_defaults.headers.set("User-Agent", "App/1.0");
+    client_config.request_defaults.headers.set("X-Default", "fallback");
+    client_config.request_defaults.headers.set("X-Source", "fallback");
+    client->set_config(client_config);
+
+    auto config = std::make_shared<ParserConfig>();
+    config->headers.set("user-agent", "Source/1.0");
+    config->headers.set("x-source", "source");
+    RequestorContext context(client, nullptr, config);
+
+    enum class Method { Get, Post, Multipart };
+    for (auto method : {Method::Get, Method::Post, Method::Multipart}) {
+        Headers headers{{"USER-AGENT", "Request/1.0"}};
+        switch (method) {
+        case Method::Get:
+            co_await context.request(GetRequest{.url = "https://example.com", .headers = headers});
+            break;
+        case Method::Post:
+            co_await context.request(PostRequest{.url = "https://example.com", .headers = headers});
+            break;
+        case Method::Multipart:
+            co_await context.request(PostMultipartRequest{.url = "https://example.com", .headers = headers});
+            break;
+        }
+        std::visit([](const auto& sent) {
+            if constexpr (requires { sent.request.headers; }) {
+                CHECK(sent.request.headers.at("User-Agent") == "Request/1.0");
+                CHECK(sent.request.headers.at("X-Source") == "source");
+                CHECK(sent.request.headers.at("X-Default") == "fallback");
+                CHECK(sent.request.headers.size() == 3);
+            }
+        }, client->request);
+    }
+
+    co_await context.request(GetRequest{.url = "https://example.com"});
+    CHECK(std::get<ConfiguredGetRequest>(client->request).request.headers.at("User-Agent") == "Source/1.0");
+    CHECK_FALSE(config->headers.contains("X-Default"));
+
+    config->headers = {};
+    client_config.request_defaults.headers.set("User-Agent", "App/2.0");
+    client->set_config(client_config);
+    co_await context.request(GetRequest{.url = "https://example.com"});
+    CHECK(std::get<ConfiguredGetRequest>(client->request).request.headers.at("User-Agent") == "App/2.0");
+    client->set_config({});
+    co_await context.request(GetRequest{.url = "https://example.com"});
+    CHECK_FALSE(std::get<ConfiguredGetRequest>(client->request).request.headers.contains("User-Agent"));
+    co_return;
 }

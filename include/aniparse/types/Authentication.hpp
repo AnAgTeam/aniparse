@@ -56,7 +56,7 @@ using AuthenticationData = std::variant<AuthenticationUserPassword, Authenticati
  * A parser declares which cookies / headers / url params of its (authenticated)
  * config are the durable credential, so the library can copy exactly those into
  * an AuthState. Everything volatile (session ids, anti-bot cookies, User-Agent,
- * ...) is left behind. @see Parser::auth_keys, Parser::export_auth
+ * ...) is left behind. @see ParserProfile::auth_keys, ParserProfile::export_auth
  */
 struct AuthKeys {
 	std::vector<std::string> cookies;
@@ -70,7 +70,7 @@ struct AuthKeys {
  * Carries only the credential-bearing entries (per AuthKeys) across the three
  * request channels, plus the mirror the session belongs to. Portable by design
  * (structured Cookie), so it can be stored and later merged back into a config.
- * @see Parser::export_auth, import_auth
+ * @see ParserProfile::export_auth, import_auth
  */
 struct AuthState {
 	std::vector<Cookie> cookies;
@@ -92,11 +92,11 @@ void import_auth(ParserConfig& config, const AuthState& state);
 
 /**
  * @brief How a source expects a user to sign in — the shape the client collects.
- * Declared by @ref aniparse::Parser::auth_info so the client picks the right
+ * Declared by @ref aniparse::ParserProfile::auth_info so the client picks the right
  * @ref aniparse::AuthenticationData variant and UI instead of guessing.
  */
 enum class AuthMethod {
-	/// A username + password fed to Parser::authenticate_context, which logs in and
+	/// A username + password fed to ParserProfile::authenticate_context, which logs in and
 	/// returns an authenticated config. The client shows a standard credentials form.
 	UsernamePassword,
 	/// An interactive in-browser login (captcha / social OAuth); the client opens a
@@ -141,7 +141,7 @@ struct AuthField {
  * @brief What a source needs to sign a user in: the method to drive the UI, the
  * credential slots to collect/inject, and the interactive details when a browser
  * is required. Pure data, no I/O — the client reads it up front to decide the flow.
- * @see Parser::auth_info
+ * @see ParserProfile::auth_info
  */
 struct AuthInfo {
 	/// The sign-in method the source uses.

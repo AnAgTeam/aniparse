@@ -64,14 +64,14 @@ expected<CatalogData, CatalogError> decode_catalog(
 		return out;
 	};
 
-	// Read a "<id> -> {domains, mirrors, canonical_base_url, patterns}" section into the
+	// Read owner domains and patterns, plus optional extractor mirrors, into the
 	// given maps; entries without a fields object, and empty lists, are skipped. Both
 	// the "parsers" and the "extractors" sections share the domains/mirrors/patterns
-	// shape; only parsers accept canonical frontend origins. "patterns" is a nested
+	// shape; parser origins are read separately from profiles. "patterns" is a nested
 	// short-key -> pattern-text object fed into a RegexSource.
 	auto read_section = [&read_urls](
-	                        const boost::json::object& section, auto& domains, auto& mirrors,
-	                        std::map<std::string, std::string, std::less<>>* canonical_base_urls,
+	                        const boost::json::object& section, auto& domains,
+	                        std::map<std::string, std::vector<std::string>, std::less<>>* mirrors,
 	                        auto& patterns) {
 		for (const boost::json::key_value_pair& entry : section) {
 			const boost::json::object* fields = entry.value().if_object();
@@ -83,15 +83,10 @@ expected<CatalogData, CatalogError> decode_catalog(
 			if (!entry_domains.empty()) {
 				domains.emplace(id, std::move(entry_domains));
 			}
-			std::vector<std::string> entry_mirrors = read_urls(*fields, "mirrors");
-			if (!entry_mirrors.empty()) {
-				mirrors.emplace(id, std::move(entry_mirrors));
-			}
-			if (canonical_base_urls) {
-				if (std::string canonical_base_url = json::str(*fields, "canonical_base_url");
-				    !canonical_base_url.empty()) {
-					// A copy: id is still needed by the patterns block below.
-					canonical_base_urls->emplace(id, std::move(canonical_base_url));
+			if (mirrors) {
+				std::vector<std::string> entry_mirrors = read_urls(*fields, "mirrors");
+				if (!entry_mirrors.empty()) {
+					mirrors->emplace(id, std::move(entry_mirrors));
 				}
 			}
 			if (const boost::json::object* entry_patterns = json::object_field(*fields, "patterns")) {
@@ -110,11 +105,51 @@ expected<CatalogData, CatalogError> decode_catalog(
 	};
 
 	if (const boost::json::object* parsers = json::object_field(*root, "parsers")) {
-		read_section(*parsers, data.domains, data.mirrors, &data.canonical_base_urls,
-		             data.patterns);
+		read_section(*parsers, data.domains, nullptr, data.patterns);
+		// Parser request origins are declared exclusively inside profiles.
+		for (const auto& owner : *parsers) {
+			const auto* fields = owner.value().if_object();
+			if (!fields) {
+				continue;
+			}
+			const auto* profiles_value = fields->if_contains("profiles");
+			if (!profiles_value) {
+				continue;
+			}
+			const auto* profiles = profiles_value->if_object();
+			if (!profiles) {
+				return unexpected(CatalogError::BadFormat);
+			}
+			for (const auto& entry : *profiles) {
+				const auto* profile = entry.value().if_object();
+				if (entry.key().empty() || !profile) {
+					return unexpected(CatalogError::BadFormat);
+				}
+				const auto key = std::make_pair(std::string(owner.key()), std::string(entry.key()));
+				if (const auto* mirrors = profile->if_contains("mirrors")) {
+					if (!mirrors->is_array()) {
+						return unexpected(CatalogError::BadFormat);
+					}
+					for (const auto& url : mirrors->as_array()) {
+						if (!url.is_string() || url.as_string().empty()) {
+							return unexpected(CatalogError::BadFormat);
+						}
+					}
+					data.profile_mirrors.emplace(key, read_urls(*profile, "mirrors"));
+				}
+				if (const auto* origin = profile->if_contains("canonical_base_url")) {
+					if (!origin->is_string() || origin->as_string().empty()) {
+						return unexpected(CatalogError::BadFormat);
+					}
+					data.profile_canonical_base_urls.emplace(key, std::string(origin->as_string()));
+				}
+			}
+		}
+
 	}
+
 	if (const boost::json::object* extractors = json::object_field(*root, "extractors")) {
-		read_section(*extractors, data.extractor_domains, data.extractor_mirrors, nullptr,
+		read_section(*extractors, data.extractor_domains, &data.extractor_mirrors,
 		             data.extractor_patterns);
 	}
 
