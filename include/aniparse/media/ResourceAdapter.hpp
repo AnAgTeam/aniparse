@@ -145,6 +145,14 @@ protected:
  * exactly once after successful EOF. On cancellation or failure it destroys
  * the handle without calling final(). A null handle means the resource needs
  * request preparation only and the transport passes its response through.
+ *
+ * Each handle is confined to one response: callbacks must not overlap, even if
+ * independent resources are downloaded concurrently. A consumer may pause body
+ * delivery between update() calls when its output queue is full. After any
+ * callback returns an error, the consumer stops delivery and destroys the handle;
+ * it must not retry that input block or call final() to flush a failed response.
+ * The consumer bounds its own queued output and cancels the request if it cannot
+ * accept more data. A handle is responsible for bounding its internal buffers.
  */
 class ResourceHandle {
 public:
@@ -201,6 +209,16 @@ protected:
  * state belongs to the ResourceHandle returned in OpenedResource. Manifest
  * interception, internal URL routing, and streaming transport remain outside
  * this interface.
+ *
+ * The consumer owns the playback operation and its streaming transport scope.
+ * Requests for a selected stream and its discovered resources share that scope,
+ * enabling connection reuse without requiring a single connection or serial
+ * downloads. Independent playback operations have independent cancellation.
+ * Cancelling one resource must not cancel its siblings; ending playback cancels
+ * pending open operations and downloads and releases their handles. Platform
+ * sessions and internal routing URLs are consumer details, not adapter state.
+ * Additional preparation requests made through RequestContext are not promised
+ * to use the consumer's streaming connection pool.
  */
 class ResourceAdapter {
 public:
@@ -217,6 +235,9 @@ public:
 	 * requests byte-for-byte response passthrough.
 	 * @note This is the only coroutine phase of the adapter lifecycle. Both
 	 * parameters are values because the returned task may outlive its caller.
+	 * The coroutine borrows this adapter: the caller must retain the receiver until
+	 * the task completes or is destroyed. Concurrent opens must use independent
+	 * per-response handles; cancelling an open must not invalidate another open.
 	 */
 	[[nodiscard]] virtual RequestTask<OpenedResource> open(
 	    RequestContext context,

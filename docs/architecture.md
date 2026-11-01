@@ -112,3 +112,26 @@ errors and cancellable task aliases are declared in `utility/Result.hpp`.
 
 `RequestTask<T>` names a cancellable task yielding `Result<T>`. An operation
 may return cached or local data without performing network I/O.
+
+
+## Media transport ownership
+
+`ResourceAdapter` describes source-specific request preparation and response
+transforms. The consumer owns a playback operation, its streaming HTTP session,
+and cancellation of each resource. A shared session permits concurrent tasks and
+connection reuse; it does not require a single connection across origins or put
+adapter preparation requests into the same platform session.
+
+Each successful open has its own optional `ResourceHandle`. The consumer delivers
+response metadata before bytes, invokes callbacks serially for that handle, and
+calls `final()` only after successful EOF. Cancellation or an error destroys the
+handle without flushing it. Output queues belong to the consumer and must be
+bounded: pause body delivery when the downstream consumer is slower, resume after
+it drains, or fail the resource when the queue cannot accept more output. The
+adapter must separately bound any internal transformation buffers.
+
+Manifest interpretation and routing remain outside `ResourceAdapter` in the
+current API. Local ports and routing identifiers are consumer implementation
+details. Moving HLS interpretation into reusable adapter-side components requires
+a separate child-resource routing interface; this lifecycle contract does not
+introduce that interface or change the current manifest ownership.
