@@ -16,6 +16,12 @@ public:
 	explicit ChainedResourceHandle(std::vector<std::unique_ptr<ResourceHandle>> handles)
 	    : handles_(std::move(handles)) {}
 
+    bool transforms_body() const noexcept override {
+        return std::any_of(handles_.begin(), handles_.end(), [](const auto& handle) {
+            return handle->transforms_body();
+        });
+    }
+
 	Result<void> on_response(ResourceMetadata& metadata) override {
 		for (auto handle = handles_.rbegin(); handle != handles_.rend(); ++handle) {
 			auto result = (*handle)->on_response(metadata);

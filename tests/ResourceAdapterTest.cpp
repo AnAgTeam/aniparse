@@ -135,3 +135,35 @@ CORO_TEST_CASE("ResourceAdapter composes nested requests and reverse response tr
 	    std::byte{'x'}, std::byte{'o'}, std::byte{'i'}, std::byte{'o'},
 	});
 }
+
+namespace {
+class MetadataOnlyHandle final : public aniparse::ResourceHandle {
+public:
+    bool transforms_body() const noexcept override { return false; }
+};
+class MetadataOnlyAdapter final : public aniparse::ResourceAdapter {
+public:
+    aniparse::RequestTask<aniparse::OpenedResource> open(
+        aniparse::RequestContext, aniparse::ResourceContext resource) const override {
+        co_return aniparse::OpenedResource{
+            .request = { .url = std::move(resource.resource.url), .headers = std::move(resource.resource.headers) },
+            .handle = std::make_unique<MetadataOnlyHandle>()
+        };
+    }
+};
+}
+
+CORO_TEST_CASE("Metadata-only chains can bypass byte delivery", "[resource-adapter]") {
+    using namespace aniparse;
+    auto metadata = std::make_shared<MetadataOnlyAdapter>();
+    auto adapter = ResourceAdapter::compose({metadata, metadata});
+    auto opened = co_await adapter->open(make_context(), {.resource = {.url = "https://example.test/media"}});
+    REQUIRE(opened);
+    REQUIRE(opened->handle);
+    CHECK_FALSE(opened->handle->transforms_body());
+    auto mixed = ResourceAdapter::compose({metadata, std::make_shared<TestAdapter>("/inner", std::byte{'x'})});
+    auto transformed = co_await mixed->open(make_context(), {.resource = {.url = "https://example.test/media"}});
+    REQUIRE(transformed);
+    REQUIRE(transformed->handle);
+    CHECK(transformed->handle->transforms_body());
+}

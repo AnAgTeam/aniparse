@@ -159,6 +159,17 @@ public:
 	ResourceHandle() = default;
 	virtual ~ResourceHandle() = default;
 
+    /**
+     * @brief Whether response bytes require this handle's update/final pipeline.
+     * @return False only when update is byte-for-byte passthrough and final emits
+     * nothing; consumers may then bypass body delivery while still calling
+     * on_response. True conservatively preserves existing transform behavior.
+     * @note The result is stable for the handle's lifetime. Metadata-only handles
+     * override this to avoid copying media bytes through a language bridge.
+     */
+    [[nodiscard]] virtual bool transforms_body() const noexcept { return true; }
+
+
 	/**
 	 * @brief Inspect or normalize response metadata before body delivery begins.
 	 * @param metadata Mutable transport metadata for this response.
