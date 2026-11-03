@@ -145,7 +145,7 @@ std::vector<SearchQueryError> validate_search_query(
                     errors.push_back({.reason = SearchQueryError::Reason::MultipleSelectionNotSupported, .key = key});
                 }
             }
-        }, found->second);
+        }, found->second.capabilities);
 	}
 	return errors;
 }

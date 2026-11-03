@@ -20,14 +20,14 @@ namespace {
 
 SupportedSearchFilters make_supported() {
     return {
-        {std::string(search_keys::tag), TextCapabilities{.supports_exclusion = true}},
-        {std::string(search_keys::title), TextCapabilities{}},
-        {std::string(search_keys::pages), IntIntervalCapabilities{.min = 1, .max = 1000}},
-        {"language", SelectionCapabilities{.options = {
+        {std::string(search_keys::tag), SearchFilterInfo{.capabilities = TextCapabilities{.supports_exclusion = true}}},
+        {std::string(search_keys::title), SearchFilterInfo{.capabilities = TextCapabilities{}}},
+        {std::string(search_keys::pages), SearchFilterInfo{.capabilities = IntIntervalCapabilities{.min = 1, .max = 1000}}},
+        {"language", SearchFilterInfo{.capabilities = SelectionCapabilities{.options = {
             {"en", {.name = "English", .supports_exclusion = true}},
             {"ru", {.name = "Russian", .supports_exclusion = false}},
-        }}},
-        {"uncensored", CheckmarkCapabilities{}},
+        }}}},
+        {"uncensored", SearchFilterInfo{.capabilities = CheckmarkCapabilities{}}},
     };
 }
 
@@ -118,7 +118,7 @@ TEST_CASE("Search validation rejects malformed values") {
 
 TEST_CASE("Search validation rejects multiple values on a single-selection axis") {
 	SupportedSearchFilters supported = make_supported();
-	auto& language = std::get<SelectionCapabilities>(supported.at("language"));
+	auto& language = std::get<SelectionCapabilities>(supported.at("language").capabilities);
 	language.multiple = false;
 	SearchRequestQuery query{
 		.filters = { { "language", SelectionValue{.included = {"en", "ru"}} } },
@@ -225,7 +225,7 @@ TEST_CASE("CatalogRootGetter validates against its own declaration") {
 
 TEST_CASE("Identity keys are told apart from filters") {
 	SearchCapabilities support{ .supported_filters = make_supported() };
-	support.supported_filters.emplace(std::string(search_keys::mal_id), SelectionCapabilities{.open_vocabulary = true});
+	support.supported_filters.emplace(std::string(search_keys::mal_id), SearchFilterInfo{.capabilities = SelectionCapabilities{.open_vocabulary = true}});
 
 	REQUIRE(is_identity_key(support, search_keys::mal_id));
 	REQUIRE_FALSE(is_identity_key(support, search_keys::tag));
@@ -249,32 +249,32 @@ TEST_CASE("An id namespace maps to the key that looks it up") {
 }
 
 TEST_CASE("Open selection vocabularies retain suggested options and accept custom tokens", "[search-capabilities]") {
-    SupportedSearchFilters support{{"tag", SelectionCapabilities{
+    SupportedSearchFilters support{{"tag", SearchFilterInfo{.capabilities = SelectionCapabilities{
         .options = {{"known", {.name = "Known option"}}},
         .open_vocabulary = true,
         .supports_exclusion = true,
-    }}};
+    }}}};
     SearchRequestQuery query{.filters = {{"tag", SelectionValue{
         .included = {"known", "custom"}, .excluded = {"another-custom"}}}}};
     CHECK(validate_search_query(support, query).empty());
-    auto& axis = std::get<SelectionCapabilities>(support.at("tag"));
+    auto& axis = std::get<SelectionCapabilities>(support.at("tag").capabilities);
     axis.open_vocabulary = false;
     CHECK(has_error(validate_search_query(support, query), SearchQueryError::Reason::InvalidValue, "tag"));
 }
 
 TEST_CASE("Empty options do not implicitly open a selection vocabulary", "[search-capabilities]") {
-    SupportedSearchFilters support{{"tag", SelectionCapabilities{}}};
+    SupportedSearchFilters support{{"tag", SearchFilterInfo{.capabilities = SelectionCapabilities{}}}};
     SearchRequestQuery query{.filters = {{"tag", SelectionValue{.included = {"custom"}}}}};
     CHECK(has_error(validate_search_query(support, query), SearchQueryError::Reason::InvalidValue, "tag"));
-    std::get<SelectionCapabilities>(support.at("tag")).open_vocabulary = true;
+    std::get<SelectionCapabilities>(support.at("tag").capabilities).open_vocabulary = true;
     CHECK(validate_search_query(support, query).empty());
 }
 
 TEST_CASE("Selection exclusion uses the axis default and explicit option overrides", "[search-capabilities]") {
-    SupportedSearchFilters support{{"tag", SelectionCapabilities{
+    SupportedSearchFilters support{{"tag", SearchFilterInfo{.capabilities = SelectionCapabilities{
         .options = {{"denied", {.supports_exclusion = false}}, {"allowed", {}}},
         .open_vocabulary = true, .supports_exclusion = true,
-    }}};
+    }}}};
     SearchRequestQuery query{.filters = {{"tag", SelectionValue{.excluded = {"allowed", "custom"}}}}};
     CHECK(validate_search_query(support, query).empty());
     std::get<SelectionValue>(query.filters.at("tag")).excluded.push_back("denied");
@@ -282,8 +282,8 @@ TEST_CASE("Selection exclusion uses the axis default and explicit option overrid
 }
 
 TEST_CASE("Selection values reject empty duplicate and contradictory tokens", "[search-capabilities]") {
-    SupportedSearchFilters support{{"tag", SelectionCapabilities{
-        .open_vocabulary = true, .supports_exclusion = true}}};
+    SupportedSearchFilters support{{"tag", SearchFilterInfo{.capabilities = SelectionCapabilities{
+        .open_vocabulary = true, .supports_exclusion = true}}}};
     for (const auto& value : {SelectionValue{.included = {""}},
             SelectionValue{.included = {"x", "x"}},
             SelectionValue{.included = {"x"}, .excluded = {"x"}}}) {
@@ -293,7 +293,7 @@ TEST_CASE("Selection values reject empty duplicate and contradictory tokens", "[
 }
 
 TEST_CASE("Every supplied interval endpoint respects capability bounds", "[search-capabilities]") {
-    SupportedSearchFilters support{{"range", IntIntervalCapabilities{.min = 1, .max = 10}}};
+    SupportedSearchFilters support{{"range", SearchFilterInfo{.capabilities = IntIntervalCapabilities{.min = 1, .max = 10}}}};
     for (const auto& value : {IntInterval{.from = 11}, IntInterval{.to = 0}}) {
         SearchRequestQuery query{.filters = {{"range", value}}};
         CHECK(has_error(validate_search_query(support, query), SearchQueryError::Reason::InvalidValue, "range"));
@@ -305,8 +305,8 @@ TEST_CASE("Time interval values validate against their distinct capabilities", "
     const auto lower = system_clock::time_point{seconds{100}};
     const auto upper = system_clock::time_point{seconds{200}};
     SupportedSearchFilters support{
-        {"absolute", TimeIntervalCapabilities{.min = lower, .max = upper}},
-        {"relative", RelativeTimeIntervalCapabilities{.min = seconds{1}, .max = seconds{30}, .supports_exclusion = true}},
+        {"absolute", SearchFilterInfo{.capabilities = TimeIntervalCapabilities{.min = lower, .max = upper}}},
+        {"relative", SearchFilterInfo{.capabilities = RelativeTimeIntervalCapabilities{.min = seconds{1}, .max = seconds{30}, .supports_exclusion = true}}},
     };
     SearchRequestQuery query{.filters = {
         {"absolute", TimeInterval{.from = lower, .to = upper}},
@@ -318,4 +318,25 @@ TEST_CASE("Time interval values validate against their distinct capabilities", "
     CHECK(validate_search_query(support, query).size() == 2);
     query.filters["relative"] = TimeInterval{.from = lower};
     CHECK(has_error(validate_search_query(support, query), SearchQueryError::Reason::TypeMismatch, "relative"));
+}
+
+TEST_CASE("Filter category names do not change query identities or validation") {
+    SupportedSearchFilters support{
+        {"publisher", {.name = "Publisher", .capabilities = TextCapabilities{}}},
+        {"genre", {.name = "Source genres", .capabilities = SelectionCapabilities{
+            .options = {{"drama", {.name = "Drama"}}}}}},
+    };
+    const SearchRequestQuery query{.filters = {
+        {"publisher", TextQuery{.text = "Example"}},
+        {"genre", SelectionValue{.included = {"drama"}}},
+    }};
+    CHECK(validate_search_query(support, query).empty());
+    support.at("publisher").name = "Издатель";
+    support.at("genre").name.clear();
+    CHECK(validate_search_query(support, query).empty());
+    CHECK(std::get<SelectionCapabilities>(support.at("genre").capabilities)
+              .options.at("drama").name == "Drama");
+    CHECK_FALSE(validate_search_query(support, SearchRequestQuery{.filters = {
+        {"Издатель", TextQuery{.text = "Example"}},
+    }}).empty());
 }

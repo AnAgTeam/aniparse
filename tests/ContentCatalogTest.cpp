@@ -119,7 +119,7 @@ struct MixedRoot : CatalogRootGetter {
     }
     RequestTask<SearchCapabilities> load_search_capabilities_for(RequestContext) const override {
         SearchCapabilities support;
-        support.supported_filters.emplace(info().id, TextCapabilities{});
+        support.supported_filters.emplace(info().id, SearchFilterInfo{.capabilities = TextCapabilities{}});
         co_return support;
     }
     CatalogLatestCapabilities latest_capabilities_for() const noexcept override {

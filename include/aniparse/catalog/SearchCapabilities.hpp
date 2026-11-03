@@ -73,8 +73,21 @@ struct CheckmarkCapabilities {
 using SearchFilterCapabilities = std::variant<TextCapabilities, IntIntervalCapabilities,
     TimeIntervalCapabilities, RelativeTimeIntervalCapabilities, SelectionCapabilities,
     CheckmarkCapabilities>;
+/**
+ * @brief Display metadata and supported operations for one filter axis.
+ *
+ * The enclosing map key is the stable identity sent in queries. The name is
+ * presentation only, in the source's language. Sources must provide a nonempty
+ * name for custom keys; canonical keys may omit it. Consumers prefer their own
+ * localized title for canonical keys and use this name for custom filters.
+ */
+struct SearchFilterInfo {
+    std::string name; ///< Source-provided axis title, independent of option names.
+    SearchFilterCapabilities capabilities; ///< Accepted values and operations.
+};
+
 /// Supported filters keyed by stable parser-owned filter keys.
-using SupportedSearchFilters = std::map<std::string, SearchFilterCapabilities, std::less<>>;
+using SupportedSearchFilters = std::map<std::string, SearchFilterInfo, std::less<>>;
 
 /**
  * @brief Search filters, ordering and autocomplete capabilities of an endpoint.

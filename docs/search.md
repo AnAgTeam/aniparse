@@ -1,9 +1,17 @@
 # Search capabilities and request values
 
 `SearchCapabilities` describes an endpoint. Its `supported_filters` map contains
-`SearchFilterCapabilities`: text, integer/absolute/relative interval, selection,
-or boolean capabilities. The request is independent: `SearchRequestQuery` holds
+`SearchFilterInfo`: a source-provided `name` and `SearchFilterCapabilities`
+(text, integer/absolute/relative interval, selection, or boolean capabilities). The request is independent: `SearchRequestQuery` holds
 search text and a `SearchFilters` map of `SearchFilterValue` values.
+
+Filter keys remain stable query identities. Names are presentation only, independent
+of option labels. A custom filter must supply a nonempty name in the source's
+language. Canonical `search_keys` may omit the name; consumers prefer their own
+localized canonical title, then the source name, then a readable key as a defensive
+fallback. This lets a CLI display source names without forcing an app to use the
+source's language for canonical headings. Names never enter query validation or
+serialization of selected values.
 
 The pure value declarations live in `catalog/SearchQuery.hpp`; capability
 metadata lives in `catalog/SearchCapabilities.hpp`. Existing callers can include
@@ -16,7 +24,7 @@ SelectionCapabilities genres{
     .supports_exclusion = true,
 };
 SearchCapabilities capabilities{
-    .supported_filters = {{"genre", std::move(genres)}},
+    .supported_filters = {{"genre", {.name = "Genres", .capabilities = std::move(genres)}}},
 };
 SearchRequestQuery query{
     .filters = {{"genre", SelectionValue{
