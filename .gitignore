@@ -12,3 +12,6 @@
 
 # macOS Finder metadata.
 .DS_Store
+
+# JetBrains project settings
+.idea/
