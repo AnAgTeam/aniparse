@@ -293,6 +293,9 @@ struct VideoSource {
 	/// A poster/still for this option, when the source offers one distinct from
 	/// the anime's previews.
 	std::optional<Image> poster;
+	/// Sidecar timed text; alternative formats may represent the same translation.
+	/// Resource requests use this source's headers, as do its video streams.
+	std::vector<VideoSubtitle> subtitles;
 };
 
 } // namespace aniparse

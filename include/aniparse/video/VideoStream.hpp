@@ -44,4 +44,17 @@ struct VideoStream {
 	bool is_hls = false;
 };
 
+/**
+ * @brief A source-provided sidecar subtitle file, separate from the video bytes.
+ *
+ * Consumers select a supported format; alternative files may describe the same
+ * translation in different formats. Empty labels or languages remain unspecified.
+ */
+struct VideoSubtitle {
+	std::string url;      ///< Absolute subtitle file URL.
+	std::string format;   ///< Source format token, such as vtt or ass.
+	std::string label;    ///< Source-provided display label, when available.
+	std::string language; ///< Language code, when explicitly stated by the source.
+};
+
 } // namespace aniparse
