@@ -219,6 +219,50 @@ cmake --build build
 
 ---
 
+## Embedded parser artwork
+
+`CatalogInfo::icon` and `ParserInfo::banner` hold an optional `ImageResource`: either the usual
+remote `Image` descriptor or an `EmbeddedImage` with encoded file bytes and a MIME
+type. Embedded views borrow immutable static storage for the lifetime of the
+loaded library. No HTTP client, filesystem access, decoding, or byte copying is
+needed to read them.
+
+After adding the core as a subdirectory or finding its installed CMake package,
+use the shared build helper in the target that owns the artwork:
+
+```cmake
+aniparse_embed_images(
+    TARGET example-parsers
+    ROOT assets
+    NAMESPACE example::artwork
+    FUNCTION find_image
+    HEADER example/Artwork.hpp
+    FILES icon.webp banner.png
+)
+```
+
+The named header declares the lookup; its definition is generated in the build
+directory, so keep only the original image files in version control:
+
+```cpp
+#pragma once
+#include <aniparse/media/ImageResource.hpp>
+#include <optional>
+#include <string_view>
+
+namespace example::artwork {
+std::optional<aniparse::EmbeddedImage> find_image(std::string_view key);
+}
+```
+
+Keys are paths relative to `ROOT`, such as `icon.webp`; unknown keys return
+`std::nullopt`. Assign a known image with `catalog.icon = *artwork::find_image("icon.webp")`.
+The helper requires host Python 3.8+ only when invoked, tracks the listed files
+as build dependencies, and preserves their encoded bytes. It supports PNG, WebP,
+JPEG, GIF, AVIF, SVG, and ICO by extension; consumers choose which formats they can
+decode. Empty files, unsupported extensions, duplicate keys, and paths outside
+the resource root are rejected. List additions and removals explicitly in CMake.
+
 ## Project structure
 
 ```

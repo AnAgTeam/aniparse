@@ -4,7 +4,9 @@
 #pragma once
 #include "aniparse/source/Capabilities.hpp"
 #include "aniparse/source/ProfileInfo.hpp"
+#include "aniparse/media/ImageResource.hpp"
 
+#include <optional>
 #include <string>
 
 namespace aniparse {
@@ -51,6 +53,7 @@ struct CatalogInfo {
 	CatalogKinds kinds; ///< Formats this catalog may return; UI metadata only.
 	CatalogCapabilities capabilities; ///< Capabilities of this particular catalog.
 	std::string profile_id{default_profile_id}; ///< Request profile selected through Parser::make_profile.
+	std::optional<ImageResource> icon; ///< Catalog logo; absent when no artwork is supplied.
 };
 
 } // namespace aniparse

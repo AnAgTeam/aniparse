@@ -4,7 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/media/Image.hpp"
+#include "aniparse/media/ImageResource.hpp"
 
 #include <optional>
 #include <string>
@@ -18,10 +18,10 @@ namespace aniparse {
  * is the витрина, returned by value so an enumeration over ParserStore::parsers()
  * can build a source picker with one call per parser and no capability payload.
  *
- * Icon/banner reuse @ref Image (the one media model bridged outward) so the app
- * has a uniform fetch descriptor; for a statically bundled parser the url is an
- * asset reference and headers are empty. Both are optional — a parser may ship no
- * artwork.
+ * The optional banner uses @ref ImageResource — either an Image fetch descriptor
+ * or an EmbeddedImage borrowing compiled-in bytes. Catalog logos belong to
+ * CatalogInfo::icon, so independently selectable catalogs can have distinct
+ * artwork. Reading this metadata never fetches or decodes an image.
  */
 struct ParserInfo {
 	/// Human-facing display name (e.g. "AniList"). May differ from @ref Parser::identifier.
@@ -29,10 +29,8 @@ struct ParserInfo {
 	/// Primary content language as a BCP-47 tag (e.g. "en", "ru-ru"); "multi" or
 	/// empty when the source is not tied to one language.
 	std::string primary_language;
-	/// Square logo / favicon, when the source has one.
-	std::optional<Image> icon;
 	/// Wide hero/preview artwork, when the source has one.
-	std::optional<Image> banner;
+	std::optional<ImageResource> banner;
 };
 
 } // namespace aniparse

@@ -31,6 +31,7 @@ project(aniparse VERSION 0.1 LANGUAGES CXX)
 # Defines CMAKE_INSTALL_INCLUDEDIR / LIBDIR / BINDIR used by the install() rules
 # below; without it a fresh configure fails with "install ... no DESTINATION".
 include(GNUInstallDirs)
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/AniparseEmbedImages.cmake")
 
 # ---- SHARED VS STATIC
 #
@@ -86,6 +87,7 @@ find_package(tl-expected CONFIG REQUIRED)
 
 add_library(aniparse ${aniparse_library_type}
     "include/aniparse/media/Image.hpp"
+    "include/aniparse/media/ImageResource.hpp"
     "include/aniparse/media/Tags.hpp"
     "include/aniparse/media/Identity.hpp"
     "include/aniparse/media/RelatedWork.hpp"
@@ -351,6 +353,8 @@ configure_file("aniparse.pc.in" "aniparse.pc" @ONLY)
 set_target_properties(aniparse PROPERTIES PREFIX "lib")
 
 install(DIRECTORY "include/" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(FILES cmake/AniparseEmbedImages.cmake cmake/embed_images.py
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/aniparse")
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/aniparse.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 
 install(TARGETS aniparse aniparse-models

@@ -63,7 +63,7 @@ endif()
 # Each value header is compiled in isolation with only the model target's include
 # directory. Runtime/transport libraries and their third-party include paths are absent.
 set(aniparse_model_headers
-    media/Image.hpp media/Tags.hpp media/Identity.hpp media/RelatedWork.hpp
+    media/Image.hpp media/ImageResource.hpp media/Tags.hpp media/Identity.hpp media/RelatedWork.hpp
     media/Publication.hpp media/Rating.hpp media/Community.hpp media/MediaInfo.hpp
     media/Text.hpp media/Ids.hpp media/Serialization.hpp
     manga/MangaInfo.hpp anime/AnimeInfo.hpp images/ImageContainerInfo.hpp
