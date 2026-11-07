@@ -113,6 +113,14 @@ public:
 	 * and asks it which catalog the URL selects (suggest_catalog). The caller
 	 * then selects make_catalog_getter(*route.catalog_id) and calls parse_url(route.url).
 	 * An image-container route without catalog_id uses make_images_getter().
+	 *
+	 * Routing is local: the URL need not use the provider's current canonical domain
+	 * or resolve over the network. A registered legacy domain works while the parser
+	 * still recognizes the URL format. The receiving getter interprets its identity;
+	 * subsequent requests use the destination's own profile and endpoint settings.
+	 * The caller must not reuse the originating parser's profile or manufacture a
+	 * serialized handle for the destination parser. A canonical domain alone cannot
+	 * compensate for an unsupported URL format.
 	 * @param url The URL to route
 	 * @return The route, or nullopt if the URL is unparsable or no parser handles it
 	 */

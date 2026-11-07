@@ -23,6 +23,11 @@ namespace aniparse {
  * never mixes its own values in. Same discipline as Tag::ref. Across parsers the
  * blob means nothing: it is addressed only together with the parser that produced
  * it, so a consumer persisting one persists the parser's identifier beside it.
+ * Compatible catalogs of that same parser may share the format; catalog identity
+ * must still be retained when needed to select the restoring root getter. This
+ * does not permit another parser to construct or interpret the blob, even when
+ * both parsers address the same site. Use a destination URL or external identity
+ * for a cross-parser reference, and let the receiving parser create its own getter.
  *
  * @warning **This is a durable format, not a transit token.** A consumer's stored
  *          library holds these blobs for as long as the item is in it — years, and
