@@ -38,7 +38,7 @@ RequestTask<PageResults<RelatedWork>> MangaGetter::load_related(
 	co_return make_request_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get related info");
 }
 
-RequestTask<PageResults<std::unique_ptr<MangaGetter>>> MangaGetter::load_similar(
+RequestTask<PageResults<Recommendation<MangaGetter>>> MangaGetter::load_similar(
     RequestContext,
     GetFilters) const {
 	co_return make_request_error(RequestErrorCode::NotImplemented, "The parser's MangaGetter cannot get similar info");

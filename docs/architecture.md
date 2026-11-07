@@ -9,7 +9,7 @@ services. Include the specific header for the type you use.
 | `manga/` | Manga metadata, chapters, translations and access | `MangaInfo.hpp`, `MangaGetter.hpp` |
 | `anime/` | Anime metadata, episodes, tracks and access | `AnimeInfo.hpp`, `AnimeGetter.hpp` |
 | `images/` | Image containers and browsing | `ImageContainerInfo.hpp`, `ImagesGetter.hpp` |
-| `media/` | Shared value models and resource transformations | `MediaInfo.hpp`, `Image.hpp`, `RelatedWork.hpp`, `ResourceAdapter.hpp` |
+| `media/` | Shared value models and resource transformations | `MediaInfo.hpp`, `Image.hpp`, `RelatedWork.hpp`, `Recommendation.hpp`, `ResourceAdapter.hpp` |
 | `catalog/` | Content catalogs, cards, search and pagination | `CatalogInfo.hpp`, `CatalogRootGetter.hpp`, `CatalogEntry.hpp`, `SearchQuery.hpp`, `SearchCapabilities.hpp` |
 | `source/` | Parser registration, profiles and authentication | `Parser.hpp`, `ParserInfo.hpp`, `ParserProfile.hpp`, `ParserConfig.hpp` |
 | `source/overrides/` | Signed remote replacements for source settings | `SourceOverrides.hpp`, `ProfileOverrides.hpp`, `SourceOverridesManager.hpp` |

@@ -5,6 +5,7 @@
  */
 #pragma once
 #include "aniparse/media/RelatedWork.hpp"
+#include "aniparse/media/Recommendation.hpp"
 // The data model half; this header adds the getter interfaces on top of it.
 #include "aniparse/manga/MangaInfo.hpp"
 
@@ -172,16 +173,17 @@ struct MangaGetter {
 
 	/**
 	 * @brief The manga the source recommends as similar to this one, paginated via
-	 * @p filters, each as a ready-to-use getter. The recommendation axis, as opposed
+	 * @p filters, each with a ready-to-use getter and an optional source explanation.
+	 * The recommendation axis, as opposed
 	 * to the declared relations of load_related(). By default reports
 	 * RequestErrorCode::NotImplemented.
 	 * @param context Client to perform HTTP requests
 	 * @param filters Pagination (and any supported ordering) for the list
-	 * @return A page of getters for the similar manga, or a RequestError
+	 * @return A page of recommendations for the similar manga, or a RequestError
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.
 	 */
-	virtual RequestTask<PageResults<std::unique_ptr<MangaGetter>>> load_similar(
+	virtual RequestTask<PageResults<Recommendation<MangaGetter>>> load_similar(
 	    RequestContext context,
 	    GetFilters filters) const;
 

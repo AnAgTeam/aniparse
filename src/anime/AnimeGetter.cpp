@@ -39,7 +39,7 @@ RequestTask<PageResults<RelatedWork>> AnimeGetter::load_related(
 	co_return make_request_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot get related info");
 }
 
-RequestTask<PageResults<std::unique_ptr<AnimeGetter>>> AnimeGetter::load_similar(
+RequestTask<PageResults<Recommendation<AnimeGetter>>> AnimeGetter::load_similar(
     RequestContext,
     GetFilters) const {
 	co_return make_request_error(RequestErrorCode::NotImplemented, "The parser's AnimeGetter cannot get similar info");

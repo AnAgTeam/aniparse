@@ -42,6 +42,7 @@ independent of catalog selection; image-container routes have no catalog ID.
 | Create contexts and authenticate | [Request profiles](request-profiles.md) |
 | Build and validate search filters | [Search](search.md) |
 | Preserve work identity and restore getters | [Architecture](architecture.md), aniparse::SerializedGetterData |
+| Read recommendations and their source explanations | aniparse::Recommendation, aniparse::MangaGetter::load_similar, aniparse::AnimeGetter::load_similar |
 | Follow related works across sources | aniparse::RelatedWork, aniparse::ParserStore::route_url |
 | Apply signed source settings | aniparse::SourceOverridesManager |
 | Embed artwork | aniparse::ImageResource, README build helper |
@@ -88,8 +89,8 @@ Unsupported optional getter operations return `RequestErrorCode::NotImplemented`
 Runnable examples live in the
 [`examples/`](https://github.com/AnAgTeam/aniparse/tree/nightly/examples)
 directory: a minimal manga parser to copy, independent examples of authentication,
-mixed catalogs, typed filters and related URL routing, offline HTML parsing, and
-live networking. See the examples README for build targets and run commands.
+mixed catalogs, typed filters, recommendations and related URL routing, offline
+HTML parsing, and live networking. See the examples README for build targets and run commands.
 
 Complete, real parsers live in
 [aniparse-parsers](https://github.com/AnAgTeam/aniparse-parsers) — sources built
