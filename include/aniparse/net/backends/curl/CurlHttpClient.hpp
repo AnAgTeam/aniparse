@@ -14,6 +14,7 @@
 
 #include <asyncnet/AsyncSession.hpp>
 #include <asyncnet/Requestor.hpp>
+#include <atomic>
 
 #include "aniparse/utility/AtomicSharedPtr.hpp"
 #include "aniparse/net/backends/curl/CurlCookieJar.hpp"
@@ -65,7 +66,9 @@ private:
 	std::shared_ptr<asyncnet::Requestor> core_;
 	AtomicSharedPtr<asyncnet::AsyncSession> session_;
 
-	uint32_t max_retries_;
+	// Independent retry budget: concurrent requests may observe the old or new value.
+	// It does not publish other state, so relaxed loads and stores are sufficient.
+	std::atomic<uint32_t> max_retries_;
 };
 } // namespace aniparse
 

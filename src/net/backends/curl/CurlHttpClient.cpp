@@ -190,7 +190,7 @@ RequestTask<HttpResponse> CurlHttpClient::do_request(ConfiguredGetRequest config
 
 	// Okay to hold references (ref to frame variable), because we will wait for next coroutine end
 	try {
-		asyncnet::Response response = co_await with_retry(max_retries_, [&get_request, &session]() {
+		asyncnet::Response response = co_await with_retry(max_retries_.load(std::memory_order_relaxed), [&get_request, &session]() {
 			return session->perform_request(get_request);
 		});
 		co_return to_response_data(std::move(response));
@@ -214,7 +214,7 @@ RequestTask<HttpResponse> CurlHttpClient::do_request(ConfiguredPostRequest confi
 
 	// Okay to hold references (ref to frame variable), because we will wait for next coroutine end
 	try {
-		asyncnet::Response response = co_await with_retry(max_retries_, [&post_request, &session]() {
+		asyncnet::Response response = co_await with_retry(max_retries_.load(std::memory_order_relaxed), [&post_request, &session]() {
 			return session->perform_request(post_request);
 		});
 		co_return to_response_data(std::move(response));
@@ -241,7 +241,7 @@ RequestTask<HttpResponse> CurlHttpClient::do_request(ConfiguredPostMultipartRequ
 
 	// Okay to hold references (ref to frame variable), because we will wait for next coroutine end
 	try {
-		asyncnet::Response response = co_await with_retry(max_retries_, [&multipart_request, &session]() {
+		asyncnet::Response response = co_await with_retry(max_retries_.load(std::memory_order_relaxed), [&multipart_request, &session]() {
 			return session->perform_request(multipart_request);
 		});
 		co_return to_response_data(std::move(response));
@@ -250,8 +250,6 @@ RequestTask<HttpResponse> CurlHttpClient::do_request(ConfiguredPostMultipartRequ
 	}
 }
 
-// TODO: maybe make max_retries atomic (or who even cares?)
-// Worst case: request uses old retry count. Not a big deal.
 void CurlHttpClient::apply_client_config(HttpClientConfig new_config) {
 	auto new_session = std::make_shared<asyncnet::AsyncSession>(core_);
 	new_session->set_timeout(new_config.timeout);
@@ -269,7 +267,7 @@ void CurlHttpClient::apply_client_config(HttpClientConfig new_config) {
 	new_session->set_option<curlpp::options::SslVerifyPeer>(new_config.flags.has(http_client_flags::verify_ssl));
 
 	session_.store(new_session);
-	max_retries_ = new_config.max_retries.value_or(default_max_retries);
+	max_retries_.store(new_config.max_retries.value_or(default_max_retries), std::memory_order_relaxed);
 }
 
 std::shared_ptr<CookieJar> CurlHttpClient::make_cookie_jar() {
