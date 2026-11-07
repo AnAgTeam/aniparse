@@ -8,7 +8,7 @@
 #include "aniparse/media/MediaInfo.hpp"
 #include "aniparse/media/RelatedWork.hpp"
 #include "aniparse/net/Headers.hpp"
-#include "aniparse/video/VideoStream.hpp"
+#include "aniparse/video/VideoPlaybackInfo.hpp"
 
 #include <chrono>
 #include <memory>
@@ -250,7 +250,7 @@ struct AnimeEpisodeInfo {
  * of the manga domain — an episode returns several of these (team × player ×
  * quality-set), and the user picks one.
  *
- * The @ref streams may be empty until the source is resolved: a native player
+ * The @ref VideoPlaybackInfo::streams may be empty until the source is resolved: a native player
  * returns them directly, an external embed only yields a @ref stream_url that
  * resolve_video() must expand. @see AnimeGetter::episode_sources, resolve_video
  */
@@ -271,31 +271,15 @@ struct VideoSource {
 	std::optional<AnimeTrackID> track;
 
 	/// For an external embed: the page/embed URL resolve_video() expands into
-	/// @ref streams. Empty when @ref streams is already populated (native player).
+	/// @ref VideoPlaybackInfo::streams. Empty when @ref VideoPlaybackInfo::streams is already populated (native player).
 	std::string stream_url;
-	/// The quality ladder, most-preferred first. Populated directly by a native
-	/// player, or by resolve_video() for an embed.
-	std::vector<VideoStream> streams;
-
-	/// Extra request headers the consumer must send when fetching any of this
-	/// source's @ref streams — a Referer/UA/cookies bundle some hosts require to
-	/// serve the media (a bare GET is refused otherwise). Shared across the
-	/// ladder; empty when the plain URLs suffice. @see Image::headers
-	Headers headers;
-
-	/// Optional parser-provided policy for preparing and transforming every
-	/// resource reached from this source's selected stream. Null when the player
-	/// may fetch a stream URL directly. The immutable adapter is shared across the
-	/// quality ladder and any concurrent segment loads; its definition is kept out
-	/// of this data-model header to preserve the bridge-safe include boundary.
-	std::shared_ptr<const ResourceAdapter> adapter;
+	/// Direct media resources and their access policy.
+	VideoPlaybackInfo playback;
 
 	/// A poster/still for this option, when the source offers one distinct from
 	/// the anime's previews.
 	std::optional<Image> poster;
-	/// Sidecar timed text; alternative formats may represent the same translation.
-	/// Resource requests use this source's headers, as do its video streams.
-	std::vector<VideoSubtitle> subtitles;
+
 };
 
 } // namespace aniparse

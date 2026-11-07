@@ -8,7 +8,7 @@
 #include "aniparse/source/Parser.hpp"
 #include "aniparse/detail/DomainStore.hpp"
 #include "aniparse/net/ParsedUrl.hpp"
-#include "aniparse/video/VideoStream.hpp"
+#include "aniparse/video/VideoPlaybackInfo.hpp"
 
 #include <map>
 #include <memory>
@@ -38,23 +38,16 @@ struct VideoExtractionLink {
 /**
  * @brief Result of extracting one external video URL.
  *
- * An extractor either fills @ref streams with directly playable formats, adds
+ * An extractor either fills @ref VideoPlaybackInfo::streams with directly playable formats, adds
  * @ref links for another extraction step, or does both when it can offer a
  * native format and delegated alternatives. Headers apply to every direct
  * stream in this result.
  */
 struct VideoExtraction {
-	/// Directly playable formats, in the extractor's preferred order.
-	std::vector<VideoStream> streams;
+	/// Direct media resources and their access policy.
+	VideoPlaybackInfo playback;
 	/// Deferred URLs to resolve through VideoExtractorStore.
 	std::vector<VideoExtractionLink> links;
-	/// Headers required when requesting any entry of @ref streams.
-	Headers headers;
-	/// Optional policy for preparing and transforming every resource fetched from
-	/// @ref streams. When a delegated extraction resolves to direct streams, the
-	/// store composes this policy with the delegated result's policy so both
-	/// source layers stay in effect.
-	std::shared_ptr<const ResourceAdapter> adapter;
 };
 
 /**
@@ -126,7 +119,7 @@ struct VideoExtractor {
 	 * @param url A URL previously accepted by valid_for_url().
 	 * @return A VideoExtraction containing direct streams, delegated links, or
 	 * both; a RequestError if the URL cannot be resolved.
-	 * @note A direct stream's request headers belong in VideoExtraction::headers.
+	 * @note A direct stream's request headers belong in VideoPlaybackInfo::headers.
 	 */
 	virtual RequestTask<VideoExtraction> extract(RequestContext context, ParsedUrl url) const = 0;
 	/**

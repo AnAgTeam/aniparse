@@ -183,7 +183,7 @@ struct AnimeGetter {
 	 * this yields a single VideoSource; on an episode-first source @p track is
 	 * nullopt and this yields one VideoSource per available player, each
 	 * self-describing. A source backed by a native player arrives with its
-	 * @ref VideoSource::streams filled; one backed by an external embed may need
+	 * @ref VideoSource::playback filled; one backed by an external embed may need
 	 * @ref resolve_video to expand its stream_url first.
 	 * The episode is identified by round-trip: pass AnimeEpisodeInfo::ref().
 	 *
@@ -210,7 +210,7 @@ struct AnimeGetter {
 	 * A native-player source needs nothing — the default is an identity
 	 * passthrough that returns @p source unchanged. A source whose media sits
 	 * behind an external embed overrides this to turn its @ref
-	 * VideoSource::stream_url into a populated @ref VideoSource::streams. The
+	 * VideoSource::stream_url into a populated @ref VideoSource::playback. The
 	 * seam mirrors the images fetch_page override; the embed/decrypt paths live
 	 * in the parser that needs them, not in this neutral interface.
 	 *
@@ -220,7 +220,7 @@ struct AnimeGetter {
 	 * deciding per source whether resolution is needed.
 	 * @param context Client to perform HTTP requests
 	 * @param source A source obtained from load_episode_sources(), moved in
-	 * @return The same source with @ref VideoSource::streams playable, or a
+	 * @return The same source with @ref VideoSource::playback playable, or a
 	 *         RequestError when the embed could not be expanded
 	 * @note Keep this object alive until the returned task completes or is destroyed;
 	 *       the task does not retain its receiver.

@@ -173,16 +173,16 @@ CORO_TEST_CASE("VideoExtractorStore extract routes and returns the extractor's s
 	using namespace aniparse;
 	VideoExtractorStore store;
 	auto direct = std::make_shared<TestExtractor>("Direct", "video.example", "/watch/");
-	direct->outcome.streams.push_back(test_stream("https://cdn.video.example/1/master.m3u8", 720));
-	direct->outcome.headers.set("Referer", "https://video.example/");
+	direct->outcome.playback.streams.push_back(test_stream("https://cdn.video.example/1/master.m3u8", 720));
+	direct->outcome.playback.headers.set("Referer", "https://video.example/");
 	store.add_extractor(std::move(direct));
 
 	auto result = co_await store.extract(make_context(), "https://video.example/watch/1");
 	REQUIRE(result);
-	REQUIRE(result->streams.size() == 1);
-	CHECK(result->streams.front().url == "https://cdn.video.example/1/master.m3u8");
-	CHECK(result->streams.front().quality == 720);
-	CHECK(result->headers.get("Referer") == "https://video.example/");
+	REQUIRE(result->playback.streams.size() == 1);
+	CHECK(result->playback.streams.front().url == "https://cdn.video.example/1/master.m3u8");
+	CHECK(result->playback.streams.front().quality == 720);
+	CHECK(result->playback.headers.get("Referer") == "https://video.example/");
 }
 
 CORO_TEST_CASE("VideoExtractorStore extract chases delegated links to the first streams") {
@@ -190,22 +190,25 @@ CORO_TEST_CASE("VideoExtractorStore extract chases delegated links to the first 
 	VideoExtractorStore store;
 	auto first = std::make_shared<TestExtractor>("First", "first.example", "/");
 	first->outcome.links.push_back({ .url = "https://second.example/video", .extractor_id = std::nullopt });
-	first->outcome.headers.set("Referer", "https://first.example/");
-	first->outcome.adapter = std::make_shared<NoopAdapter>();
+	first->outcome.playback.headers.set("Referer", "https://first.example/");
+	first->outcome.playback.adapter = std::make_shared<NoopAdapter>();
+	first->outcome.playback.subtitles.push_back({.url = "https://first.example/captions.ass", .format = "ass"});
 	auto second = std::make_shared<TestExtractor>("Second", "second.example", "/");
-	second->outcome.streams.push_back(test_stream("https://cdn.second.example/v/720.mp4", 720));
-	second->outcome.headers.set("Origin", "https://second.example");
-	second->outcome.adapter = std::make_shared<NoopAdapter>();
+	second->outcome.playback.streams.push_back(test_stream("https://cdn.second.example/v/720.mp4", 720));
+	second->outcome.playback.headers.set("Origin", "https://second.example");
+	second->outcome.playback.adapter = std::make_shared<NoopAdapter>();
 	store.add_extractor(std::move(first));
 	store.add_extractor(std::move(second));
 
 	auto result = co_await store.extract(make_context(), "https://first.example/embed");
 	REQUIRE(result);
-	REQUIRE(result->streams.size() == 1);
-	CHECK(result->streams.front().url == "https://cdn.second.example/v/720.mp4");
-	CHECK(result->headers.get("Referer") == "https://first.example/");
-	CHECK(result->headers.get("Origin") == "https://second.example");
-	CHECK(result->adapter);
+	REQUIRE(result->playback.streams.size() == 1);
+	CHECK(result->playback.streams.front().url == "https://cdn.second.example/v/720.mp4");
+	CHECK(result->playback.headers.get("Referer") == "https://first.example/");
+	CHECK(result->playback.headers.get("Origin") == "https://second.example");
+	REQUIRE(result->playback.subtitles.size() == 1);
+	CHECK(result->playback.subtitles.front().format == "ass");
+	CHECK(result->playback.adapter);
 }
 
 CORO_TEST_CASE("VideoExtractorStore extract caps a delegated-link cycle") {
@@ -219,7 +222,7 @@ CORO_TEST_CASE("VideoExtractorStore extract caps a delegated-link cycle") {
 	// no streams, but the not-followed delegated link stays visible.
 	auto result = co_await store.extract(make_context(), "https://loop.example/start", 2);
 	REQUIRE(result);
-	CHECK(result->streams.empty());
+	CHECK(result->playback.streams.empty());
 	REQUIRE(result->links.size() == 1);
 	CHECK(result->links.front().url == "https://loop.example/next");
 }
@@ -236,4 +239,26 @@ CORO_TEST_CASE("VideoExtractorStore extract rejects unrouted and malformed URLs"
 	auto malformed = co_await store.extract(make_context(), "not a url");
 	REQUIRE_FALSE(malformed);
 	CHECK(malformed.error().code == RequestErrorCode::InvalidArguments);
+}
+
+TEST_CASE("Playback resources preserve source subtitles and prioritize extraction headers") {
+    using namespace aniparse;
+    VideoPlaybackInfo source;
+    source.subtitles = {{.url = "https://media.example/shared.vtt", .format = "vtt"},
+                        {.url = "https://media.example/source.ass", .format = "ass"}};
+    source.headers.set("Referer", "https://source.example/");
+    source.headers.set("Origin", "https://source.example");
+    source.adapter = std::make_shared<NoopAdapter>();
+    VideoPlaybackInfo extracted;
+    extracted.streams.push_back(test_stream("https://media.example/video.m3u8", 720));
+    extracted.subtitles = {{.url = "https://media.example/shared.vtt", .format = "vtt", .label = "Resolved"}};
+    extracted.headers.set("Referer", "https://player.example/");
+    extracted.merge_fallback(std::move(source));
+    REQUIRE(extracted.subtitles.size() == 2);
+    CHECK(extracted.subtitles[0].label == "Resolved");
+    CHECK(extracted.subtitles[1].format == "ass");
+    CHECK(extracted.headers.get("Referer") == "https://player.example/");
+    CHECK(extracted.headers.get("Origin") == "https://source.example");
+    CHECK(extracted.adapter);
+    CHECK(extracted.streams.size() == 1);
 }

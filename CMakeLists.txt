@@ -145,6 +145,7 @@ add_library(aniparse ${aniparse_library_type}
 	"include/aniparse/source/ParserInfo.hpp"
 	"include/aniparse/catalog/ParseResult.hpp"
 	"include/aniparse/video/VideoStream.hpp"
+	"src/video/VideoPlaybackInfo.cpp" "include/aniparse/video/VideoPlaybackInfo.hpp"
 	"include/aniparse/net/Request.hpp"
 	"include/aniparse/catalog/Pagination.hpp"
 	"include/aniparse/utility/Result.hpp"

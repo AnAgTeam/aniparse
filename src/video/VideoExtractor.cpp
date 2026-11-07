@@ -35,7 +35,7 @@ RequestTask<VideoExtraction> extract_routed(
 	if (!extraction) {
 		co_return unexpected(std::move(extraction.error()));
 	}
-	if (!extraction->streams.empty() || extraction->links.empty()) {
+	if (!extraction->playback.streams.empty() || extraction->links.empty()) {
 		co_return std::move(*extraction);
 	}
 	if (depth >= max_depth) {
@@ -49,12 +49,11 @@ RequestTask<VideoExtraction> extract_routed(
 			continue;
 		}
 		auto followed = co_await extract_routed(context, std::move(*next), store, depth + 1, max_depth);
-		if (followed && !followed->streams.empty()) {
+		if (followed && !followed->playback.streams.empty()) {
 			// A delegated stream passes through the current extractor before it
 			// reaches the delegated provider. Preserve that nesting for both the
 			// transport defaults and any byte/resource transformations.
-			followed->headers.merge_missing(extraction->headers);
-			followed->adapter = ResourceAdapter::compose({ extraction->adapter, followed->adapter });
+			followed->playback.merge_fallback(std::move(extraction->playback));
 			co_return std::move(*followed);
 		}
 	}
