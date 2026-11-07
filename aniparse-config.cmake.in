@@ -9,6 +9,7 @@ include(CMakeFindDependencyMacro)
 # CONFIG mode explicitly: these come from vcpkg (or any BoostConfig/fmtConfig
 # provider) and sidesteps the removed FindBoost module (CMP0167) in the
 # consumer's project.
+find_dependency(asyncnet CONFIG COMPONENTS task)
 find_dependency(fmt CONFIG)
 find_dependency(Boost CONFIG COMPONENTS json regex)
 find_dependency(tl-expected CONFIG)

@@ -8,8 +8,8 @@ option(ANIPARSE_BUILD_BENCHMARKS "build microbenchmarks, Default=OFF" OFF)
 option(ANIPARSE_ANALYZE "MSVC /analyze lifetime gate (slow; CI leg)" OFF)
 
 # HTTP backends. The parse core is backend-neutral (talks only to HttpClient);
-# each backend is an optional concrete implementation. libasyncnet (hence curl) is
-# pulled in only for the curl backend. With no backend the core still builds — the
+# each backend is an optional concrete implementation. The asyncnet task headers
+# are always available; its HTTP client is built only for the curl backend. With no backend the core still builds — the
 # consumer injects its own HttpClient.
 option(ANIPARSE_CURL_BACKEND "build the curl HTTP backend (pulls libasyncnet + curl)" ON)
 option(ANIPARSE_NSURLSESSION_BACKEND "build the NSURLSession HTTP backend (Apple)" OFF)
@@ -74,10 +74,9 @@ endif()
 # ---- FIND DEPENDENCIES
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
-# asyncnet (and thus curl) is a dependency of the curl backend only.
-if (ANIPARSE_CURL_BACKEND)
-	find_package(asyncnet REQUIRED)
-endif()
+# Task headers are backend-independent; only curl needs the asyncnet client.
+set(ASYNCNET_BUILD_CLIENT ${ANIPARSE_CURL_BACKEND})
+find_package(asyncnet REQUIRED)
 find_package(lexbor REQUIRED)
 find_package(fmt REQUIRED)
 find_package(Boost REQUIRED COMPONENTS json regex)
@@ -116,8 +115,6 @@ add_library(aniparse ${aniparse_library_type}
 	"include/aniparse/detail/DomainStore.hpp"
 	# src/net/backends/curl/CurlHttpClient.cpp (the curl backend) is added conditionally below.
 	"include/aniparse/net/CancellingTask.hpp"
-	"include/aniparse/net/vendor/CancellingTask.hpp"
-	"include/aniparse/net/vendor/Concepts.hpp"
 	"src/runtime/RequestContext.cpp" "include/aniparse/runtime/RequestContext.hpp"
 	"include/aniparse/net/CookieJar.hpp"
 	# Backend-neutral on purpose: the Netscape codec and the cookie store are shared
@@ -259,6 +256,7 @@ target_include_directories(aniparse PUBLIC
 # install does not ship, so it stays build-only.
 target_link_libraries(aniparse PUBLIC
     aniparse-models
+    asyncnet::task
 	fmt::fmt
 	Boost::json
 	Boost::regex
@@ -269,9 +267,7 @@ target_link_libraries(aniparse PUBLIC
 # ---- HTTP BACKENDS (optional, concrete HttpClient implementations)
 
 if (ANIPARSE_CURL_BACKEND)
-	# The macro is PUBLIC on purpose: the public header net/CancellingTask.hpp
-	# selects the real asyncnet task type vs the vendored copy off it, so every
-	# consumer TU must see the same value as the library was built with.
+	# Consumers need the same backend declarations as the library.
 	target_compile_definitions(aniparse PUBLIC ANIPARSE_CURL_BACKEND=1)
 	target_sources(aniparse PRIVATE
         "src/net/backends/curl/CurlHttpClient.cpp"
@@ -298,9 +294,9 @@ endif()
 
 # ---- COROUTINE RUNTIME (libcoro)
 
-# libcoro is the coroutine runtime behind NetworkTask/CancellingTask and the
-# coroutine helpers (utility/Coroutines.hpp) — needed regardless of the HTTP
-# backend. The curl backend already pulls it in transitively via asyncnet, so
+# libcoro supplies coroutine helpers (utility/Coroutines.hpp), independently
+# of the standard-library-only asyncnet task. The curl backend already pulls
+# libcoro in transitively via asyncnet, so
 # add it directly only when that backend is off; adding it twice would redefine
 # the target.
 if (NOT ANIPARSE_CURL_BACKEND)
