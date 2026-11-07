@@ -5,6 +5,7 @@
  */
 #pragma once
 #include "aniparse/utility/AtomicSharedPtr.hpp"
+#include "aniparse/detail/PublishedFlight.hpp"
 
 #include <memory>
 #include <utility>
@@ -26,6 +27,10 @@ namespace aniparse {
  * where one is visible without the other. A @p seed passed at construction is
  * served by @ref snapshot before the first publish, so readers get a usable value
  * on a cold cache (e.g. a default image host) instead of nothing.
+ *
+ * Concurrent ensure_published calls share one in-flight fetch and its outcome.
+ * A failed attempt leaves the cell cold; a later call can start a new attempt.
+ * Direct publish remains an independent snapshot replacement.
  *
  * @tparam T Payload type; snapshots are shared as `std::shared_ptr<const T>`.
  *
@@ -83,6 +88,34 @@ public:
 	void publish(std::shared_ptr<const T> value) const { cell_.store(std::move(value)); }
 
 private:
+    template <class U, class Fetch>
+    friend RequestTask<std::shared_ptr<const U>>
+    ensure_published(std::shared_ptr<const Republishable<U>> cell, Fetch fetch);
+
+    using Flight = detail::PublishedFlight<T>;
+
+    // The leader owns the fetch in its coroutine frame. Destruction or an
+    // exception must release its slot and wake every surviving waiter.
+    struct FlightOwner {
+        const Republishable& cell;
+        std::shared_ptr<Flight> flight;
+        bool active = true;
+
+        ~FlightOwner() { if (active) finish(); }
+        void finish() noexcept {
+            auto retained = flight;
+            {
+                std::lock_guard lock(cell.flight_mutex_);
+                cell.flight_.reset();
+            }
+            active = false;
+            retained->complete();
+        }
+    };
+
+    mutable std::mutex flight_mutex_;
+    mutable std::shared_ptr<Flight> flight_;
+
 	/// Immutable after construction: served before the first publish. A plain
 	/// member (not a cell) — never written once built, so concurrent reads are safe.
 	std::shared_ptr<const T> seed_;

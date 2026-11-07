@@ -18,7 +18,7 @@ namespace aniparse {
  * On a warm cell (@ref Republishable::is_fetched) returns the snapshot without
  * fetching. On a cold cell runs @p fetch; on success publishes and returns the
  * new snapshot; on failure propagates the error and leaves the cell cold so a
- * later call retries.
+ * later call retries. Concurrent callers share that attempt, including its error.
  *
  * @tparam T     Payload type of the cell.
  * @param cell   Cache handle, taken by value so it is kept alive for the whole
@@ -30,22 +30,57 @@ namespace aniparse {
  *               methods (request / request_json / ...) must be declared `mutable`,
  *               since its captured context copy is otherwise const.
  *
- * @note Cache-first is best-effort, not once-only: two callers racing a cold cell
- *       may both fetch and both publish (the last store wins). Correct, just
- *       redundant work — add an in-flight guard if strict single-fetch is needed.
+ * @note The first caller owns the fetch and supplies its cancellation context.
+ *       Cancelling or destroying that caller ends the shared attempt; destruction
+ *       wakes its waiters with Cancelled. A waiting caller's stop request does not
+ *       cancel the fetch; it is observed when the attempt completes. Destroying a
+ *       suspended waiter unregisters it. As with other tasks, callers must not
+ *       destroy a task concurrently with its execution or resumption.
+ * @note Fetch exceptions are rethrown to all participants. Waiters resume on the
+ *       completing thread, without blocking a worker thread while waiting.
  */
 template <class T, class Fetch>
 RequestTask<std::shared_ptr<const T>>
 ensure_published(std::shared_ptr<const Republishable<T>> cell, Fetch fetch) {
-	if (cell->is_fetched()) {
-		co_return cell->snapshot();
-	}
-	Result<std::shared_ptr<const T>> built = co_await fetch();
-	if (!built) {
-		co_return unexpected(std::move(built.error()));
-	}
-	cell->publish(*built);
-	co_return *built;
+    auto stop = co_await asyncnet::awaitables::get_stop_token;
+    if (stop.stop_requested()) {
+        co_return make_request_error(RequestErrorCode::Cancelled, "Cache load cancelled");
+    }
+
+    using Flight = typename Republishable<T>::Flight;
+    std::shared_ptr<Flight> flight;
+    bool leader = false;
+    {
+        std::lock_guard lock(cell->flight_mutex_);
+        if (cell->is_fetched()) co_return cell->snapshot();
+        if (!cell->flight_) {
+            cell->flight_ = std::make_shared<Flight>();
+            leader = true;
+        }
+        flight = cell->flight_;
+    }
+
+    if (leader) {
+        typename Republishable<T>::FlightOwner owner{*cell, flight};
+        try {
+            auto built = co_await fetch();
+            if (stop.stop_requested()) {
+                flight->outcome = make_request_error(RequestErrorCode::Cancelled, "Cache load cancelled");
+            } else {
+                flight->outcome = std::move(built);
+                if (flight->outcome) cell->publish(*flight->outcome);
+            }
+        } catch (...) {
+            flight->exception = std::current_exception();
+        }
+        owner.finish();
+    } else {
+        co_await typename Flight::Waiter{flight};
+    }
+    if (stop.stop_requested()) {
+        co_return make_request_error(RequestErrorCode::Cancelled, "Cache load cancelled");
+    }
+    co_return flight->result();
 }
 
 /**
@@ -59,14 +94,9 @@ ensure_published(std::shared_ptr<const Republishable<T>> cell, Fetch fetch) {
 template <class T, class Fetch>
 RequestTask<std::shared_ptr<const T>>
 ensure_published_or_seed(std::shared_ptr<const Republishable<T>> cell, Fetch fetch) {
-	if (cell->is_fetched()) {
-		co_return cell->snapshot();
-	}
-	if (Result<std::shared_ptr<const T>> built = co_await fetch()) {
-		cell->publish(*built);
-		co_return *built;
-	}
-	co_return cell->snapshot(); // seed; cell stays cold -> a later call retries
+    auto result = co_await ensure_published(cell, std::move(fetch));
+    if (result) co_return *result;
+    co_return cell->snapshot(); // Seed fallback does not mark a failed attempt fetched.
 }
 
 } // namespace aniparse

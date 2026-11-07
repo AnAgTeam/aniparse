@@ -101,6 +101,7 @@ add_library(aniparse ${aniparse_library_type}
     "include/aniparse/runtime/RuntimeServices.hpp"
     "include/aniparse/runtime/Logger.hpp"
     "src/net/HttpClient.cpp" "src/source/AltLink.cpp"
+    "src/cache/PublishedFlight.cpp" "include/aniparse/detail/PublishedFlight.hpp"
 
     "src/source/ParserProfile.cpp" "include/aniparse/source/ParserProfile.hpp"
 	"src/catalog/CatalogRootGetter.cpp" "include/aniparse/catalog/CatalogRootGetter.hpp"
