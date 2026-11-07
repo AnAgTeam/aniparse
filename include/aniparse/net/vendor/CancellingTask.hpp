@@ -11,6 +11,8 @@
 #include <coroutine>
 #include <variant>
 #include <stop_token>
+#include <atomic>
+#include <memory>
 
 /*
 	Big thanks to developers of libcoro!! <3
@@ -32,6 +34,13 @@ namespace asyncnet {
 	class NetworkTask;
 
 	namespace detail {
+		// Independent progress observations, not a transactional read/total pair.
+		// Shared by borrowing the parent promise's counters when tasks are connected.
+		struct NetworkProgress {
+			std::atomic<long long> read_bytes{0};
+			std::atomic<long long> total_bytes{0};
+		};
+
 		struct GetStopTokenTag {
 			explicit GetStopTokenTag() = default;
 		};
@@ -43,6 +52,10 @@ namespace asyncnet {
 		struct GetPromiseTag {
 			explicit GetPromiseTag() = default;
 		};
+
+		inline constexpr GetPromiseTag get_promise{};
+
+		struct GetSelfTag {};
 
 		class BasicPromise {
 		public:
@@ -138,6 +151,25 @@ namespace asyncnet {
 		};
 	};
 
+	/**
+	 * @brief Opaque borrowed context for connecting network tasks.
+	 * @note Copying this handle does not extend the originating coroutine's lifetime.
+	 *       The originating coroutine and the owner of its inherited progress
+	 *       counters must outlive tasks connected through this context.
+	 */
+	class TaskContext {
+	public:
+		TaskContext(const TaskContext&) noexcept = default;
+		TaskContext& operator=(const TaskContext&) noexcept = default;
+
+	private:
+		template<typename> friend class NetworkPromise;
+		TaskContext(std::stop_source& stop, detail::NetworkProgress& progress) noexcept
+		    : stop_(std::addressof(stop)), progress_(std::addressof(progress)) {}
+		std::stop_source* stop_;
+		detail::NetworkProgress* progress_;
+	};
+
 	template<typename T>
 	class Promise : public detail::BasicPromise {
 	public:
@@ -198,7 +230,7 @@ namespace asyncnet {
 				std::rethrow_exception(std::get<std::exception_ptr>(storage_));
 			}
 			else {
-				throw std::runtime_error("Promise value is unsetted");
+				throw std::runtime_error("Cannot retrieve the task result before a value or exception has been stored");
 			}
 		}
 
@@ -215,7 +247,7 @@ namespace asyncnet {
 				std::rethrow_exception(std::get<std::exception_ptr>(storage_));
 			}
 			else {
-				throw std::runtime_error("Promise value is unsetted");
+				throw std::runtime_error("Cannot retrieve the task result before a value or exception has been stored");
 			}
 		}
 
@@ -232,7 +264,7 @@ namespace asyncnet {
 				std::rethrow_exception(std::get<std::exception_ptr>(storage_));
 			}
 			else {
-				throw std::runtime_error("Promise value is unsetted");
+				throw std::runtime_error("Cannot retrieve the task result before a value or exception has been stored");
 			}
 		}
 
@@ -288,80 +320,69 @@ namespace asyncnet {
 			return Awaiter{ {}, *this };
 		}
 
+
+		auto await_transform(detail::GetSelfTag) noexcept {
+			struct Awaiter : std::suspend_never {
+				TaskContext context;
+				TaskContext await_resume() const noexcept { return context; }
+			};
+			return Awaiter{ {}, TaskContext(this->stop_source(), *progress_) };
+		}
+
 		using Promise<T>::await_transform;
 
-		const long long& read_bytes() const {
-			if (std::holds_alternative<long long>(read_bytes_count_)) {
-				return std::get<long long>(read_bytes_count_);
-			}
-			return *std::get<long long*>(read_bytes_count_);
+		/**
+		 * @brief Read the independently published number of received bytes.
+		 * @return An atomic snapshot; not synchronized with total_bytes().
+		 */
+		long long read_bytes() const noexcept {
+			return progress_->read_bytes.load(std::memory_order_relaxed);
 		}
 
-		const long long& total_bytes() const {
-			if (std::holds_alternative<long long>(total_bytes_count_)) {
-				return std::get<long long>(total_bytes_count_);
-			}
-			return *std::get<long long*>(total_bytes_count_);
+		/**
+		 * @brief Read the independently published expected transfer size.
+		 * @return An atomic snapshot; zero may mean the size is unknown.
+		 */
+		long long total_bytes() const noexcept {
+			return progress_->total_bytes.load(std::memory_order_relaxed);
 		}
 
-		long long& read_bytes() {
-			if (std::holds_alternative<long long>(read_bytes_count_)) {
-				return std::get<long long>(read_bytes_count_);
-			}
-			return *std::get<long long*>(read_bytes_count_);
+		void set_read_bytes(long long value) noexcept {
+			progress_->read_bytes.store(value, std::memory_order_relaxed);
 		}
 
-		long long& total_bytes() {
-			if (std::holds_alternative<long long>(total_bytes_count_)) {
-				return std::get<long long>(total_bytes_count_);
-			}
-			return *std::get<long long*>(total_bytes_count_);
-		}
-
-		void set_read_bytes(long long new_read_bytes) {
-			if (std::holds_alternative<long long>(read_bytes_count_)) {
-				std::get<long long>(read_bytes_count_) = new_read_bytes;
-			}
-			else {
-				*std::get<long long*>(read_bytes_count_) = new_read_bytes;
-			}
-		}
-
-		void set_total_bytes(long long new_total_bytes) {
-			if (std::holds_alternative<long long>(total_bytes_count_)) {
-				std::get<long long>(total_bytes_count_) = new_total_bytes;
-			}
-			else {
-				*std::get<long long*>(total_bytes_count_) = new_total_bytes;
-			}
+		void set_total_bytes(long long value) noexcept {
+			progress_->total_bytes.store(value, std::memory_order_relaxed);
 		}
 
 		NetworkTask<T> get_return_object() noexcept;
 
 		/**
-		 * Adopt @p other_promise's stop state and progress counters, so a stop requested
+		 * Adopt @p context's stop state and progress counters, so a stop requested
 		 * on it reaches this coroutine and the bytes it reads are reported there.
-		 * @param other_promise The promise to get connected to
+		 * @param context Borrowed context obtained from awaitables::get_self.
+		 * @note The parent owning the shared counters must outlive this task. Connect
+		 *       before publishing the task to progress observers; connecting is not atomic.
 		 * @warning Call this BEFORE the task is started. Connecting REPLACES this task's
-		 *          stop_source with @p other_promise's, so whatever was read from the old
+		 *          stop_source with @p context's, so whatever was read from the old
 		 *          one is silently orphaned: a stop_token the body already took still names
 		 *          the discarded source and can never fire, and a request_stop() issued
 		 *          before connecting dies with it. Neither is diagnosed — cancellation
 		 *          simply stops arriving. Reading the token from inside the body is safe:
 		 *          a body only runs once its awaiter has connected it.
 		 */
-		template<typename U>
-		void connect_with(NetworkPromise<U>& other_promise) {
-			this->set_stop_source(other_promise.stop_source());
+		void connect_with(TaskContext context) {
+			this->set_stop_source(*context.stop_);
 
-			read_bytes_count_ = std::addressof(other_promise.read_bytes());
-			total_bytes_count_ = std::addressof(other_promise.total_bytes());
+			progress_ = context.progress_;
 		}
 
 	private:
 
-		std::variant<long long, long long*> read_bytes_count_;
-		std::variant<long long, long long*> total_bytes_count_;
+		detail::NetworkProgress owned_progress_;
+		// Established before execution; connecting is not concurrent with observers.
+		// The parent owning these counters must outlive this connected task.
+		detail::NetworkProgress* progress_ = &owned_progress_;
 	};
 
 	namespace awaitables {
@@ -371,20 +392,19 @@ namespace asyncnet {
 		static constexpr detail::GetStopTokenTag get_stop_token{};
 
 		/**
-		 * co_await this field inside CancellingTask coroutine to get @ref std::stop_source with stop-state copied
+		 * @brief Obtain a copy of the current stop source without suspending.
+		 * The copy shares cancellation state: requesting stop affects all connected
+		 * tasks. Use get_stop_token when only observing cancellation.
+		 * @note Available inside CancellingTask and NetworkTask coroutines.
 		 */
 		static constexpr detail::GetStopSourceTag get_stop_source{};
 
 		/**
-		* co_await this to get promise from withing the coroutine
-		*/
-		static constexpr detail::GetPromiseTag get_promise{};
+		 * @brief Obtain an opaque context for connect_with() without suspending.
+		 * @note The returned handle borrows the current coroutine; it does not own it.
+		 */
+		inline constexpr detail::GetSelfTag get_self{};
 
-		/**
-		* co_await this to get handle, that can be used to connect network tasks
-		* the type is implementation defined
-		*/
-		static constexpr detail::GetPromiseTag get_self = get_promise;
 	}
 
 	/**
@@ -549,7 +569,8 @@ namespace asyncnet {
 
 			template<concepts::derived_from_template<NetworkPromise> U>
 			std::coroutine_handle<> await_suspend(std::coroutine_handle<U> coroutine) noexcept {
-				coroutine_.promise().connect_with(coroutine.promise());
+				coroutine_.promise().connect_with(
+				    coroutine.promise().await_transform(detail::GetSelfTag{}).await_resume());
 				coroutine_.promise().continuation(coroutine);
 				return coroutine_;
 			}
@@ -603,42 +624,40 @@ namespace asyncnet {
 		}
 
 		/**
-		 * Connect two NetworkPromise.
-		 * Then, if passed coroutine requests stop, sets information, it will be setted for this coroutine too.
-		 * Used when you need to wrap NetworkTask object inside another coroutine, but want to use stop and info.
-		 * @param other_promise The promise to get connected to
+		 * @brief Share cancellation and progress with a borrowed task context.
+		 * Useful when a non-network coroutine wrapper prevents automatic connection.
+		 * @note The context's originating coroutine and progress owner must outlive this task.
+		 * @param context Borrowed context obtained from awaitables::get_self.
 		 * @return Reference to this NetworkTask
 		 * @warning Call this BEFORE the task is started. Connecting REPLACES this task's
-		 *          stop_source with @p other_promise's, so whatever was read from the old
+		 *          stop_source with @p context's, so whatever was read from the old
 		 *          one is silently orphaned: a stop_token the body already took still names
 		 *          the discarded source and can never fire, and a request_stop() issued
 		 *          before connecting dies with it. Neither is diagnosed — cancellation
 		 *          simply stops arriving. Reading the token from inside the body is safe:
 		 *          a body only runs once its awaiter has connected it.
 		 */
-		template<concepts::derived_from_template<NetworkPromise> U>
-		NetworkTask& connect_with(U& other_promise) & {
-			this->promise().connect_with(other_promise);
+		NetworkTask& connect_with(TaskContext context) & {
+			this->promise().connect_with(context);
 			return *this;
 		}
 
 		/**
-		 * Connect two NetworkPromise.
-		 * Then, if passed coroutine requests stop, sets information, it will be setted for this coroutine.
-		 * Used when you need to wrap NetworkTask object inside another coroutine, but want to use stop and info.
-		 * @param other_promise The promise to get connected to
+		 * @brief Share cancellation and progress with a borrowed task context.
+		 * Useful when a non-network coroutine wrapper prevents automatic connection.
+		 * @note The context's originating coroutine and progress owner must outlive this task.
+		 * @param context Borrowed context obtained from awaitables::get_self.
 		 * @return R-value reference to this NetworkTask
 		 * @warning Call this BEFORE the task is started. Connecting REPLACES this task's
-		 *          stop_source with @p other_promise's, so whatever was read from the old
+		 *          stop_source with @p context's, so whatever was read from the old
 		 *          one is silently orphaned: a stop_token the body already took still names
 		 *          the discarded source and can never fire, and a request_stop() issued
 		 *          before connecting dies with it. Neither is diagnosed — cancellation
 		 *          simply stops arriving. Reading the token from inside the body is safe:
 		 *          a body only runs once its awaiter has connected it.
 		 */
-		template<concepts::derived_from_template<NetworkPromise> U>
-		NetworkTask&& connect_with(U& other_promise) && {
-			this->promise().connect_with(other_promise);
+		NetworkTask&& connect_with(TaskContext context) && {
+			this->promise().connect_with(context);
 			return std::move(*this);
 		}
 

@@ -552,7 +552,7 @@ namespace {
 NetworkTask<Result<HttpResponse>> perform_once(NSURLSession* session,
                                                  NSURLRequest* request,
                                                  std::shared_ptr<CookieJar> jar) {
-	asyncnet::NetworkPromise<Result<HttpResponse>>& promise = co_await asyncnet::awaitables::get_self;
+	auto& promise = co_await asyncnet::detail::get_promise;
 
 	if (promise.stop_requested()) {
 		co_return make_request_error(RequestErrorCode::Cancelled, "request cancelled");
@@ -598,11 +598,11 @@ NetworkTask<Result<HttpResponse>> perform_with_retry(NSURLSession* session,
                                                        NSURLRequest* request,
                                                        std::shared_ptr<CookieJar> jar,
                                                        uint32_t max_retries) {
-	asyncnet::NetworkPromise<Result<HttpResponse>>& promise = co_await asyncnet::awaitables::get_self;
+	auto context = co_await asyncnet::awaitables::get_self;
 
 	Result<HttpResponse> result = make_request_error(RequestErrorCode::NetworkError, "no attempt made");
 	for (uint32_t attempt = 0; attempt <= max_retries; ++attempt) {
-		result = co_await perform_once(session, request, jar).connect_with(promise);
+		result = co_await perform_once(session, request, jar).connect_with(context);
 		if (result || result.error().code == RequestErrorCode::Cancelled) {
 			co_return result;
 		}
@@ -629,10 +629,10 @@ RequestTask<HttpResponse> UrlSessionHttpClient::do_request(ConfiguredGetRequest 
 	apply_headers(request, configured.request.headers);
 	apply_cookies(request, configured.request.headers, configured.cookies);
 
-	asyncnet::NetworkPromise<Result<HttpResponse>>& promise = co_await asyncnet::awaitables::get_self;
+	auto context = co_await asyncnet::awaitables::get_self;
 	co_return co_await perform_with_retry(impl_->current_session(), request, configured.cookies,
 	                                      impl_->max_retries.load())
-	    .connect_with(promise);
+	    .connect_with(context);
 }
 
 RequestTask<HttpResponse> UrlSessionHttpClient::do_request(ConfiguredPostRequest configured) {
@@ -654,10 +654,10 @@ RequestTask<HttpResponse> UrlSessionHttpClient::do_request(ConfiguredPostRequest
 	apply_headers(request, configured.request.headers);
 	apply_cookies(request, configured.request.headers, configured.cookies);
 
-	asyncnet::NetworkPromise<Result<HttpResponse>>& promise = co_await asyncnet::awaitables::get_self;
+	auto context = co_await asyncnet::awaitables::get_self;
 	co_return co_await perform_with_retry(impl_->current_session(), request, configured.cookies,
 	                                      impl_->max_retries.load())
-	    .connect_with(promise);
+	    .connect_with(context);
 }
 
 RequestTask<HttpResponse> UrlSessionHttpClient::do_request(ConfiguredPostMultipartRequest configured) {
@@ -685,10 +685,10 @@ RequestTask<HttpResponse> UrlSessionHttpClient::do_request(ConfiguredPostMultipa
 	apply_headers(request, configured.request.headers);
 	apply_cookies(request, configured.request.headers, configured.cookies);
 
-	asyncnet::NetworkPromise<Result<HttpResponse>>& promise = co_await asyncnet::awaitables::get_self;
+	auto context = co_await asyncnet::awaitables::get_self;
 	co_return co_await perform_with_retry(impl_->current_session(), request, configured.cookies,
 	                                      impl_->max_retries.load())
-	    .connect_with(promise);
+	    .connect_with(context);
 }
 } // namespace aniparse
 
