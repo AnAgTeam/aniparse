@@ -5,7 +5,7 @@
   <img src="assets/lockup-light.svg" alt="aniparse" width="280">
 </picture>
 
-**C++ library for parsing anime, manga, images and video**
+**A common asynchronous C++20 API for anime, manga and image sources**
 
 ![C++20](https://img.shields.io/badge/C%2B%2B-20-blue?logo=cplusplus&logoColor=white)
 ![CMake](https://img.shields.io/badge/build-CMake-orange?logo=cmake&logoColor=white)
@@ -23,114 +23,137 @@
 
 ---
 
-## About
+## What is AniParse?
 
-**aniparse** is a static C++20 library for parsing content from various sources. The primary focus is anime and manga; fetching images and video is also supported.
+**AniParse is a C++20 library with a common asynchronous API for anime, manga
+and image sources.** It gives reader, media-browser and catalog applications a
+shared way to search sources, load metadata, open chapter pages or resolve video
+sources, according to what each source supports.
 
-It is built on an asynchronous network layer ([libasyncnet](https://github.com/AnAgTeam/libasyncnet)) and the [lexbor](https://github.com/lexbor/lexbor) HTML parser, so it processes web pages efficiently without heavy dependencies.
+An application works with catalogs, profiles and getters; each source implementation
+translates those operations into its own HTTP requests and HTML or JSON parsing.
+The core provides the interfaces, value models, request execution and reusable
+parsing tools. It builds as a static library by default, with an optional shared build.
 
----
+### Core and source implementations
 
-## Design principles
+This repository contains the **library**, reusable engines and runnable examples.
+Concrete sources are connected separately. [aniparse-parsers](https://github.com/AnAgTeam/aniparse-parsers)
+provides implementations including AniList and Kitsu, which serve metadata rather
+than chapter images or video. Linking the core alone does not register those sources.
+Applications select which implementations to compile and register.
 
-**All-in-one, by design.** Search, routing, catalog, cookies and selectors are content-neutral — a new content type is a getter, not a fork. Manga leads today; anime and booru are what the design invites, not a rewrite away.
+**Contents**
 
-**A new parser is quick to write.** A source is a copy of the [skeleton](examples/example_manga_parser.cpp), a handful of CSS selectors and a fixture test — networking, routing, errors and cookies are the library's job.
+- [What is AniParse?](#what-is-aniparse)
+- [What you can build with it](#what-you-can-build-with-it)
+- [First steps](#first-steps)
+- [Learn the API](#learn-the-api)
+- [Requirements](#requirements)
+- [Building](#building)
+- [Installation](#installation)
+- [Examples](#examples)
+- [Embedded parser artwork](#embedded-parser-artwork)
+- [Project structure](#project-structure)
+- [Contributing](#contributing)
+- [License](#license)
 
-**Fragile things are data.** Sites break, and the library is designed around that: domains, mirrors and selectors belong in refreshable data, not code — so fixing a source shouldn't mean shipping a new binary.
+## What you can build with it
 
-**Native, down to iOS.** A static C++20 library with no runtime behind it — no Node, no Python, no Android bindings. The HTTP backend is swappable (curl and Apple NSURLSession), and the public API is designed with Swift interop in mind.
+- **Browse and search catalogs.** Typed filter descriptions, sorting, autocomplete
+  and item-offset pagination. Manga and anime catalogs can be separate or mixed;
+  a card owns a manga getter, an anime getter, or both when the source groups them.
+- **Load work data and media.** Titles, covers, publication information, chapters
+  and pages, episodes and video sources, plus optional comments, ratings,
+  related works and recommendations. Availability depends on the source.
+- **Route links and restore saved works.** Resolve URLs to their parser and catalog;
+  serialize getter identity for later restoration. Opaque IDs, external identities
+  and cross-media relations let consumers preserve the distinctions between works.
+- **Keep request profiles and accounts separate.** Catalogs select profiles for
+  defaults, mirrors and authentication. Multiple catalogs may share a profile;
+  the consumer explicitly chooses which authenticated context to use.
+- **Choose the HTTP backend.** Curl and Apple NSURLSession implement the same
+  `HttpClient` interface. Cancellable coroutine operations return `Result<T>`
+  errors; HTML/DOM, CSS selectors and JSON helpers support source implementations.
+- **Apply signed source settings.** `SourceOverrides` can replace declared domains,
+  profile origins, selectors and patterns without replacing compiled parser code.
+  Protocol or parsing-logic changes still require an implementation update.
 
----
+Capability metadata helps consumers choose available actions; callers must still
+handle `NotImplemented` and request failures. The library carries external IDs
+and relations; decisions about matching or merging records belong to the consumer.
+Future work and current boundaries are tracked in [docs/TODO.md](docs/TODO.md).
 
-## Features
+## First steps
 
-- Parsing anime titles (releases, metadata)
-- Parsing manga
-- Fetching images and video
-- One getter, many facets: search and autocomplete, chapter/page reading, translations, comments, ratings and user lists, related and similar — a source implements what it has and declares the rest through capability flags, so a consumer never spends a failed request to discover a gap
-- Cross-source identity: a work carries the ids it holds on other sites, so the same title joins across parsers — and a declared relation can point across media (a manga to its anime adaptation), without pretending one getter can open the other
-- Backend-neutral HTTP client: curl today, but the request/response contract is not tied to it — the backend is a build-time choice (`ANIPARSE_CURL_BACKEND`), with an optional NSURLSession backend for Apple (`ANIPARSE_NSURLSESSION_BACKEND`)
-- Typed `request_html` / `request_json` requests with exception-free error handling (`tl::expected`)
-- Built-in HTML/DOM parser, CSS selectors and a JS parser powered by `lexbor`
-- URL routing: resolve the owning parser and catalog; the returned catalog entry carries manga, anime, or both
-- Signed `SourceOverrides`: domains, profile mirrors and selectors refresh at runtime from a verified settings snapshot — a broken source is fixed without shipping a new binary
-- Parser cookies and authentication, `multipart/form-data`, arbitrary HTTP methods
-- No code from the network: only data ever crosses the wire, never executable code — parsers are compiled in, so there's no downloadable-extension attack surface
+**To use existing sources in an application**, start with
+[aniparse-parsers](https://github.com/AnAgTeam/aniparse-parsers) and its
+[live example](https://github.com/AnAgTeam/aniparse-parsers/blob/nightly/examples/example.cpp).
+Select a catalog, create its profile context, then search and load the returned getters.
 
----
-
-## Roadmap
-
-- [x] Backend-neutral HTTP contract (curl today, swappable backend)
-- [x] Typed `request_html` / `request_json` with exception-free errors
-- [x] CSS selectors and JS variable extraction
-- [x] First full-featured manga source
-- [x] URL routing with independent parser, catalog and profile identities
-- [x] Signed source overrides for domains, profile mirrors and volatile selectors
-- [ ] Configurable request retries
-- [ ] HTTP caching (ETag)
-- [ ] Streaming downloads for large media
-- [x] NSURLSession HTTP backend for iOS/macOS
-- [ ] Standalone Swift bindings
-- [x] [Parser-writing guide](https://github.com/AnAgTeam/aniparse-parsers/blob/nightly/docs/WRITING-A-PARSER.md) and runnable offline skeleton
-- [ ] vcpkg port
-
-Want one of these sooner — or a source we don't cover yet? Issues and PRs are welcome.
-
----
-
-## Quick start
-
-Fetch a page and parse it as HTML — the client is backend-neutral, a parser never sees curl:
+This fragment runs inside a `RequestTask` coroutine. `parser` is an owning handle
+to a registered source, `catalog_id` comes from its `catalogs()` list, and `client`
+is your HTTP backend. It prints listing previews and loads the first manga's
+full description. Include `Parser.hpp` from `aniparse/source/`,
+`CatalogRootGetter.hpp` from `aniparse/catalog/`, and `<iostream>`.
 
 ```cpp
-#include <aniparse/net/backends/curl/CurlHttpClient.hpp>
-#include <aniparse/source/ParserProfile.hpp>
-#include <coro/sync_wait.hpp>
-#include <iostream>
+auto root = parser->make_catalog_getter(catalog_id);
+if (!root) {
+    co_return make_request_error(RequestErrorCode::InvalidArguments, "Unknown catalog");
+}
+auto profile = parser->make_profile(root->info().profile_id);
+auto context = profile->make_context(client);
 
-using namespace aniparse;
+auto page = co_await root->search(context, {.query = "Frieren"}, {.limit = 10});
+if (!page) co_return unexpected(std::move(page.error()));
 
-int main() {
-    auto client = std::make_shared<CurlHttpClient>();
-    auto ctx = ParserProfile("Example", {"main", "Example"}).make_context(client);
-
-    // request_html: fetch + status check + parse, all in one expected value.
-    auto page = coro::sync_wait(ctx.request_html(GetRequest{ .url = "https://example.com" }));
-    if (page) {
-        std::cout << page->title() << '\n';
+for (auto& row : page->results) {
+    if (auto preview = row.item.preview_info()) {
+        std::cout << preview->title << '\n';
+    }
+    if (row.item.manga) {
+        auto details = co_await row.item.manga->load_info(context);
+        if (!details) co_return unexpected(std::move(details.error()));
+        std::cout << details->common.description.text << '\n';
+        break;
     }
 }
 ```
 
-To write your own source, copy the [minimal parser](examples/example_manga_parser.cpp) and its [fixture getter](examples/ExampleManga.hpp), then replace the static data with your source implementation. See all [examples](#examples) below.
+Previews are local data; `load_info()` may make a request. The root, profile and
+item remain alive through their member coroutine calls. An anime getter uses
+`load_info()` in the same way; a mixed catalog need not return manga in every page.
 
----
+**To write a source**, copy the [minimal manga parser](examples/example_manga_parser.cpp)
+and its [fixture getter](examples/ExampleManga.hpp). It is an offline metadata source:
+start with the source declaration and getter contract, then add the features your
+source actually supports. Separate [examples](examples/README.md) cover login,
+mixed catalogs, filters, related URLs, HTML parsing and HTTP requests.
 
-## How it works
+With the [dependencies](#requirements) installed, run the minimal example from
+this repository's root (the executable examples need C++23):
 
-A **`Parser`** registers the domains it handles and exposes getters (e.g. `CatalogRootGetter`) that fetch and parse content. Getters run through a **`RequestContext`**, which carries the parser's config, cookies and logger and sits on top of a backend-neutral **`HttpClient`** (curl or NSURLSession). Parsers only ever touch neutral request/response types — so the HTTP backend can be replaced without changing a single parser.
+```sh
+cmake -S . -B build -DANIPARSE_BUILD_EXAMPLES=ON -DANIPARSE_CURL_BACKEND=OFF
+cmake --build build --target aniparse-example-manga-parser
+./build/examples/aniparse-example-manga-parser
+```
 
----
+Multi-configuration generators may add a directory such as `Debug` before the
+executable name. This example makes no network requests and prints a fixture
+work, restores its saved identity and checks the end of its listing.
 
-## API guide
+## Learn the API
 
-Start with the [architecture](docs/architecture.md), then read about
-[content catalogs and mixed-media cards](docs/mixed-catalog.md),
-[request profiles and authentication](docs/request-profiles.md), and
-[typed search capabilities](docs/search.md). The [API reference entry page](docs/mainpage.md)
-links the main interfaces.
-
-Factories return fresh owned getters and profiles. Keep a member coroutine's
-receiver alive until its task finishes or is destroyed. Persist parser ID,
-catalog ID, media kind and the parser-owned serialized blob together; IDs are
-opaque strings. `RelatedWork` can carry a same-parser handle, external IDs, or a
-`destination_url` opened using the destination catalog's own profile.
-
-Core and model headers use C++20: `Result` is based on `tl::expected`, and
-constexpr flag operations use `BitsetLite`. The `aniparse::models` CMake target
-exposes value headers without linking the transport/runtime stack.
+| Task | Guide |
+|---|---|
+| Understand the objects and ownership boundaries | [Architecture](docs/architecture.md) |
+| Select catalogs and interpret mixed cards | [Content catalogs](docs/mixed-catalog.md) |
+| Create contexts, authenticate and persist credentials | [Request profiles](docs/request-profiles.md) |
+| Present filters and validate queries | [Search](docs/search.md) |
+| Implement a source | [Parser-writing guide](https://github.com/AnAgTeam/aniparse-parsers/blob/nightly/docs/WRITING-A-PARSER.md) |
+| Find public interfaces | [API reference entry page](docs/mainpage.md) |
 
 ## Requirements
 
