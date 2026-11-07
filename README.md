@@ -39,7 +39,7 @@ It is built on an asynchronous network layer ([libasyncnet](https://github.com/A
 
 **Fragile things are data.** Sites break, and the library is designed around that: domains, mirrors and selectors belong in refreshable data, not code — so fixing a source shouldn't mean shipping a new binary.
 
-**Native, down to iOS.** A static C++20 library with no runtime behind it — no Node, no Python, no Android bindings. The HTTP backend is swappable (NSURLSession-ready), and the public API is designed with Swift interop in mind.
+**Native, down to iOS.** A static C++20 library with no runtime behind it — no Node, no Python, no Android bindings. The HTTP backend is swappable (curl and Apple NSURLSession), and the public API is designed with Swift interop in mind.
 
 ---
 
@@ -50,11 +50,11 @@ It is built on an asynchronous network layer ([libasyncnet](https://github.com/A
 - Fetching images and video
 - One getter, many facets: search and autocomplete, chapter/page reading, translations, comments, ratings and user lists, related and similar — a source implements what it has and declares the rest through capability flags, so a consumer never spends a failed request to discover a gap
 - Cross-source identity: a work carries the ids it holds on other sites, so the same title joins across parsers — and a declared relation can point across media (a manga to its anime adaptation), without pretending one getter can open the other
-- Backend-neutral HTTP client: curl today, but the request/response contract is not tied to it — the backend is a build-time choice (`ANIPARSE_CURL_BACKEND`), with an NSURLSession backend for Apple in progress
+- Backend-neutral HTTP client: curl today, but the request/response contract is not tied to it — the backend is a build-time choice (`ANIPARSE_CURL_BACKEND`), with an optional NSURLSession backend for Apple (`ANIPARSE_NSURLSESSION_BACKEND`)
 - Typed `request_html` / `request_json` requests with exception-free error handling (`tl::expected`)
 - Built-in HTML/DOM parser, CSS selectors and a JS parser powered by `lexbor`
-- URL routing: hand the library a link and it resolves the owning parser and the content type
-- Data-driven catalog: domains, mirrors and selectors refresh at runtime from a signed catalog — a broken source is fixed without shipping a new binary
+- URL routing: resolve the owning parser and catalog; the returned catalog entry carries manga, anime, or both
+- Signed `SourceOverrides`: domains, profile mirrors and selectors refresh at runtime from a verified settings snapshot — a broken source is fixed without shipping a new binary
 - Parser cookies and authentication, `multipart/form-data`, arbitrary HTTP methods
 - No code from the network: only data ever crosses the wire, never executable code — parsers are compiled in, so there's no downloadable-extension attack surface
 
@@ -66,13 +66,14 @@ It is built on an asynchronous network layer ([libasyncnet](https://github.com/A
 - [x] Typed `request_html` / `request_json` with exception-free errors
 - [x] CSS selectors and JS variable extraction
 - [x] First full-featured manga source
-- [x] URL routing: hand the library a link, get the right parser and content type
-- [x] Data-driven source catalog: domain mirrors and volatile selectors refresh at runtime from a signed catalog — broken sources get fixed without an app release
+- [x] URL routing with independent parser, catalog and profile identities
+- [x] Signed source overrides for domains, profile mirrors and volatile selectors
 - [ ] Configurable request retries
 - [ ] HTTP caching (ETag)
 - [ ] Streaming downloads for large media
-- [ ] Swift bindings and an NSURLSession backend for iOS/macOS
-- [ ] Parser-writing tutorial: a new source in an evening
+- [x] NSURLSession HTTP backend for iOS/macOS
+- [ ] Standalone Swift bindings
+- [x] [Parser-writing guide](https://github.com/AnAgTeam/aniparse-parsers/blob/nightly/docs/WRITING-A-PARSER.md) and runnable offline skeleton
 - [ ] vcpkg port
 
 Want one of these sooner — or a source we don't cover yet? Issues and PRs are welcome.
@@ -87,7 +88,7 @@ Fetch a page and parse it as HTML — the client is backend-neutral, a parser ne
 #include <aniparse/net/backends/curl/CurlHttpClient.hpp>
 #include <aniparse/source/ParserProfile.hpp>
 #include <coro/sync_wait.hpp>
-#include <print>
+#include <iostream>
 
 using namespace aniparse;
 
@@ -98,35 +99,52 @@ int main() {
     // request_html: fetch + status check + parse, all in one expected value.
     auto page = coro::sync_wait(ctx.request_html(GetRequest{ .url = "https://example.com" }));
     if (page) {
-        std::println("{}", page->title());
+        std::cout << page->title() << '\n';
     }
 }
 ```
 
-To write your own source, copy the [parser skeleton](examples/example_manga_parser.cpp) and fill in the getters. See all [examples](#examples) below.
+To write your own source, copy the [minimal parser](examples/example_manga_parser.cpp) and its [fixture getter](examples/ExampleManga.hpp), then replace the static data with your source implementation. See all [examples](#examples) below.
 
 ---
 
 ## How it works
 
-A **`Parser`** registers the domains it handles and exposes getters (e.g. `CatalogRootGetter`) that fetch and parse content. Getters run through a **`RequestContext`**, which carries the parser's config, cookies and logger and sits on top of a backend-neutral **`HttpClient`** (curl today). Parsers only ever touch neutral request/response types — so the HTTP backend can be replaced without changing a single parser.
+A **`Parser`** registers the domains it handles and exposes getters (e.g. `CatalogRootGetter`) that fetch and parse content. Getters run through a **`RequestContext`**, which carries the parser's config, cookies and logger and sits on top of a backend-neutral **`HttpClient`** (curl or NSURLSession). Parsers only ever touch neutral request/response types — so the HTTP backend can be replaced without changing a single parser.
 
 ---
 
+## API guide
+
+Start with the [architecture](docs/architecture.md), then read about
+[content catalogs and mixed-media cards](docs/mixed-catalog.md),
+[request profiles and authentication](docs/request-profiles.md), and
+[typed search capabilities](docs/search.md). The [API reference entry page](docs/mainpage.md)
+links the main interfaces.
+
+Factories return fresh owned getters and profiles. Keep a member coroutine's
+receiver alive until its task finishes or is destroyed. Persist parser ID,
+catalog ID, media kind and the parser-owned serialized blob together; IDs are
+opaque strings. `RelatedWork` can carry a same-parser handle, external IDs, or a
+`destination_url` opened using the destination catalog's own profile.
+
+Core and model headers use C++20: `Result` is based on `tl::expected`, and
+constexpr flag operations use `BitsetLite`. The `aniparse::models` CMake target
+exposes value headers without linking the transport/runtime stack.
+
 ## Requirements
 
-- **Compiler:** with C++20 support (GCC 12+, Clang 15+, MSVC 2022+). The examples and tests are built as C++23 (they use `std::print` / `std::println`), so they need a newer compiler and standard library (roughly GCC 14+, Clang 18+, MSVC 19.40+).
+- **Compiler:** with C++20 support (GCC 12+, Clang 15+, MSVC 2022+). The examples and tests are built as C++23 (the examples use `std::print` / `std::println`), so they need a newer compiler and standard library (roughly GCC 14+, Clang 18+, MSVC 19.40+).
 - **CMake:** 3.18+
 - **vcpkg** (recommended for dependency management)
 
-**Dependencies** (installed via vcpkg). All are required — the library links them unconditionally:
+**Dependencies** (installed via vcpkg). Curl is required only when `ANIPARSE_CURL_BACKEND=ON`; the remaining packages below are core dependencies:
 
 | Package | Purpose |
 |---|---|
 | `boost-json` | JSON parsing |
 | `boost-regex` | Regular expressions |
-| `boost-system` | Boost system utilities |
-| `curl` | HTTP client (via `libasyncnet`) |
+| `curl` | Optional HTTP backend (via `libasyncnet`) |
 | `fmt` | String formatting |
 | `tl-expected` | Exception-free error handling (`tl::expected`) |
 
@@ -211,13 +229,20 @@ cmake -B build -DANIPARSE_BUILD_EXAMPLES=ON
 cmake --build build
 ```
 
-- [Parser skeleton](examples/example_manga_parser.cpp) — the shape of a parser: which methods to implement. Copy it for your own source.
+- [Minimal manga parser](examples/example_manga_parser.cpp) + [fixture getter](examples/ExampleManga.hpp) — copyable metadata-only source, default profile, pagination and restoration.
+- [Authentication](examples/example_auth.cpp) — token descriptor, isolated login, explicit adoption and credential export/restore.
+- [Mixed catalog](examples/example_mixed_catalog.cpp) — manga, anime and source-grouped cards, preview preference and media-qualified restoration.
+- [Search filters](examples/example_search.cpp) — capabilities versus values, inclusion/exclusion, validation and pagination.
+- [Related works](examples/example_related.cpp) — URL routing to the destination catalog's own profile, followed by serialization/restoration.
 - [Parsing](examples/example_parse.cpp) — extracting data from HTML: CSS selectors, DOM, JSON from a `<script>`. Runs offline, against a fixture.
 - [Networking](examples/example_net.cpp) — real HTTP requests via `request` / `request_html` / `request_json`.
 
 **Real, complete parsers** live in a separate repo — [aniparse-parsers](https://github.com/AnAgTeam/aniparse-parsers): runnable source parsers against official public APIs (AniList, Kitsu) that show the full `Parser` / getter model end-to-end — search, info, URL routing and serialization against live services. A good reference when writing your own.
 
 ---
+
+All examples except networking run offline. See the [example guide](examples/README.md)
+for targets, run commands and a suggested reading order.
 
 ## Embedded parser artwork
 
@@ -268,7 +293,12 @@ the resource root are rejected. List additions and removals explicitly in CMake.
 ```
 aniparse/
 ├── include/aniparse/       # Public headers
-│   ├── anime/              # Anime parsing (Release, etc.)
+│   ├── catalog/            # Catalogs, search and pagination
+│   ├── source/             # Parsers, profiles and signed overrides
+│   ├── runtime/            # Request contexts and shared services
+│   ├── net/                # HTTP contracts and optional backends
+│   ├── media/              # Shared value models and resource adapters
+│   ├── anime/              # Anime models and getters
 │   ├── manga/              # Manga parsing
 │   ├── images/             # Image parsing
 │   ├── engines/            # Shared source engines (e.g. booru)

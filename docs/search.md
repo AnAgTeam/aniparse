@@ -15,7 +15,7 @@ serialization of selected values.
 
 The pure value declarations live in `catalog/SearchQuery.hpp`; capability
 metadata lives in `catalog/SearchCapabilities.hpp`. Existing callers can include
-`types/Search.hpp` for both, the key vocabulary, and validation functions.
+`catalog/Search.hpp` for both, the key vocabulary, and validation functions.
 
 ```cpp
 SelectionCapabilities genres{

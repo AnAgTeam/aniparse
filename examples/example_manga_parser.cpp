@@ -1,489 +1,66 @@
+// Minimal metadata-only manga source. Copy this file and ExampleManga.hpp.
+// Optional operations keep the base class's NotImplemented defaults.
 #include "ExampleClient.hpp"
-#include <aniparse/source/Parser.hpp>
+#include "ExampleManga.hpp"
 #include <aniparse/catalog/CatalogRootGetter.hpp>
-#include <aniparse/source/ParserStore.hpp>
-#include <aniparse/net/backends/curl/CurlHttpClient.hpp>
-
-// for coro::sync_wait
+#include <aniparse/source/Parser.hpp>
 #include <coro/sync_wait.hpp>
-// for std::println
 #include <print>
-#include <iostream>
-#include <iterator>
 
 using namespace aniparse;
 
-/**
- * Getter for various pieces of information about a specific manga
- */
-class ExampleMangaGetter : public MangaGetter {
+class ExampleCatalog final : public CatalogRootGetter {
 public:
-	/// Getter constructor
-	ExampleMangaGetter() : private_url_("https://example.com/manga/123") {
-
-	}
-	ExampleMangaGetter(std::string url) : private_url_(std::move(url)) {
-
-	}
-
-	// Returns the getter's basic capability information.
-	MangaGetterCapabilities capabilities() const noexcept override {
-		using namespace capabilities_flags;
-		return {
-			// Supports commenting, supports voting (not implemented yet)
-			.flags = supports_commenting
-				| supports_voting
-		};
-	}
-
-	// The short-card info this getter was handed, if any — free and synchronous, no
-	// request. Nullopt would mean "nothing known yet"; a getter built from a listing
-	// (as here) already holds its card.
-	std::optional<MangaInfo> preview_info() const noexcept override {
-		return MangaInfo{
-			.common = {
-				.title = "Test",
-				.description = "Some description",
-				.status = AiredStatus {
-					.name = std::string(aired_status_released)
-				}
-			}
-		};
-	}
-
-	// Fetch the full information about the manga
-	RequestTask<MangaInfo> load_info(RequestContext context) const override {
-		co_return MangaInfo{
-			.common = {
-				.title = "Test",
-				.description = "Some description",
-				.status = AiredStatus {
-					.name = std::string(aired_status_released)
-				}
-			}
-		};
-	}
-
-
-	// Fetch the manga's translation information; there can be several
-	RequestTask<PageResults<MangaTranslationInfo>> load_translations(
-		RequestContext context,
-		GetFilters filters) const override {
-		PageResults<MangaTranslationInfo> pages;
-
-		// Return 0 pages if that is what was requested.
-		// Otherwise return as many as possible (here 1). The limit is only an upper bound.
-		if (filters.limit == 0) {
-			co_return std::move(pages);
-		}
-
-		// Total number found, regardless of which are currently requested
-		pages.total_count = 10;
-		// Results
-		pages.results = {
-			PageItem<MangaTranslationInfo> {
-				.item = {
-					.id = 0,
-					.language = "ru-ru",
-					.translator = "Ru translator"
-				},
-				.offset = 0
-			}
-		};
-
-		co_return std::move(pages);
-	}
-
-	// Fetch the manga's chapter information; there can be several
-	RequestTask<PageResults<MangaChapterInfo>> load_chapters(
-		RequestContext context,
-		GetFilters filters,
-		std::optional<MangaTranslationID> translation) const override {
-		PageResults<MangaChapterInfo> pages;
-
-		// Return 0 pages if that is what was requested.
-		// Otherwise return as many as possible (here 1). The limit is only an upper bound.
-		if (filters.limit == 0) {
-			co_return std::move(pages);
-		}
-
-		// Total number found, regardless of which are currently requested
-		pages.total_count = 1;
-		// Results
-		pages.results = {
-			PageItem<MangaChapterInfo> {
-				.item = {
-					.volume = 0,
-					.chapter = 0,
-					.name = "Chapter 1",
-				},
-				.offset = 0
-			}
-		};
-
-		co_return std::move(pages);
-	}
-
-	// Optional. The works the source declares related to this one (a sequel, a
-	// spin-off, an anime adaptation), as RelatedWork descriptors. If unsupported,
-	// return NotImplemented.
-	RequestTask<PageResults<RelatedWork>> load_related(
-		RequestContext context,
-		GetFilters filters) const override {
-		co_return make_request_error(RequestErrorCode::NotImplemented, "Parser doesn't support related");
-	}
-
-	// Fetch all pages of a specific chapter, with image links.
-	// The chapter is identified by round-trip: the ref() of an element from
-	// load_chapters() is passed here (its id may carry a parser-internal key).
-	RequestTask<PageResults<MangaPage>> load_chapter_pages(
-		RequestContext context,
-		MangaChapterRef chapter,
-		GetFilters filters,
-	    std::optional<MangaTranslationID> translation) const override {
-		PageResults<MangaPage> pages;
-
-		// Return 0 pages if that is what was requested.
-		// Otherwise return as many as possible (here 1). The limit is only an upper bound.
-		if (filters.limit == 0) {
-			co_return std::move(pages);
-		}
-
-		// Total number found, regardless of which are currently requested
-		pages.total_count = 2;
-		// Results
-		// Offsets must start at 0 and increase from there
-		pages.results = {
-			PageItem<MangaPage> {
-				.item = {
-					.image = {
-						// The id is optional, used only by parsers for extra info
-						.id = 0,
-						.url = "https://example.com/image1"
-					}
-				},
-				.offset = 0
-			},
-			PageItem<MangaPage> {
-				.item = {
-					.image = {
-						// The id is optional, used only by parsers for extra info
-						.id = 1,
-						.url = "https://example.com/image2"
-					}
-				},
-				.offset = 1
-			}
-		};
-
-		co_return std::move(pages);
-	}
-
-	/**
-	 * @brief Return this synthetic work's public share URL.
-	 * @param context Request context; unused by this static example.
-	 * @return The same public identity used by serialization.
-	 */
-	std::string canonical_url(RequestContext /*context*/) const override {
-		return private_url_;
-	}
-
-	// Serialize all of the getter's data into a serializable struct.
-	// Needed e.g. to save results to a file and reconstruct this getter later.
-	// Used together with CatalogRootGetter::from_serialized(...)
-	RequestTask<SerializedGetterData> serialize() const override {
-		co_return SerializedGetterData{
-			.url = private_url_
-		};
-	}
-
-private:
-
-	std::string private_url_;
-};
-
-class ExampleCatalogGetter : public CatalogRootGetter {
-public:
-	using CatalogRootGetter::CatalogRootGetter;
-
+    using CatalogRootGetter::CatalogRootGetter;
 protected:
-
-	// Describe the manga search capabilities.
-	// This covers filters, sorting, ...
-	RequestTask<SearchCapabilities> load_search_capabilities_for(RequestContext) const override {
-		co_return SearchCapabilities{
-			// no sort, no filters
-		};
-	}
-
-	// Describe the ways the latest manga can be fetched.
-	// Sort keys are open: the standard ones live in sort_keys, but a site may
-	// declare its own. The descriptor sets the supported directions
-	// (descending = true by default).
-	CatalogLatestCapabilities latest_capabilities_for() const noexcept override {
-		using namespace sort_keys;
-		return {
-			.supported_sorts = {
-				{ std::string(title), { .ascending = true } },
-				{ std::string(popularity), { .ascending = true } },
-				{ std::string(release_time), { .ascending = true } },
-				{ std::string(downloads), {} },
-				{ std::string(views), {} },
-			}
-		};
-	}
-
-	// Search by the given criteria. Capabilities come from load_search_capabilities_for().
-	RequestTask<PageResults<CatalogEntry>> search_items(
-		RequestContext context,
-		SearchRequestQuery query,
-		GetFilters filters) const override {
-		// Check the search has no invalid/extra entries.
-		// load_search_capabilities() is the reference.
-		auto support = co_await load_search_capabilities(context);
-		if (!support) {
-			co_return unexpected(std::move(support.error()));
-		}
-		if (auto errors = validate_query(*support, query, filters); !errors.empty()) {
-			// Don't throw; return the error through the common channel.
-			// describe_search_query_errors collects the violations into a readable message.
-			co_return make_request_error(RequestErrorCode::InvalidArguments, describe_search_query_errors(errors));
-		}
-		co_return make_request_error(RequestErrorCode::NotImplemented, "The parser cannot search");
-	}
-
-	// Fetch the latest items for the chosen filters
-	RequestTask<PageResults<CatalogEntry>> latest_items(
-		RequestContext context,
-		GetFilters filters) const override {
-		PageResults<CatalogEntry> pages;
-		// Logging
-		context.info("latest() called, from {}, limit {}", filters.from, filters.limit);
-
-		// Return 0 pages if that is what was requested.
-		// Otherwise return as many as possible (here 1). The limit is only an upper bound.
-		if (filters.limit == 0) {
-			co_return std::move(pages);
-		}
-
-		// Total number found, regardless of which are currently requested
-		pages.total_count = 2;
-		// Results
-		PageItem<CatalogEntry> manga_item = {
-			.item = std::make_unique<ExampleMangaGetter>(),
-			.offset = 0
-		};
-		pages.results.push_back(std::move(manga_item));
-
-		co_return std::move(pages);
-	}
-
-	// Build a manga getter from a URL
-	RequestTask<CatalogEntry> parse_entry_url(
-		RequestContext context,
-		ParsedUrl url) const override {
-		co_return make_request_error(RequestErrorCode::NotImplemented, "The parser cannot parse URLs");
-	}
-
-	// Build a manga getter from serialized data
-	RequestTask<CatalogEntry> restore_entry(SerializedGetterData data, MediaKind /*kind*/) const override {
-		if (data.url.empty()) {
-			co_return make_request_error(RequestErrorCode::NotImplemented, "Invalid serialized url");
-		}
-		co_return std::make_unique<ExampleMangaGetter>(data.url);
-	}
-
-private:
-
-};
-
-// Shared configuration behavior; user state remains in ParserConfig.
-class ExampleProfile : public ParserProfile {
-public:
-    using ParserProfile::ParserProfile;
-	// Seed parser-wide request defaults onto a freshly derived config. Called by
-	// make_config after the common derivation; one shape serves all getters.
-	void configure(ParserConfig& config) const override {
-		config.headers.set("User-Agent", "ExampleParser/1.0");
-	}
-
-	// The source's built-in mirrors: the fetch path (context.base_url) and the UI
-	// picker (mirror_choices) both read this; a catalog override can supersede it.
-	std::span<const std::string_view> mirrors() const override {
-		static constexpr std::array<std::string_view, 1> urls{ "https://example.com" };
-		return urls;
-	}
-
-
-};
-
-class ExampleParser : public Parser {
-
-	// Display metadata shown to the user in a source list: name, language, and
-	// optional artwork. Distinct from identifier() (the stable routing key).
-	ParserInfo info() const override {
-		return {
-			.name             = "Example",
-			// The parser's primary language: Russian
-			.primary_language = "ru-ru",
-		};
-	}
-
-	// The parser's identifier; must be unique.
-	// Can be used to look the parser up in the store.
-	std::string identifier() const override {
-		return "Example";
-	}
-
-	// Classify a URL to a getter category, used to route parse_url. Called only if
-	// the URL's domain matches one added in emplace_domains(...). valid_for_url is
-	// derived from this by default, so a URL-entry parser overrides only this.
-	std::optional<std::string> suggest_catalog(const ParsedUrl& url) const override {
-		// A real parser would inspect url.path() / url.query(); this example is
-		// manga-only, so any URL on its domains routes to the manga getter.
-		(void)url;
-		return std::optional<std::string>{"main"};
-	}
-
-	std::vector<CatalogInfo> catalog_descriptors() const override {
-		return {{ .id = "main", .name = "Example catalog", .kinds = catalog_kinds::manga }};
-	}
-
-	// Register every domain the parser can handle.
-	// Called when the user adds this parser to the store.
-	void emplace_domains(EmplaceDomainsSink& sink) const override {
-		sink.add_domain("example.com");
-		sink.add_domain("example-test.com");
-	}
-
-	std::unique_ptr<ParserProfile> make_profile_impl(ProfileInfo info) const override {
-        return std::make_unique<ExampleProfile>(identifier(), std::move(info));
+    RequestTask<PageResults<CatalogEntry>> latest_items(RequestContext, GetFilters paging) const override {
+        PageResults<CatalogEntry> page;
+        page.total_count = 1; // The fixture contains exactly one work.
+        if (paging.from == 0 && paging.limit != 0)
+            page.append(paging.from, std::make_unique<examples::ExampleManga>());
+        co_return page;
     }
-
-	// The manga root getter for this parser
-	std::unique_ptr<CatalogRootGetter> make_catalog_getter_impl(CatalogInfo catalog) const override {
-		return std::make_unique<ExampleCatalogGetter>(std::move(catalog));
-	}
+    RequestTask<CatalogEntry> restore_entry(SerializedGetterData data, MediaKind kind) const override {
+        if (kind != MediaKind::Manga || data.url != "first" || !data.params.empty())
+            co_return make_request_error(RequestErrorCode::InvalidArguments, "Unknown manga identity");
+        co_return std::make_unique<examples::ExampleManga>(data.url);
+    }
 };
 
-template<>
-struct std::formatter<LogLevel> {
-	constexpr auto parse(auto& ctx) {
-		return ctx.begin();
-	}
-
-	auto format(LogLevel level, auto& ctx) const {
-		std::string_view name;
-		switch (level) {
-		case LogLevel::Debug:   name = "DEBUG"; break;
-		case LogLevel::Info:    name = "INFO"; break;
-		case LogLevel::Warning: name = "WARNING"; break;
-		case LogLevel::Error:   name = "ERROR"; break;
-		case LogLevel::Fatal:   name = "FATAL"; break;
-		default:                name = "UNKNOWN";
-		}
-		return std::format_to(ctx.out(), "{}", name);
-	}
-};
-
-struct ConsoleLogger : Logger {
-	void log(LogLevel message_type,
-		std::string_view message,
-		std::string_view parser_id,
-		const std::source_location loc = std::source_location::current()) override {
-		using namespace std::chrono;
-
-		// UTC, not local time: current_zone()/zoned_time need a tzdb that libc++
-		// (Apple clang) does not ship, and a demo logger's timestamp does not warrant
-		// the dependency. A sys_time formats directly.
-		auto now = floor<seconds>(system_clock::now());
-
-		std::format_to(std::ostream_iterator<char>(std::cout),
-			"[{:%T} {} {} {}:{}] {}\n",
-			now,
-			message_type,
-			parser_id.empty() ? "-" : parser_id,
-			loc.file_name(),
-			loc.line(),
-			message);
-	}
+class ExampleParser final : public Parser {
+public:
+    ParserInfo info() const override { return {.name = "Example"}; }
+    std::string identifier() const override { return "Example"; }
+    void emplace_domains(EmplaceDomainsSink&) const override {} // No URL entry in this minimal source.
+protected:
+    std::vector<CatalogInfo> catalog_descriptors() const override {
+        return {{.id = "main", .name = "Manga", .kinds = catalog_kinds::manga}};
+    }
+    std::unique_ptr<CatalogRootGetter> make_catalog_getter_impl(CatalogInfo catalog) const override {
+        return std::make_unique<ExampleCatalog>(std::move(catalog));
+    }
 };
 
 int main() {
-	// Locale names are platform-dependent; on a system without "ru.utf-8" this
-	// throws, which is fine for the example — we just keep the default locale.
-	try {
-		std::locale::global(std::locale("ru.utf-8"));
-	} catch (const std::exception&) {
-	}
+    ExampleParser parser;
+    auto catalog = parser.catalogs().front();
+    auto profile = parser.make_profile(catalog.profile_id);
+    auto context = profile->make_context(examples::make_client());
+    auto root = parser.make_catalog_getter(catalog.id);
+    // root and the returned item stay alive through their member coroutine calls.
+    auto page = coro::sync_wait(root->latest(context, {}));
+    if (!page || page->results.empty()) return 1;
+    auto& manga = page->results.front().item.manga;
+    auto info = coro::sync_wait(manga->load_info(context));
+    if (!info) return 1;
+    std::println("{}: {}", info->id, info->common.title);
 
-	// The parser store: parsers can be added to it and looked up when needed
-	ParserStore parser_store;
-
-	// The base client the parser uses to fetch data from the internet
-	auto client = examples::make_client();
-	// The parser context: holds the client, logger and the alt-link selection
-
-	// Add the parser to the store
-	parser_store.add_parser(std::make_shared<ExampleParser>());
-
-	// It can then be looked up by key
-	auto example_parser = parser_store.find_by_key("Example");
-
-	// Get the manga getter from the parser
-	auto example_manga_root = example_parser->make_catalog_getter("main");
-
-	// Get a context ready to work for this parser
-	auto ready_to_work_client = example_parser->make_profile("main")->make_context(client, std::make_shared<ConsoleLogger>());
-
-	// Fetch the parser's latest manga.
-	// The coroutine also runs synchronously thanks to sync_wait.
-	// Inside other coroutines you can use co_await.
-	auto latest_mangas_response = coro::sync_wait(example_manga_root->latest(ready_to_work_client, {
-		.from = 0,
-		.limit = 10,
-		// A sort can be specified, though the example parser ignores it
-		.sort = SortOrder{ .key = std::string(sort_keys::title), .ascending = true }
-		}));
-
-	if (!latest_mangas_response) {
-		// Request error
-		std::println("Failed to fetch the latest manga: {}", latest_mangas_response.error().message);
-		return -1;
-	}
-
-	// Get the latest manga getters from the response
-	auto& latest_mangas = latest_mangas_response.value();
-	if (latest_mangas.results.empty()) {
-		// No results
-		std::println("No latest manga");
-		return -1;
-	}
-	std::unique_ptr<MangaGetter> first_manga_getter = std::move(latest_mangas.results[0].item.manga);
-
-	// Fetch information about the first manga
-	auto first_manga_info_response = coro::sync_wait(first_manga_getter->load_info(ready_to_work_client));
-	if (!first_manga_info_response) {
-		// Request error
-		std::println("Failed to fetch manga info: {}", first_manga_info_response.error().message);
-		return -1;
-	}
-
-	auto& first_manga_info = first_manga_info_response.value();
-	std::println("Title: {}", first_manga_info.common.title);
-	std::println("Description: {}", first_manga_info.common.description.text);
-
-	// Route a pasted URL to its parser and getter category, then build the getter
-	// from it. The store parses the URL once and hands it back in route->url.
-	if (auto route = parser_store.route_url("https://example.com/manga/123"); route && route->catalog_id) {
-		std::println("Routed to '{}' catalog '{}'",
-			route->parser->info().name, *route->catalog_id);
-
-		auto routed_getter = route->parser->make_catalog_getter(*route->catalog_id);
-		auto parsed_manga = coro::sync_wait(routed_getter->parse_url(ready_to_work_client, std::move(route->url)));
-		if (!parsed_manga) {
-			// The example parser leaves parse_url unimplemented.
-			std::println("Failed to parse manga: {}", parsed_manga.error().message);
-		}
-	}
+    // Persist this blob with parser.identifier(), catalog.id and MediaKind::Manga.
+    auto saved = coro::sync_wait(manga->serialize());
+    if (!saved) return 1;
+    auto restored = coro::sync_wait(root->from_serialized(*saved, MediaKind::Manga));
+    if (!restored || !restored->manga) return 1;
+    auto end = coro::sync_wait(root->latest(context, {.from = page->next_offset}));
+    if (!end || !end->results.empty()) return 1;
+    std::println("Restored getter; next page is empty.");
 }

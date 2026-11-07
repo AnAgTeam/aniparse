@@ -37,3 +37,10 @@ if (ANIPARSE_CURL_BACKEND)
 
 	target_link_libraries(aniparse-example-net PRIVATE aniparse)
 endif()
+
+# Independent offline tutorials. All share only fixture/client scaffolding.
+foreach(topic IN ITEMS search auth mixed_catalog related)
+    add_executable(aniparse-example-${topic} "example_${topic}.cpp")
+    set_property(TARGET aniparse-example-${topic} PROPERTY CXX_STANDARD 23)
+    target_link_libraries(aniparse-example-${topic} PRIVATE aniparse)
+endforeach()

@@ -15,7 +15,8 @@ OUTPUT_DIRECTORY       = docs/doxygen
 # README.md is deliberately NOT input: it is written for GitHub (<picture> for the
 # dark-mode logo, relative repo links) which doxygen cannot resolve. docs/mainpage.md
 # is the doxygen-side entry page instead.
-INPUT                  = include docs/mainpage.md docs/architecture.md
+INPUT                  = include docs/mainpage.md docs/architecture.md \
+                         docs/search.md docs/request-profiles.md docs/mixed-catalog.md
 USE_MDFILE_AS_MAINPAGE = docs/mainpage.md
 FILE_PATTERNS          = *.hpp *.h
 RECURSIVE              = YES

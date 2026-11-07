@@ -1,4 +1,4 @@
-# Unified catalog experiment
+# Content catalogs and mixed-media cards
 
 A provider exposes `Parser::catalogs()`: named catalogues with stable IDs, a
 `CatalogKinds` mask and catalog-specific `CatalogCapabilities`. Two catalogs
@@ -112,8 +112,8 @@ Existing provider registrations and parser identities are preserved; this API
 change does not merge previously distinct providers. Configuration, authentication
 and mirrors now belong to request profiles selected by each catalog. See
 [request profiles](request-profiles.md) for context creation and persistence.
-The database, Swift bridge, reader interfaces and cache concurrency are outside
-this experiment.
+Database storage, Swift bindings, reader interfaces and consumer caches remain
+consumer responsibilities.
 
 Contract tests exercise multiple same-kind catalogs, mixed and grouped cards,
 selection across all catalog operations, metadata that does not gate actions,

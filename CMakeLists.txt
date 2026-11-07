@@ -240,7 +240,7 @@ endif()
 add_library(aniparse-models INTERFACE)
 add_library(aniparse::models ALIAS aniparse-models)
 set_target_properties(aniparse-models PROPERTIES EXPORT_NAME models)
-target_compile_features(aniparse-models INTERFACE cxx_std_23)
+target_compile_features(aniparse-models INTERFACE cxx_std_20)
 target_include_directories(aniparse-models INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
