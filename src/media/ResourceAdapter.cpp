@@ -82,25 +82,32 @@ public:
 	    : adapters_(std::move(adapters)) {}
 
 	RequestTask<OpenedResource> open(RequestContext context, ResourceContext resource) const override {
-		ResourceContext current = std::move(resource);
+		ResourceRequest request{
+			.url = std::move(resource.resource.url),
+			.headers = std::move(resource.resource.headers),
+		};
 		std::vector<std::unique_ptr<ResourceHandle>> handles;
 		for (const std::shared_ptr<const ResourceAdapter>& adapter : adapters_) {
-			auto opened = co_await adapter->open(context, std::move(current));
+			auto opened = co_await adapter->open(context, ResourceContext{
+				.parent_url = resource.parent_url,
+				.resource = {
+					.url = std::move(request.url),
+					.headers = std::move(request.headers),
+					.kind = resource.resource.kind,
+					.content_type_hint = resource.resource.content_type_hint,
+				},
+			});
 			if (!opened) {
 				co_return unexpected(std::move(opened.error()));
 			}
-			current.resource.url = opened->request.url;
-			current.resource.headers = opened->request.headers;
+			request = std::move(opened->request);
 			if (opened->handle) {
 				handles.push_back(std::move(opened->handle));
 			}
 		}
 
 		OpenedResource result;
-		result.request = {
-			.url = std::move(current.resource.url),
-			.headers = std::move(current.resource.headers),
-		};
+		result.request = std::move(request);
 		if (handles.size() == 1) {
 			result.handle = std::move(handles.front());
 		} else if (!handles.empty()) {

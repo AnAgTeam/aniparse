@@ -76,6 +76,7 @@ public:
 	aniparse::RequestTask<aniparse::OpenedResource> open(
 	    aniparse::RequestContext,
 	    aniparse::ResourceContext resource) const override {
+		received_resources.push_back(resource);
 		resource.resource.url += request_suffix_;
 		resource.resource.headers.set("X-Test", request_suffix_);
 		co_return aniparse::OpenedResource{
@@ -87,9 +88,12 @@ public:
 		};
 	}
 
+	mutable std::vector<aniparse::ResourceContext> received_resources;
+
 private:
 	std::string request_suffix_;
 	std::byte response_suffix_;
+
 };
 
 } // namespace
@@ -118,13 +122,27 @@ CORO_TEST_CASE("ResourceAdapter composes nested requests and reverse response tr
 	REQUIRE(adapter);
 
 	auto opened = co_await adapter->open(make_context(), {
+	    .parent_url = "https://video.example/master.m3u8",
 	    .resource = {
 	        .url = "https://video.example/stream",
+	        .headers = {{"Referer", "https://video.example/"}},
+	        .kind = MediaResourceKind::HLSSegment,
+	        .content_type_hint = "video/mp2t",
 	    },
 	});
 	REQUIRE(opened);
 	CHECK(opened->request.url == "https://video.example/stream/outer/inner");
 	CHECK(opened->request.headers.get("X-Test") == "/inner");
+	CHECK(opened->request.headers.get("Referer") == "https://video.example/");
+	for (const auto& stage : {outer, inner}) {
+		REQUIRE(stage->received_resources.size() == 1);
+		const auto& received = stage->received_resources.front();
+		CHECK(received.parent_url == "https://video.example/master.m3u8");
+		CHECK(received.resource.kind == MediaResourceKind::HLSSegment);
+		CHECK(received.resource.content_type_hint == "video/mp2t");
+	}
+	CHECK(inner->received_resources.front().resource.url == "https://video.example/stream/outer");
+	CHECK(inner->received_resources.front().resource.headers.get("X-Test") == "/outer");
 	REQUIRE(opened->handle);
 
 	CollectingOutput output;
