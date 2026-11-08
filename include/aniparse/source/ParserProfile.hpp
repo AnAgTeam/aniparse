@@ -63,6 +63,28 @@ public:
 	    RequestContext context,
 	    AuthenticationData credentials) const;
 
+    /**
+     * @brief Resolve browser subscriptions, including the legacy storage-token key.
+     * @param context Context used to resolve the login URL and settings.
+     * @return Owned observation settings; storage origins are normalized.
+     */
+    WebLoginObservationConfig web_login_observation(RequestContext context) const;
+
+    /**
+     * @brief Check browser credentials without changing the caller's session.
+     * @param context Profile context, left unmodified.
+     * @param event Reason for this check; it does not itself prove a successful login.
+     * @param state Owned browser snapshot, valid across suspension.
+     * @return InteractionPending, or InteractionCompleted with a fresh non-null authenticated
+     * config for explicit adoption. Failures use
+     * the Result error channel. The default adapts StorageToken to authenticate;
+     * cookie profiles must implement their own verification.
+     * @note Keep this profile alive until the task completes or is destroyed.
+     * The task borrows its receiver. Hosts must discard results after cancellation.
+     */
+    virtual RequestTask<WebLoginCheck> check_web_login(
+        RequestContext context, WebLoginEventKind event, WebLoginState state) const;
+
 	/**
 	 * @see AuthInfo
 	 * @brief How a user signs in to this source — the flow the client drives.

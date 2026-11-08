@@ -4,6 +4,9 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
+#include <cstddef>
+#include <functional>
+#include <type_traits>
 #include <utility>
 #include <string>
 
@@ -35,107 +38,140 @@ public:
 	constexpr explicit StrongBitset(const Container& val) noexcept(std::is_nothrow_copy_constructible_v<Container>) : storage_(val) {}
 	constexpr explicit StrongBitset(Container&& val) noexcept(std::is_nothrow_move_constructible_v<Container>) : storage_(std::move(val)) {}
 
-	constexpr explicit StrongBitset(Bit val) {
+	constexpr explicit StrongBitset(Bit val) noexcept(
+	    std::is_nothrow_default_constructible_v<Container> &&
+	    noexcept(std::declval<Container&>().set(size_t{}))) {
 		storage_.set(static_cast<size_t>(val));
 	}
 
-	constexpr explicit operator Container() noexcept {
+	constexpr explicit operator Container() noexcept(std::is_nothrow_copy_constructible_v<Container>) {
 		return storage_;
 	}
 
-	constexpr explicit operator const Container() const noexcept {
+	constexpr explicit operator const Container() const noexcept(std::is_nothrow_copy_constructible_v<Container>) {
 		return storage_;
 	}
 
-	StrongBitset& operator=(const StrongBitset& other) & noexcept = default;
-	StrongBitset& operator=(StrongBitset&& other) & noexcept      = default;
+	constexpr StrongBitset& operator=(const StrongBitset& other) & noexcept(std::is_nothrow_copy_assignable_v<Container>) = default;
+	constexpr StrongBitset& operator=(StrongBitset&& other) & noexcept(std::is_nothrow_move_assignable_v<Container>) = default;
 
-	[[nodiscard]] decltype(auto) operator[](Bit pos) noexcept(noexcept(std::declval<Container>()[0ULL])) {
+	[[nodiscard]] constexpr decltype(auto) operator[](Bit pos) noexcept(noexcept(std::declval<Container&>()[size_t{}])) {
 		return storage_[static_cast<size_t>(pos)];
 	}
 
-	[[nodiscard]] decltype(auto) operator[](Bit pos) const noexcept(noexcept(std::declval<const Container>()[0ULL])) {
+	[[nodiscard]] constexpr decltype(auto) operator[](Bit pos) const noexcept(noexcept(std::declval<const Container&>()[size_t{}])) {
 		return storage_[static_cast<size_t>(pos)];
 	}
 
-	constexpr bool all() const noexcept(noexcept(std::declval<Container>().all())) {
+	constexpr bool all() const noexcept(noexcept(std::declval<const Container&>().all())) {
 		return storage_.all();
 	}
 
-	constexpr bool any() const noexcept(noexcept(std::declval<Container>().any())) {
+	constexpr bool any() const noexcept(noexcept(std::declval<const Container&>().any())) {
 		return storage_.any();
 	}
 
-	constexpr bool none() const noexcept(noexcept(std::declval<Container>().none())) {
+	constexpr bool none() const noexcept(noexcept(std::declval<const Container&>().none())) {
 		return storage_.none();
 	}
 
-	constexpr friend bool operator==(const StrongBitset& left, const StrongBitset& right) noexcept {
+	constexpr friend bool operator==(const StrongBitset& left, const StrongBitset& right)
+	    noexcept(noexcept(left.storage_ == right.storage_)) {
 		return left.storage_ == right.storage_;
 	}
 
-	constexpr StrongBitset& operator|=(const StrongBitset& other) & noexcept {
+	constexpr StrongBitset& operator|=(const StrongBitset& other) &
+	    noexcept(noexcept(std::declval<Container&>() |= std::declval<const Container&>())) {
 		storage_ |= other.storage_;
 		return *this;
 	}
 
-	constexpr StrongBitset& operator&=(const StrongBitset& other) & noexcept {
+	constexpr StrongBitset& operator&=(const StrongBitset& other) &
+	    noexcept(noexcept(std::declval<Container&>() &= std::declval<const Container&>())) {
 		storage_ &= other.storage_;
 		return *this;
 	}
 
-	constexpr StrongBitset& operator^=(const StrongBitset& other) & noexcept {
+	constexpr StrongBitset& operator^=(const StrongBitset& other) &
+	    noexcept(noexcept(std::declval<Container&>() ^= std::declval<const Container&>())) {
 		storage_ ^= other.storage_;
 		return *this;
 	}
 
-	constexpr StrongBitset operator~() const noexcept {
+	constexpr StrongBitset operator~() const noexcept(noexcept(StrongBitset{~std::declval<const Container&>()})) {
 		return StrongBitset{~storage_};
 	}
 
-	constexpr friend StrongBitset operator|(StrongBitset&& left, const StrongBitset& right) noexcept {
+	constexpr friend StrongBitset operator|(StrongBitset&& left, const StrongBitset& right)
+	    noexcept(noexcept(left |= right) && std::is_nothrow_move_constructible_v<Container>) {
 		left |= right;
-		return left;
+		return std::move(left);
 	}
 
-	constexpr friend StrongBitset operator|(const StrongBitset& left, StrongBitset&& right) noexcept {
+	constexpr friend StrongBitset operator|(StrongBitset&& left, StrongBitset&& right)
+	    noexcept(noexcept(std::move(left) | static_cast<const StrongBitset&>(right))) {
+		return std::move(left) | static_cast<const StrongBitset&>(right);
+	}
+
+	constexpr friend StrongBitset operator|(const StrongBitset& left, StrongBitset&& right)
+	    noexcept(noexcept(std::move(right) | left)) {
 		return std::move(right) | left;
 	}
 
-	constexpr friend StrongBitset operator|(const StrongBitset& left, const StrongBitset& right) noexcept {
+	constexpr friend StrongBitset operator|(const StrongBitset& left, const StrongBitset& right)
+	    noexcept(std::is_nothrow_copy_constructible_v<Container> && noexcept(std::declval<StrongBitset&>() |= right) &&
+	             std::is_nothrow_move_constructible_v<Container>) {
 		StrongBitset tmp = left;
 		tmp |= right;
 		return tmp;
 	}
 
-	constexpr friend StrongBitset operator&(const StrongBitset& left, const StrongBitset& right) noexcept {
+	constexpr friend StrongBitset operator&(StrongBitset&& left, const StrongBitset& right)
+	    noexcept(noexcept(left &= right) && std::is_nothrow_move_constructible_v<Container>) {
+		left &= right;
+		return std::move(left);
+	}
+
+	constexpr friend StrongBitset operator&(StrongBitset&& left, StrongBitset&& right)
+	    noexcept(noexcept(std::move(left) & static_cast<const StrongBitset&>(right))) {
+		return std::move(left) & static_cast<const StrongBitset&>(right);
+	}
+
+	constexpr friend StrongBitset operator&(const StrongBitset& left, StrongBitset&& right)
+	    noexcept(noexcept(std::move(right) & left)) {
+		return std::move(right) & left;
+	}
+
+	constexpr friend StrongBitset operator&(const StrongBitset& left, const StrongBitset& right)
+	    noexcept(std::is_nothrow_copy_constructible_v<Container> && noexcept(std::declval<StrongBitset&>() &= right) &&
+	             std::is_nothrow_move_constructible_v<Container>) {
 		StrongBitset tmp = left;
 		tmp &= right;
 		return tmp;
 	}
 
-	constexpr friend StrongBitset operator&(StrongBitset&& left, const StrongBitset& right) noexcept {
-		left &= right;
-		return left;
+	constexpr friend StrongBitset operator^(StrongBitset&& left, const StrongBitset& right)
+	    noexcept(noexcept(left ^= right) && std::is_nothrow_move_constructible_v<Container>) {
+		left ^= right;
+		return std::move(left);
 	}
 
-	constexpr friend StrongBitset operator&(const StrongBitset& left, StrongBitset&& right) noexcept {
-		return std::move(right) & left;
+	constexpr friend StrongBitset operator^(StrongBitset&& left, StrongBitset&& right)
+	    noexcept(noexcept(std::move(left) ^ static_cast<const StrongBitset&>(right))) {
+		return std::move(left) ^ static_cast<const StrongBitset&>(right);
 	}
 
-	constexpr friend StrongBitset operator^(const StrongBitset& left, const StrongBitset& right) noexcept {
+	constexpr friend StrongBitset operator^(const StrongBitset& left, StrongBitset&& right)
+	    noexcept(noexcept(std::move(right) ^ left)) {
+		return std::move(right) ^ left;
+	}
+
+	constexpr friend StrongBitset operator^(const StrongBitset& left, const StrongBitset& right)
+	    noexcept(std::is_nothrow_copy_constructible_v<Container> && noexcept(std::declval<StrongBitset&>() ^= right) &&
+	             std::is_nothrow_move_constructible_v<Container>) {
 		StrongBitset tmp = left;
 		tmp ^= right;
 		return tmp;
-	}
-
-	constexpr friend StrongBitset operator^(StrongBitset&& left, const StrongBitset& right) noexcept {
-		left ^= right;
-		return left;
-	}
-
-	constexpr friend StrongBitset operator^(const StrongBitset& left, StrongBitset&& right) noexcept {
-		return std::move(right) ^ left;
 	}
 
 	/**
@@ -146,35 +182,35 @@ public:
 	 * @param values The flag bit(s) to look for.
 	 * @return true iff (*this & values) == values.
 	 */
-	bool has(const StrongBitset& values) const noexcept {
+	constexpr bool has(const StrongBitset& values) const noexcept(noexcept((*this & values) == values)) {
 		return (*this & values) == values;
 	}
 
-	constexpr StrongBitset& set() & noexcept(noexcept(std::declval<Container>().set())) {
+	constexpr StrongBitset& set() & noexcept(noexcept(std::declval<Container&>().set())) {
 		storage_.set();
 		return *this;
 	}
 
-	constexpr StrongBitset& reset() & noexcept(noexcept(std::declval<Container>().reset())) {
+	constexpr StrongBitset& reset() & noexcept(noexcept(std::declval<Container&>().reset())) {
 		storage_.reset();
 		return *this;
 	}
 
 	/**
-	 * Convert bitset to string. '0' for zeros (false) and '1' for ones (true).
+	 * @brief Convert bitset to string. '0' for zeros (false) and '1' for ones (true).
 	 * @param bitset The bitset to serialize to string
 	 * @return String representing the bitset
 	 */
-	friend std::string to_string(const StrongBitset& bitset) {
+	friend std::string to_string(const StrongBitset& bitset) noexcept(noexcept(std::string(bitset.storage_.to_string()))) {
 		return bitset.storage_.to_string();
 	}
 
 	/**
-	 * Make a bitset from arbitrary bit at position.
+	 * @brief Make a bitset from arbitrary bit at position.
 	 * @param pos The position of bit in the bitset
-	 * @return Bitset with the bit at 'pos' setted to 1 and others setted to 0
+	 * @return Bitset with the bit at pos set to 1 and all other bits set to 0.
 	 */
-	static constexpr StrongBitset make_bit(size_t pos) noexcept {
+	static constexpr StrongBitset make_bit(size_t pos) noexcept(noexcept(StrongBitset(Bit(pos)))) {
 		return StrongBitset(Bit(pos));
 	}
 
@@ -187,7 +223,7 @@ private:
 template <typename Container, typename Tag>
     requires requires(Container a) { std::hash<Container>{}(a); }
 struct std::hash<aniparse::detail::StrongBitset<Container, Tag>> {
-	size_t operator()(const aniparse::detail::StrongBitset<Container, Tag>& other) const noexcept {
+	size_t operator()(const aniparse::detail::StrongBitset<Container, Tag>& other) const noexcept(noexcept(std::hash<Container>{}(other.storage_))) {
 		return std::hash<Container>{}(other.storage_);
 	}
 };

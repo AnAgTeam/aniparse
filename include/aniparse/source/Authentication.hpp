@@ -6,9 +6,11 @@
 #pragma once
 #include "aniparse/net/CookieJar.hpp"
 #include "aniparse/net/Headers.hpp"
+#include "aniparse/source/WebLogin.hpp"
 
 #include <cstddef>
 #include <map>
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -99,9 +101,9 @@ enum class AuthMethod {
 	/// A username + password fed to ParserProfile::authenticate, which logs in and
 	/// returns an authenticated config. The client shows a standard credentials form.
 	UsernamePassword,
-	/// An interactive in-browser login (captcha / social OAuth); the client opens a
-	/// web view at AuthInfo::login_url and lifts the credential per AuthInfo::material,
-	/// then hands it back as an AuthenticationToken.
+	/// An interactive in-browser login (captcha / social OAuth). The client opens
+	/// the URL from AuthInfo::web_login and passes observed browser snapshots to
+	/// ParserProfile::check_web_login for verification.
 	InteractiveWeb,
 	/// A token / API key the user pastes; the client collects AuthInfo::fields and
 	/// builds an AuthenticationToken.
@@ -153,22 +155,8 @@ struct AuthInfo {
 	/// UsernamePassword: whether the source may additionally demand a 2FA step.
 	bool requires_2fa = false;
 
-	// --- InteractiveWeb only ---
-	/// Where the value the fields inject is lifted from once the web login completes.
-	enum class Material { Cookies, StorageToken };
-
-	/// The URL the web view opens for the user to sign in.
-	std::string login_url;
-	/// URL prefix(es) whose navigation signals a completed login.
-	std::vector<std::string> success_globs;
-	/// Where the credential is lifted from after login.
-	Material material = Material::Cookies;
-	/// StorageToken: the localStorage key the token sits under.
-	std::string storage_key;
-	/// StorageToken: dot-path to the token inside the JSON value at @ref storage_key
-	/// (e.g. "session.access_token" when the stored value is a JSON object nesting the
-	/// token). Empty when the stored value is the raw token string.
-	std::string storage_token_path;
+	/// Browser-only settings. Required for InteractiveWeb; absent for other methods.
+	std::optional<WebLoginInfo> web_login;
 };
 
 /**
