@@ -159,7 +159,7 @@ inline constexpr std::string_view title           = "title";
 /// Filter by status (aired state, e.g. "Announced"/"Released"). Usually
 /// SelectionValue, or TextQuery.
 inline constexpr std::string_view status          = "status";
-/// Filter by Rating. Usually IntInterval (a score range) or SelectionValue.
+/// Filter by Rating. Usually DoubleInterval (a score range) or SelectionValue.
 inline constexpr std::string_view rating          = "rating";
 /// Filter by year. Usually IntInterval.
 inline constexpr std::string_view year            = "year";

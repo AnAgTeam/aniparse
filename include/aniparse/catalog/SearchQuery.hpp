@@ -35,6 +35,8 @@ struct Interval {
 
 /// An integer filter value, such as episode count or release year.
 using IntInterval = Interval<std::ptrdiff_t>;
+/// A finite floating-point filter value, such as a fractional rating.
+using DoubleInterval = Interval<double>;
 /// An absolute time filter value.
 using TimeInterval = Interval<std::chrono::system_clock::time_point>;
 /// A time filter expressed relative to the request time.
@@ -72,7 +74,7 @@ struct Checkmark {
 
 /// The value of one requested filter, with no support or presentation metadata.
 using SearchFilterValue = std::variant<TextQuery, IntInterval, TimeInterval,
-    RelativeTimeInterval, SelectionValue, Checkmark>;
+    RelativeTimeInterval, SelectionValue, Checkmark, DoubleInterval>;
 /// Requested values keyed by stable parser-owned filter keys.
 using SearchFilters = std::map<std::string, SearchFilterValue, std::less<>>;
 

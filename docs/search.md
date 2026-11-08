@@ -2,7 +2,7 @@
 
 `SearchCapabilities` describes an endpoint. Its `supported_filters` map contains
 `SearchFilterInfo`: a source-provided `name` and `SearchFilterCapabilities`
-(text, integer/absolute/relative interval, selection, or boolean capabilities). The request is independent: `SearchRequestQuery` holds
+(text, integer/double/absolute/relative interval, selection, or boolean capabilities). The request is independent: `SearchRequestQuery` holds
 search text and a `SearchFilters` map of `SearchFilterValue` values.
 
 Filter keys remain stable query identities. Names are presentation only, independent
@@ -60,3 +60,57 @@ checks sorting. Network operations still return the existing request errors;
 the caller may await `load_search_capabilities()` once and validate locally before calling
 `search()`. Dynamic options may still be fetched and cached, and autocomplete
 continues through `suggest()` with the existing filter-key vocabulary.
+
+## Fractional intervals and UI steps
+
+`DoubleInterval` is `Interval<double>`; `DoubleIntervalCapabilities` is
+`IntervalCapabilities<double>`. Use them for fractional ratings, lengths or
+other finite numeric quantities. Integer filters retain `IntInterval`.
+Capabilities describe the source, while a query contains only chosen bounds:
+
+```cpp
+SearchFilterInfo rating{
+    .name = "Rating",
+    .capabilities = DoubleIntervalCapabilities{
+        .min = 0.0, .max = 10.0, .step = 0.1}
+};
+DoubleInterval requested{.from = 8.15, .to = 9.5};
+IntIntervalCapabilities pages{.min = 1, .max = 1000, .step = 10};
+```
+
+Both bounds are inclusive. An absent `from` or `to` leaves that end open;
+absence is different from zero. Exact values use equal bounds. A query must
+use the declared interval type; integer endpoints are not automatically
+promoted into a different variant.
+
+`step` is an **optional UI hint**, not an API restriction. It suggests how far
+a slider or stepper moves. It belongs only to capabilities, never to the
+query. An absent hint leaves the increment to the consumer. Provided hints
+must be positive and finite; consumers should ignore invalid hints. For a
+bounded slider, consumers may use `min` as the snapping origin and clamp to
+`max`, even if the final segment is shorter. Manual entry must not be rounded
+to the suggested grid.
+
+In the example, `8.15` is valid even though the suggested step is `0.1`, and
+an integer page count of `23` is valid despite a step of `10`.
+`validate_query` checks the value's type, exclusion support, bound order and
+allowed limits. It also rejects NaN and either infinity in double query
+bounds, including when the capability has no limits. It does **not** check
+step multiples or normalize values. Capability bounds themselves are the
+parser's responsibility: publish finite, ordered bounds.
+
+If an API accepts only a strict grid, the **parser** must validate that extra
+constraint after `validate_query`, before making a request. Document its
+origin and increment; use a deliberate tolerance or exact decimal units for
+floating-point comparisons. Do not infer such a restriction from `step`.
+
+The same capabilities template serves time intervals. Its step type is the
+difference between endpoints (`decltype(T{} - T{})`): numeric for integers
+and doubles, a duration for absolute times and relative durations. Consumers
+may ignore hints for controls that do not use them.
+
+The CLI represents fractional ranges as `N`, `A..B`, `A..` or `..B`, for example
+`--filter rating=8.15..9.5`. The two-dot separator allows signed values and
+scientific notation without confusing a minus sign with a separator. JSON
+capabilities use type `double` and optional numeric `min`, `max`, `step` fields.
+Existing integer CLI range syntax is unchanged.

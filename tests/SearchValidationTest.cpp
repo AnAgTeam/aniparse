@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <type_traits>
+#include <limits>
 
 using namespace aniparse;
 static_assert(!std::is_constructible_v<SearchFilterValue, TextCapabilities>);
@@ -339,4 +340,43 @@ TEST_CASE("Filter category names do not change query identities or validation") 
     CHECK_FALSE(validate_search_query(support, SearchRequestQuery{.filters = {
         {"Издатель", TextQuery{.text = "Example"}},
     }}).empty());
+}
+
+TEST_CASE("Numeric interval steps are UI hints, not validation grids", "[search]") {
+    SearchCapabilities support{.supported_filters = {
+        {"rating", {.capabilities = DoubleIntervalCapabilities{.min = 0, .max = 10, .step = 0.1}}},
+        {"count", {.capabilities = IntIntervalCapabilities{.min = 1, .max = 100, .step = 5}}}
+    }};
+    CHECK(validate_query(support, {.filters = {
+        {"rating", DoubleInterval{.from = 8.15, .to = 9.57}},
+        {"count", IntInterval{.from = 3, .to = 17}}
+    }}, {}).empty());
+    for (const auto& value : {DoubleInterval{}, DoubleInterval{.from = 0},
+                             DoubleInterval{.to = 10}, DoubleInterval{.from = 8.1, .to = 8.1}}) {
+        CHECK(validate_query(support, {.filters = {{"rating", value}}}, {}).empty());
+    }
+    for (const auto& value : {DoubleInterval{.from = -0.1}, DoubleInterval{.to = 10.1},
+                             DoubleInterval{.from = 9, .to = 8},
+                             DoubleInterval{.from = std::numeric_limits<double>::quiet_NaN()},
+                             DoubleInterval{.to = std::numeric_limits<double>::infinity()},
+                             DoubleInterval{.from = -std::numeric_limits<double>::infinity()}}) {
+        CHECK(has_error(validate_query(support, {.filters = {{"rating", value}}}, {}),
+                        SearchQueryError::Reason::InvalidValue, "rating"));
+    }
+    CHECK(has_error(validate_query(support, {.filters = {{"rating", IntInterval{.from = 8}}}}, {}),
+                    SearchQueryError::Reason::TypeMismatch, "rating"));
+    CHECK(has_error(validate_query(support, {.filters = {{"rating", DoubleInterval{.exclusive = true}}}}, {}),
+                    SearchQueryError::Reason::ExclusionNotSupported, "rating"));
+}
+
+TEST_CASE("Unbounded double filters still reject nonfinite endpoints", "[search]") {
+    SearchCapabilities support{.supported_filters = {
+        {"value", {.capabilities = DoubleIntervalCapabilities{}}}
+    }};
+    for (double invalid : {std::numeric_limits<double>::quiet_NaN(),
+                           std::numeric_limits<double>::infinity(),
+                           -std::numeric_limits<double>::infinity()}) {
+        CHECK_FALSE(validate_query(support, {.filters = {{"value", DoubleInterval{.from = invalid}}}}, {}).empty());
+        CHECK_FALSE(validate_query(support, {.filters = {{"value", DoubleInterval{.to = invalid}}}}, {}).empty());
+    }
 }

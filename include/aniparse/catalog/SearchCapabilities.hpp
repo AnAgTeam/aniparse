@@ -30,10 +30,17 @@ struct IntervalCapabilities {
     std::optional<T> min; ///< Minimum allowed endpoint; absent means unrestricted.
     std::optional<T> max; ///< Maximum allowed endpoint; absent means unrestricted.
     bool supports_exclusion = false; ///< Whether the interval can be inverted.
+    /// Optional positive, finite UI increment; absent lets the consumer choose.
+    /// This is a distance (a duration for time points), not a required value grid.
+    /// validate_query never checks multiples or rounds values. Parsers enforce any
+    /// stricter source constraints themselves. Consumers ignore invalid hints.
+    std::optional<decltype(T{} - T{})> step;
 };
 
 /// Capabilities of an integer interval filter.
 using IntIntervalCapabilities = IntervalCapabilities<std::ptrdiff_t>;
+/// Capabilities of a finite floating-point interval filter.
+using DoubleIntervalCapabilities = IntervalCapabilities<double>;
 /// Capabilities of an absolute time interval filter.
 using TimeIntervalCapabilities = IntervalCapabilities<std::chrono::system_clock::time_point>;
 /// Capabilities of a relative time interval filter.
@@ -72,7 +79,7 @@ struct CheckmarkCapabilities {
 /// Description of one supported filter, separate from request values.
 using SearchFilterCapabilities = std::variant<TextCapabilities, IntIntervalCapabilities,
     TimeIntervalCapabilities, RelativeTimeIntervalCapabilities, SelectionCapabilities,
-    CheckmarkCapabilities>;
+    CheckmarkCapabilities, DoubleIntervalCapabilities>;
 /**
  * @brief Display metadata and supported operations for one filter axis.
  *

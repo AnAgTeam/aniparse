@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <type_traits>
 #include <set>
+#include <cmath>
 
 namespace aniparse {
 namespace {
@@ -71,6 +72,10 @@ bool value_invalid(const TextCapabilities&, const TextQuery& value) {
 
 template<typename T>
 bool value_invalid(const IntervalCapabilities<T>& descriptor, const Interval<T>& value) {
+    if constexpr (std::is_floating_point_v<T>) {
+        if ((value.from && !std::isfinite(*value.from)) ||
+            (value.to && !std::isfinite(*value.to))) return true;
+    }
     if (value.from && value.to && *value.to < *value.from) return true;
     auto outside = [&](const auto& bound) {
         return bound && ((descriptor.min && *bound < *descriptor.min)
