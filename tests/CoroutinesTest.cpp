@@ -7,7 +7,6 @@
 #include <aniparse/utility/Coroutines.hpp>
 
 #include <coro/task.hpp>
-#include <coro/thread_pool.hpp>
 #include <coro/expected.hpp>
 
 #include <aniparse/net/CancellingTask.hpp>
@@ -15,30 +14,6 @@
 #include <aniparse/runtime/RequestContext.hpp>
 
 using namespace aniparse;
-
-static coro::task<void> gather_awaitables_impl(coro::thread_pool* pool) {
-	auto test_coro = [](coro::thread_pool* pool, std::string val) -> coro::task<std::string> {
-		co_await pool->schedule();
-		co_return val;
-	};
-
-	co_await gather_awaitables();
-
-	auto [r1, r2] = co_await gather_awaitables(
-		test_coro(pool, "bla"),
-		test_coro(pool, "blabla")
-	);
-	REQUIRE((r1 == "bla" && r2 == "blabla"));
-}
-
-TEST_CASE("gather_awaitables") {
-	// Own the pool in this synchronous scope so ~thread_pool runs on the main
-	// thread. If the pool were created inside the coroutine, a worker thread
-	// would resume it (libcoro resumes inline) and then destroy the pool from
-	// within itself — ~thread_pool joins that same worker → deadlock.
-	auto pool = coro::thread_pool::make_unique({});
-	coro::sync_wait(gather_awaitables_impl(pool.get()));
-}
 
 struct TestStruct {
 	int value = 4;
@@ -54,4 +29,26 @@ CORO_TEST_CASE("expected as value") {
 	REQUIRE_FALSE(result.has_value());
 	CHECK(result.error().code == RequestErrorCode::NotImplemented);
 	CHECK(result.error().message == "blabla");
+}
+
+namespace {
+RequestTask<bool> observe_gather_cancellation() {
+	co_return (co_await asyncnet::awaitables::get_stop_token).stop_requested();
+}
+
+RequestTask<bool> gather_request_results() {
+	auto [cancelled, failure] = co_await gather(observe_gather_cancellation(), test_coro());
+	// Domain errors remain Result values; only thrown exceptions escape gather.
+	REQUIRE_FALSE(failure.has_value());
+	CHECK(failure.error().code == RequestErrorCode::NotImplemented);
+	co_return std::move(cancelled);
+}
+}
+
+CORO_TEST_CASE("gather connects RequestTask cancellation and preserves Result errors") {
+	auto task = gather_request_results();
+	task.request_stop();
+	auto result = co_await std::move(task);
+	REQUIRE(result.has_value());
+	CHECK(*result);
 }

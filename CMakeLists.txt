@@ -295,7 +295,7 @@ endif()
 
 # ---- COROUTINE RUNTIME (libcoro)
 
-# libcoro supplies coroutine helpers (utility/Coroutines.hpp), independently
+# libcoro supplies runtime scheduling and coroutine helpers, independently
 # of the standard-library-only asyncnet task. The curl backend already pulls
 # libcoro in transitively via asyncnet, so
 # add it directly only when that backend is off; adding it twice would redefine
