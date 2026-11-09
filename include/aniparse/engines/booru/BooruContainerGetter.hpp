@@ -4,7 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/images/ImagesGetter.hpp"
+#include "aniparse/engines/booru/BooruEngine.hpp"
 
 #include <optional>
 
@@ -60,15 +60,9 @@ public:
 	RequestTask<SerializedGetterData> serialize() const override;
 
 private:
-	/// The post as this engine maps it: the container metadata and its media leaf
-	/// (absent when the post serves no file). Both come out of one response.
-	struct Post {
-		ImageContainerInfo info;
-		std::optional<ImageItem> item;
-	};
 
 	/// Fetch and map the post. Returns the mapping — writes nothing.
-	RequestTask<Post> fetch_post(RequestContext& context) const;
+	RequestTask<BooruPost> fetch_post(RequestContext& context) const;
 
 	const BooruSite& site_;
 	const ImageContainerID id_;

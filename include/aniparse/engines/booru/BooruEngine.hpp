@@ -17,6 +17,12 @@
 
 namespace aniparse::engines {
 
+/// Owned mapping of one decoded post, including an optional servable media leaf.
+struct BooruPost {
+	ImageContainerInfo info;
+	std::optional<ImageItem> item;
+};
+
 /**
  * @brief The engine dialect of one booru software family (a REST post-index flavour,
  * a query-CGI flavour, ...). Pure request-building and response-mapping — no network,
@@ -84,15 +90,14 @@ struct BooruEngine {
 	                                              const GetFilters& filters) const = 0;
 
 	/**
-	 * @brief The post array of a list/search response, or nullptr on zero results.
-	 *
-	 * Unwraps whatever envelope the family returns (a bare array, an object wrapping one),
-	 * so the generic getters never know the shape.
-	 * @param envelope The parsed listing response
-	 * @return The array of post objects, or nullptr when the response carries none
-	 */
-	[[nodiscard]] virtual const boost::json::array* posts_of(
-	    const boost::json::value& envelope) const = 0;
+     * @brief Decode and map an entire list/search response once.
+     * @param envelope The parsed response, borrowed for this call.
+     * @param media_referer Optional site-specific Referer for media resources.
+     * @return Owned posts, or UnexpectedResponse for malformed required data.
+     */
+	[[nodiscard]] virtual Result<std::vector<BooruPost>> parse_posts(
+	    const boost::json::value& envelope,
+	    std::optional<std::string_view> media_referer) const = 0;
 
 	// --- single post (container-of-one) -----------------------------------------
 
@@ -106,43 +111,13 @@ struct BooruEngine {
 	                                                   ImageContainerID id) const = 0;
 
 	/**
-	 * @brief The one post object of a single-post response, or nullptr when absent.
-	 *
-	 * Separate from @ref posts_of because a family may answer a by-id fetch with a plain
-	 * object while answering a listing with an array. A nullptr means the post does not
-	 * exist (or was removed), which the getter reports as not-found.
-	 * @param envelope The parsed single-post response
-	 * @return The post object, or nullptr when the response carries none
-	 */
-	[[nodiscard]] virtual const boost::json::object* single_post(
-	    const boost::json::value& envelope) const = 0;
-
-	/**
-	 * @brief Map a post object to container metadata (a post is a container-of-one). The
-	 * @p media_referer, when set, is attached to every preview's fetch headers (site
-	 * data — the mapping itself bakes no host).
-	 * @param post The post object to map
-	 * @param media_referer The site's media Referer, or nullopt when its media is served
-	 *        to a bare GET
-	 * @return The container metadata (title, tags, previews, ...)
-	 */
-	[[nodiscard]] virtual ImageContainerInfo post_to_container_info(
-	    const boost::json::object& post,
-	    std::optional<std::string_view> media_referer) const = 0;
-
-	/**
-	 * @brief Map a post object to its media leaf; nullopt when it has no servable file. The
-	 * @p media_referer, when set, is attached to the media (and poster) fetch headers.
-	 *
-	 * A post whose file the source withholds (banned, deleted, paywalled) maps to nullopt
-	 * and is skipped rather than yielded as a media-less item.
-	 * @param post The post object to map
-	 * @param media_referer The site's media Referer, or nullopt when its media is served
-	 *        to a bare GET
-	 * @return The media item, or nullopt when the post has no servable file
-	 */
-	[[nodiscard]] virtual std::optional<ImageItem> post_to_item(
-	    const boost::json::object& post,
+     * @brief Decode and map a single-post response once.
+     * @param envelope The parsed response, borrowed for this call.
+     * @param media_referer Optional site-specific Referer for media resources.
+     * @return An owned post, NotFound for an absent post, or a conversion error.
+     */
+	[[nodiscard]] virtual Result<BooruPost> parse_post(
+	    const boost::json::value& envelope,
 	    std::optional<std::string_view> media_referer) const = 0;
 
 	// --- suggest / autocomplete -------------------------------------------------
@@ -167,9 +142,9 @@ struct BooruEngine {
 	 * Each suggestion carries the token to search by, a label to show, and — where the
 	 * family types its tags — the axis the tag belongs to.
 	 * @param envelope The parsed autocomplete response
-	 * @return The suggestions; empty when the response carries none
+	 * @return The suggestions, or UnexpectedResponse for malformed data
 	 */
-	[[nodiscard]] virtual std::vector<SearchSuggestion> parse_suggestions(
+	[[nodiscard]] virtual Result<std::vector<SearchSuggestion>> parse_suggestions(
 	    const boost::json::value& envelope) const = 0;
 
 	// --- url routing ------------------------------------------------------------
@@ -215,12 +190,12 @@ struct BooruEngine {
 	 * @brief Map a pool object to container metadata (a container-of-many).
 	 *
 	 * Takes the pool object of a pool-metadata response.
-	 * @return The container metadata. Default: empty — never called unless
+	 * @return The container metadata or a conversion error. Default: empty — never called unless
 	 *         @ref supports_pools()
 	 */
-	[[nodiscard]] virtual ImageContainerInfo pool_to_container_info(
-	    const boost::json::object& /*pool*/) const {
-		return {};
+	[[nodiscard]] virtual Result<ImageContainerInfo> pool_to_container_info(
+	    const boost::json::value& /*pool*/) const {
+		return ImageContainerInfo{};
 	}
 
 	/**
@@ -228,8 +203,7 @@ struct BooruEngine {
 	 *
 	 * Takes the already-resolved fetch host, the pool whose posts are wanted, and the
 	 * paging window. A pool is paged like any listing rather than materialized whole, so
-	 * its items can be streamed; the response is unwrapped with @ref posts_of and mapped
-	 * with @ref post_to_item, like a listing's.
+	 * its items can be streamed; the response is decoded with @ref parse_posts, like a listing's.
 	 * @return The request to perform. Default: an empty request — never called unless
 	 *         @ref supports_pools()
 	 */

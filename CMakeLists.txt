@@ -157,6 +157,7 @@ add_library(aniparse ${aniparse_library_type}
 	"src/source/Authentication.cpp" "include/aniparse/source/Authentication.hpp"
 
 	"src/json/View.cpp" "include/aniparse/json/View.hpp"
+	"include/aniparse/runtime/DecodeResponse.hpp"
 	"include/aniparse/json/Conversion.hpp" "include/aniparse/utility/Tolerant.hpp"
 	"include/aniparse/json/Decode.hpp" "include/aniparse/json/DecodeError.hpp"
 	"include/aniparse/json/detail/DecodeContext.hpp" "include/aniparse/json/detail/DecodeValue.hpp"

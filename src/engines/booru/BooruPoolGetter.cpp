@@ -31,14 +31,7 @@ RequestTask<ImageContainerInfo> BooruPoolGetter::load_info(RequestContext contex
 		co_return unexpected(std::move(json_result.error()));
 	}
 
-	// Pool metadata is a bare object today (the one family with pools returns its
-	// pool endpoint as an object); a wrapping family would grow a hook.
-	const boost::json::object* pool = json_result->if_object();
-	if (!pool) {
-		co_return make_request_error(RequestErrorCode::NotFound, "booru pool not found");
-	}
-
-	co_return engine.pool_to_container_info(*pool);
+	co_return engine.pool_to_container_info(*json_result);
 }
 
 RequestTask<PageResults<ImageItem>> BooruPoolGetter::items(
@@ -54,25 +47,16 @@ RequestTask<PageResults<ImageItem>> BooruPoolGetter::items(
 	}
 
 	PageResults<ImageItem> results;
-	const boost::json::array* posts = engine.posts_of(*json_result);
-	if (!posts) {
-		co_return results;
-	}
-	for (const boost::json::value& entry : *posts) {
-		const boost::json::object* post = entry.if_object();
-		if (!post) {
-			continue;
-		}
-		// A banned/deleted post in the pool has no servable file — skip it rather
-		// than yield a media-less item.
-		if (std::optional<ImageItem> item = engine.post_to_item(*post, site_.media_referer)) {
+	auto posts = engine.parse_posts(*json_result, site_.media_referer);
+	if (!posts)
+		co_return unexpected(std::move(posts.error()));
+	for (std::size_t index = 0; index < posts->size(); ++index) {
+		if (auto& item = (*posts)[index].item) {
 			results.results.push_back(PageItem<ImageItem>{
-			    .item = std::move(*item),
-			    .offset = filters.from + static_cast<pageoff>(results.results.size()),
-			});
+			    .item = std::move(*item), .offset = filters.from + static_cast<pageoff>(index)});
 		}
 	}
-	results.next_offset = filters.from + static_cast<pageoff>(results.results.size());
+	results.next_offset = filters.from + static_cast<pageoff>(posts->size());
 	co_return results;
 }
 

@@ -24,7 +24,7 @@ ImageContainerCapabilities BooruContainerGetter::capabilities() const noexcept {
 	return {};
 }
 
-RequestTask<BooruContainerGetter::Post> BooruContainerGetter::fetch_post(
+RequestTask<BooruPost> BooruContainerGetter::fetch_post(
     RequestContext& context) const {
 	const BooruEngine& engine = site_.engine();
 	std::string_view base = context.base_url();
@@ -34,15 +34,7 @@ RequestTask<BooruContainerGetter::Post> BooruContainerGetter::fetch_post(
 		co_return unexpected(std::move(json_result.error()));
 	}
 
-	const boost::json::object* post = engine.single_post(*json_result);
-	if (!post) {
-		co_return make_request_error(RequestErrorCode::NotFound, "booru post not found");
-	}
-
-	co_return Post{
-		.info = engine.post_to_container_info(*post, site_.media_referer),
-		.item = engine.post_to_item(*post, site_.media_referer),
-	};
+	co_return engine.parse_post(*json_result, site_.media_referer);
 }
 
 std::optional<ImageContainerInfo> BooruContainerGetter::preview_info() const noexcept {

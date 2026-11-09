@@ -8,7 +8,6 @@
 #include "aniparse/engines/booru/BooruEngine.hpp"
 #include "aniparse/engines/booru/BooruPoolGetter.hpp"
 #include "aniparse/engines/booru/BooruSite.hpp"
-#include "aniparse/json/Json.hpp"
 #include "aniparse/runtime/RequestContext.hpp"
 #include "aniparse/utility/Coroutines.hpp"
 
@@ -25,31 +24,21 @@ namespace {
 	/// its mapped info + media leaf so info()/items() need no refetch. The engine
 	/// unwraps the envelope (bare array vs wrapped) and maps each post; each getter is
 	/// bound to the same site.
-	PageResults<std::unique_ptr<ImageContainerGetter>> build_post_page(
-	    const BooruSite& site, const boost::json::value& envelope,
-	    const GetFilters& filters) {
-		PageResults<std::unique_ptr<ImageContainerGetter>> results;
-		const BooruEngine& engine = site.engine();
-		const boost::json::array* posts = engine.posts_of(envelope);
-		if (!posts) {
-			return results;
-		}
-		for (const boost::json::value& entry : *posts) {
-			const boost::json::object* post = entry.if_object();
-			if (!post) {
-				continue;
-			}
-			auto id = static_cast<ImageContainerID>(aniparse::json::integer(*post, "id"));
-			if (id == invalid_image_container_id) {
-				continue;
-			}
-			results.append(filters.from, std::make_unique<BooruContainerGetter>(
-			    site, id,
-			    engine.post_to_container_info(*post, site.media_referer),
-			    engine.post_to_item(*post, site.media_referer)));
-		}
-		return results;
+Result<PageResults<std::unique_ptr<ImageContainerGetter>>> build_post_page(
+    const BooruSite& site, const boost::json::value& envelope,
+    const GetFilters& filters) {
+	PageResults<std::unique_ptr<ImageContainerGetter>> results;
+	const BooruEngine& engine = site.engine();
+	auto posts                = engine.parse_posts(envelope, site.media_referer);
+	if (!posts)
+		return unexpected(std::move(posts.error()));
+	for (auto& post : *posts) {
+		const auto id = post.info.id;
+		results.append(filters.from, std::make_unique<BooruContainerGetter>(
+		                                 site, id, std::move(post.info), std::move(post.item)));
 	}
+	return results;
+}
 } // namespace
 
 RequestTask<SearchCapabilities> BooruImagesGetter::load_search_capabilities(RequestContext) const {
