@@ -1,93 +1,107 @@
 # Request profiles and authentication
 
-A parser declares selectable catalogs and request profiles independently. Each
+A parser declares catalogs and request profiles independently. Each
 `CatalogInfo::profile_id` selects a descriptor from `Parser::profiles()`. Several
-catalogs can reference one profile, or each can use a different profile. An
-anonymous source still has a profile for its headers and mirrors; the default
-implementation declares `main` with no authentication or source-specific defaults.
+catalogs can share one profile. An anonymous source also has a profile for its
+headers and origins; the default declaration is `main`.
 
-`ParserProfile` owns immutable behavior, not an account or a cookie jar:
+`ParserProfile` owns immutable behavior. Its `configure`, `mirrors` and
+`canonical_base_url` supply built-in defaults. `auth_info` describes the sign-in
+flow and `auth_keys` declares durable credentials. Account state belongs to
+`ProfileSession`.
 
-- `configure` supplies source-specific headers, query parameters and request hooks.
-- `auth_info` describes the existing password, token or interactive browser flow.
-- `authenticate` implements authentication on a fresh configuration.
-- `auth_keys` and `export_auth` select durable credentials for persistence.
-- `mirrors` declares this profile's built-in fetch origins.
+## Factory ownership and identity
 
-The parser implements `make_profile_impl(ProfileInfo)` to construct the appropriate
-profile class. It need not override `profile_descriptors()` when the default `main` descriptor
-is sufficient. Public `profiles()` validates a nonempty list and nonempty unique
-IDs. Public `catalogs()` validates `catalog_descriptors()` IDs and their profile
-references, without constructing profiles; an empty catalog list is valid.
-Invalid declarations throw `std::logic_error` during enumeration.
+Implement `make_profile_impl(ProfileInfo)` and construct the derived profile from
+that descriptor. The public `Parser::make_profile` validates the returned profile
+and binds the owning parser ID automatically. A profile cannot select or replace
+its own parser identity. Catalog roots retain their own catalog and profile IDs.
 
-`make_profile(id)` and `make_catalog_getter(id)` return nullptr only for unknown IDs.
-For a declared ID, a null or mismatched factory result throws `std::logic_error`.
-Profiles must match their parser and profile IDs; roots must match their selected
-catalog and profile IDs. These exceptions identify implementation defects, rather
-than network errors. Both factories continue returning independent owned objects.
-
-## Factory ownership
-
-`Parser::make_profile(id)` returns a fresh `std::unique_ptr<ParserProfile>`, matching
-the ownership model of catalog-root factories. The caller chooses whether to
-retain it for one operation, a screen, or the entire application session. Parsers
-do not cache profile instances or return hidden singletons. A consumer needing
-shared ownership can convert its unique pointer to a shared pointer at its own
-boundary. Concurrent use must still respect each object's documented contract.
+Profile and catalog factories return fresh `unique_ptr` objects. The consumer
+owns retention and reuse. A session owns its private profile binding and can
+outlive both the profile and parser. Multiple calls to `make_session` create
+independent accounts; copies of an existing session share its settings and jar.
 
 ## Consumer flow
 
 ```cpp
 auto catalog = parser->catalogs().front();
 auto profile = parser->make_profile(catalog.profile_id);
-auto context = profile->make_context(services);
-
-// Or restore saved authentication into a fresh backend jar:
-// auto context = profile->make_context(services, saved_auth);
-
+auto session = profile->make_session(services);
 auto root = parser->make_catalog_getter(catalog.id);
-auto page = co_await root->latest(context, paging);
-```
+auto page = co_await root->latest(session, paging);
 
-`make_context()` is the parser-facing construction path. Each call applies fresh
-profile defaults and provisions a backend cookie jar. Parser and profile IDs
-live beside the settings in private context storage, with no extra ownership
-handle. `ParserConfig` contains settings only; copying or replacing it cannot
-change the context's binding. `new_with_config()` copies settings, retains an
-existing jar, and rejects null. It preserves the context's override snapshot.
-
-Contexts remain operation arguments, so existing getters can use a newly created
-context after transport settings change. Matching a context to the correct
-getter remains the caller's responsibility; the common type does not encode a
-particular parser identity. Extractors create contexts through `make_context()`
-on their extractor or extractor store, using extractor-facing services.
-
-For authentication, pass a context created from the selected profile:
-
-```cpp
-auto authenticated = co_await profile->authenticate(context, credentials);
+auto authenticated = co_await profile->authenticate(session, credentials);
 if (authenticated) {
-    auto saved = profile->export_auth(**authenticated);
-    // Persist saved under (parser->identifier(), profile->info().id).
-    context = context.new_with_config(*authenticated);
+    session = std::move(*authenticated);
+    auto saved = session.export_state();
+    // Persist saved under its parser_id/profile_id and the consumer's account key.
 }
 ```
 
-Implementations override the virtual `authenticate` method; credentials
-and context are passed by value. The context must belong to the selected profile.
-The task borrows its profile: the caller must keep the profile alive until the
-task completes or is destroyed. In particular, storing or returning a task does
-not transfer ownership of its profile. A direct `co_await` on a temporary owning
-profile handle keeps that handle alive until the await expression finishes.
-A failed login leaves the caller's configuration and cookie jar untouched.
-Successful authentication returns a new configuration for the application to
-adopt for subsequent requests.
+`profile->restore_session(services, saved)` validates the saved identity, reapplies
+current defaults and restores credentials into a fresh backend jar. Persisted
+state contains user choices and declared durable credentials, never services,
+callbacks, remote overrides or a live jar. Effective request settings are readable
+through `session.config()`.
 
-Two catalogs share an account only when the application supplies their shared
-profile's authenticated context. Merely retrieving the same profile ID does not
-implicitly share cookies, and one profile can create multiple independent
-account configurations. Nothing mutable is stored in the parser or profile.
+Declare common request settings in `ParserProfile::configure()`. Constant headers
+and parameters go into `ParserConfig` directly; values derived from an origin or
+the final request belong in `config.modifiers`. The core calls each modifier with
+`HttpRequest&` and `const RequestContext&` after merging defaults. For example:
+
+```cpp
+void ExampleProfile::configure(ParserConfig& config) const {
+    config.headers.set("Accept", "application/json");
+    config.modifiers.emplace_back([](HttpRequest& request, const RequestContext& context) {
+        std::visit([&](auto& value) {
+            value.headers.set("Referer", std::string(context.canonical_base_url()));
+        }, request);
+    });
+}
+```
+
+This rule enforces the profile's frontend origin on every request. Getters do not
+repeat it. A modifier reads the supplied snapshot rather than capturing a live
+session or a URL at session creation. It must support concurrent calls and must
+not retain its arguments or capture a borrowed profile/parser. Passing the snapshot
+by reference adds no ownership copies or allocations to snapshot creation.
+
+A session implicitly converts to an owning `RequestContext` when passed to a
+getter. Each conversion captures a fresh snapshot at the call site, even if the
+returned task is stored and awaited later. Settings, origins, selectors, patterns
+and application headers stay fixed across suspension; cookies evolve in the
+captured jar. Nested calls reuse the captured context.
+
+To share one environment across several operations, capture it explicitly:
+
+```cpp
+auto context = session.snapshot();
+auto capabilities = co_await root->load_search_capabilities(context);
+auto page = co_await root->search(context, query, paging);
+```
+
+The caller selects the matching profile for each catalog/getter. Extractors retain
+their own `make_context()` factories and extractor-facing services.
+
+## Authentication implementation
+
+Override `authenticate_impl(AuthenticationSession&, AuthenticationData)`. The
+core creates a clean candidate with profile defaults, inherited user options
+and a fresh jar. Mutate `candidate.config()` and make login requests through
+`candidate.context()`. Return success or an error; the core publishes an
+independent session only after success. Failure and cancellation leave the input
+session untouched.
+
+The wrapper immediately awaits the hook. Candidate references, copied contexts
+and background tasks must not escape it. The caller keeps the profile alive until
+the returned task completes or is destroyed: member coroutines borrow `this`.
+
+For interactive login, retain `profile->begin_web_login(session)` from browser
+presentation through every `check_web_login` call. Resolve `auth_info` and browser
+observations from that pinned session. Cookie-based profiles override
+`check_web_login_impl`; storage-token profiles can use the default implementation.
+A completed check returns a new ordinary session for explicit adoption.
 
 ## Application request defaults
 
@@ -97,23 +111,25 @@ settings.request_defaults.headers.set("User-Agent", "MyApp/1.0");
 client->set_config(std::move(settings));
 ```
 
-`RequestContext` merges headers by case-insensitive name in this order:
-explicit request headers, profile configuration headers, client request defaults.
-Each lower layer fills only missing names. Request modifiers run after this merge
-and can inspect the final headers. Defaults are snapshotted for each request and
-are not copied into `ParserConfig` or exported as authentication. Existing contexts
-see updated defaults on their next request.
+Request headers take precedence over effective profile headers, which take
+precedence over application defaults. Names are case-insensitive. Modifiers run
+after merging and may replace values to enforce a source's protocol requirements.
+Application headers are captured once per operation; an existing
+snapshot keeps them while a new snapshot observes the latest publication.
+Transport proxy, timeout, retry and TLS settings remain backend-owned.
 
-Transport implementations override `apply_client_config` instead of `set_config`;
-the common nonvirtual setter publishes request defaults independently of the
-backend. Proxy, timeout, retry and TLS behavior remains backend-owned.
+## Mirrors and overrides
 
-## Mirrors
+User choices live in `SessionConfig`. `session.set_mirror(url)` selects a full
+HTTP(S) fetch base; `nullopt` follows the current override or built-in default.
+The independent `canonical_base_url` setting controls the frontend origin.
+Getters call `context.base_url()` and `context.canonical_base_url()` without
+supplying seeds. `session.mirror_choices()` returns the current candidate URLs.
 
-Mirror selection remains in each account configuration. `MirrorSource` accepts
-optional mirror and frontend-origin maps keyed by `(parser_id, profile_id)`.
-There is no parser-wide origin fallback, including for `main` or unstamped
-contexts. Selector and regex overrides retain their existing ownership.
+`OverridesStore` publishes complete immutable generations containing mirrors,
+frontend origins, selectors and patterns. Compiled sets are cached within that
+generation by owner and type. Snapshot creation shares immutable owners without
+copying configuration tables; changing only a URL also shares the request config.
 
 Schema version 1 accepts an optional `profiles` table inside each parser entry:
 
@@ -139,8 +155,8 @@ Schema version 1 accepts an optional `profiles` table inside each parser entry:
 ```
 
 `decode_overrides` verifies the signature over the original payload bytes before
-reading profile settings. `SourceOverridesManager` publishes the profile maps into the
-immutable `MirrorSource` for parser request origins. Existing request contexts keep
+reading profile settings. `SourceOverridesManager` publishes one `OverridesState`
+generation for parser requests. Existing request contexts keep
 their old snapshots; newly constructed contexts see the applied revision.
 Malformed profile tables, IDs, mirror lists or origins reject the whole payload
 without replacing the active state. Unknown fields remain ignored.

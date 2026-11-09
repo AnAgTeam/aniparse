@@ -8,8 +8,8 @@
 using namespace aniparse;
 
 int main() {
-    ParserProfile profile("Example", {.id = "main", .name = "Example"});
-    auto context = profile.make_context(examples::make_client());
+    auto profile = examples::make_profile();
+    auto context = profile->make_session(examples::make_services()).snapshot();
     examples::ExampleManga source;
     constexpr std::size_t page_size = 1; // Small windows demonstrate continuation.
     pageoff from = 0;

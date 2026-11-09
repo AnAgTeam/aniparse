@@ -199,7 +199,7 @@ struct Parser {
 	 *
 	 * A fresh getter, owned by the caller; getters are cheap and stateless, so one
 	 * may be made per use rather than cached. It carries no config — the caller
-	 * passes a RequestContext (created through ParserProfile::make_context) into each call.
+	 * passes a RequestContext (captured through ProfileSession::snapshot) into each call.
 	 * Default: nullptr.
 	 * @return The root images getter, or nullptr if the source has no image library.
 	 */

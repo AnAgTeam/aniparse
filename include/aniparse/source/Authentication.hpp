@@ -26,8 +26,6 @@
 
 namespace aniparse {
 
-struct ParserConfig;
-
 /**
  * @brief Data for authentification using username and password
  */
@@ -58,7 +56,7 @@ using AuthenticationData = std::variant<AuthenticationUserPassword, Authenticati
  * A parser declares which cookies / headers / url params of its (authenticated)
  * config are the durable credential, so the library can copy exactly those into
  * an AuthState. Everything volatile (session ids, anti-bot cookies, User-Agent,
- * ...) is left behind. @see ParserProfile::auth_keys, ParserProfile::export_auth
+ * ...) is left behind. @see ParserProfile::auth_keys, ProfileSession::export_state
  */
 struct AuthKeys {
 	std::vector<std::string> cookies;
@@ -70,27 +68,15 @@ struct AuthKeys {
  * @brief A persistable authentication session distilled from a ParserConfig.
  *
  * Carries only the credential-bearing entries (per AuthKeys) across the three
- * request channels, plus the mirror the session belongs to. Portable by design
+ * request channels. User choices live separately in SessionConfig. Portable by design
  * (structured Cookie), so it can be stored and later merged back into a config.
- * @see ParserProfile::export_auth, import_auth
+ * @see ProfileSession::export_state, ParserProfile::restore_session
  */
 struct AuthState {
 	std::vector<Cookie> cookies;
 	Headers headers;
 	std::map<std::string, std::string> url_params;
-	size_t alt_link = 0;
 };
-
-/**
- * @brief Merge a saved AuthState back into a config (the inverse of export_auth).
- *
- * Generic and parser-independent: sets the cookies on the config's jar, merges
- * the auth headers and url params, and restores the mirror index. The config
- * must already own a cookie jar for cookies to be restored.
- * @param config Config to authenticate in place
- * @param state Previously exported session
- */
-void import_auth(ParserConfig& config, const AuthState& state);
 
 /**
  * @brief How a source expects a user to sign in — the shape the client collects.
@@ -99,7 +85,7 @@ void import_auth(ParserConfig& config, const AuthState& state);
  */
 enum class AuthMethod {
 	/// A username + password fed to ParserProfile::authenticate, which logs in and
-	/// returns an authenticated config. The client shows a standard credentials form.
+	/// returns an authenticated session. The client shows a standard credentials form.
 	UsernamePassword,
 	/// An interactive in-browser login (captcha / social OAuth). The client opens
 	/// the URL from AuthInfo::web_login and passes observed browser snapshots to

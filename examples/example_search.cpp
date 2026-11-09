@@ -44,8 +44,8 @@ protected:
 };
 
 int main() {
-    ParserProfile profile("Example", {"main", "Anonymous"});
-    auto context = profile.make_context(examples::make_client());
+    auto profile = examples::make_profile();
+    auto context = profile->make_session(examples::make_services()).snapshot();
     FilteredCatalog root({.id = "main", .name = "Manga", .kinds = catalog_kinds::manga});
     SearchRequestQuery query{.query = "first", .filters = {
         {"genre", SelectionValue{.included = {"drama"}, .excluded = {"comedy"}}},

@@ -13,11 +13,11 @@
 namespace aniparse {
 
 RequestContext VideoExtractor::make_context(std::shared_ptr<const RuntimeServices> services) const {
-	return RequestContext::make(std::move(services), {}, identifier(), {});
+	return RequestContext::make_extractor(std::move(services), identifier());
 }
 
 RequestContext VideoExtractorStore::make_context(std::shared_ptr<const RuntimeServices> services) const {
-	return RequestContext::make(std::move(services), {}, {}, {});
+	return RequestContext::make_extractor(std::move(services));
 }
 
 namespace {

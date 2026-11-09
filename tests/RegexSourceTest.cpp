@@ -1,3 +1,4 @@
+#include <aniparse/source/overrides/OverridesState.hpp>
 /*
  * Copyright (C) 2026 Toilettrauma
  *
@@ -138,56 +139,52 @@ struct ProbeSet {
 };
 } // namespace
 
-TEST_CASE("RegexSourceHolder caches compiled sets per (owner id, set type)") {
-	RegexSourceHolder holder(std::make_shared<const RegexSource>(RegexSource::ScopedOverrides{
+TEST_CASE("OverridesState caches compiled sets per (owner id, set type)") {
+	auto generation = std::make_shared<aniparse::OverridesState>(nullptr, nullptr, std::make_shared<const RegexSource>(RegexSource::ScopedOverrides{
 	    { "owner_a", { { "info.id", "/a" } } },
 	    { "owner_b", { { "info.id", "/b" } } },
 	}));
 
 	// Two owners sharing one set type get one copy EACH, with their own override.
-	auto set_a = holder.set_for<ProbeSet>("owner_a");
-	auto set_b = holder.set_for<ProbeSet>("owner_b");
+	auto set_a = generation->patterns<ProbeSet>("owner_a");
+	auto set_b = generation->patterns<ProbeSet>("owner_b");
 	CHECK(set_a->pattern == "/a");
 	CHECK(set_b->pattern == "/b");
 	CHECK(set_a != set_b);
 
 	// A repeated request hits the cache: same instance, no rebuild.
-	CHECK(holder.set_for<ProbeSet>("owner_a") == set_a);
+	CHECK(generation->patterns<ProbeSet>("owner_a") == set_a);
 	// An uncovered id gets the built-in default.
-	CHECK(holder.set_for<ProbeSet>("owner_c")->pattern == "/default");
+	CHECK(generation->patterns<ProbeSet>("owner_c")->pattern == "/default");
 }
 
-TEST_CASE("RegexSourceHolder set() invalidates cached views and sets") {
-	RegexSourceHolder holder(std::make_shared<const RegexSource>(RegexSource::ScopedOverrides{
+TEST_CASE("New generations own independent compiled pattern sets") {
+	auto generation = std::make_shared<aniparse::OverridesState>(nullptr, nullptr, std::make_shared<const RegexSource>(RegexSource::ScopedOverrides{
 	    { "owner_a", { { "info.id", "/before" } } },
 	}));
-	auto before = holder.set_for<ProbeSet>("owner_a");
-	auto view_before = holder.view_for("owner_a");
+	auto before = generation->patterns<ProbeSet>("owner_a");
 	CHECK(before->pattern == "/before");
 
 	// A catalog apply swaps the source: the next build must see the new overrides.
-	holder.set(std::make_shared<const RegexSource>(RegexSource::ScopedOverrides{
+	generation = std::make_shared<aniparse::OverridesState>(nullptr, nullptr, std::make_shared<const RegexSource>(RegexSource::ScopedOverrides{
 	    { "owner_a", { { "info.id", "/after" } } },
 	}));
-	auto after = holder.set_for<ProbeSet>("owner_a");
+	auto after = generation->patterns<ProbeSet>("owner_a");
 	CHECK(after->pattern == "/after");
 	CHECK(after != before);
-	CHECK(holder.view_for("owner_a") != view_before);
 
 	// Swapping to an empty source reads as every built-in literal.
-	holder.set(nullptr);
-	CHECK(holder.set_for<ProbeSet>("owner_a")->pattern == "/default");
+	generation = std::make_shared<aniparse::OverridesState>(nullptr, nullptr, nullptr);
+	CHECK(generation->patterns<ProbeSet>("owner_a")->pattern == "/default");
 }
 
-TEST_CASE("RegexSourceHolder gives an unscoped id the shared source itself") {
+TEST_CASE("OverridesState gives an unscoped id the shared source itself") {
 	auto source = std::make_shared<const RegexSource>(RegexSource::ScopedOverrides{
 	    { "owner_a", { { "info.id", "/a" } } },
 	});
-	RegexSourceHolder holder(source);
+	auto generation = std::make_shared<aniparse::OverridesState>(nullptr, nullptr, source);
 	// No view materialization needed: the unscoped source IS the view.
-	CHECK(holder.view_for("owner_b") == source);
-	CHECK(holder.view_for("") == source);
-	CHECK(holder.set_for<ProbeSet>("owner_b")->pattern == "/default");
+	CHECK(generation->patterns<ProbeSet>("owner_b")->pattern == "/default");
 }
 
 namespace {

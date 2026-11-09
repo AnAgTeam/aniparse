@@ -1,3 +1,4 @@
+#include "TestRequestContext.hpp"
 /*
  * Copyright (C) 2026 Toilettrauma
  */
@@ -32,7 +33,7 @@ public:
 	}
 protected:
 	std::unique_ptr<ParserProfile> make_profile_impl(ProfileInfo info) const override {
-		return std::make_unique<TestProfile>(identifier(), std::move(info));
+		return std::make_unique<TestProfile>(std::move(info));
 	}
 	std::unique_ptr<CatalogRootGetter> make_catalog_getter_impl(CatalogInfo catalog) const override {
 		return std::make_unique<CatalogRootGetter>(std::move(catalog));
@@ -49,13 +50,15 @@ TEST_CASE("Catalogs select shared or independent profiles explicitly", "[profile
 	REQUIRE(other->info().profile_id != manga->info().profile_id);
 	auto shared = parser.make_profile(manga->info().profile_id);
 	auto separate = parser.make_profile(other->info().profile_id);
-	auto first = shared->make_config();
-	auto second = shared->make_config();
-	auto third = separate->make_config();
+	auto first = shared->make_session(test_services()).config();
+	auto second = shared->make_session(test_services()).config();
+	auto third = separate->make_session(test_services()).config();
 	CHECK(first != second);
 	CHECK(first->headers.at("X-Profile") == "shared");
 	CHECK(third->headers.at("X-Profile") == "separate");
-	first->headers.set("Authorization", "Bearer first-account");
+	first->cookie_jar->set_cookie({.name = "session", .value = "first-account", .domain = "example.com"});
+	CHECK(second->cookie_jar->cookies().empty());
+	CHECK(third->cookie_jar->cookies().empty());
 	CHECK_FALSE(second->headers.contains("Authorization"));
 	CHECK_FALSE(third->headers.contains("Authorization"));
 	CHECK(parser.make_profile("missing") == nullptr);
@@ -82,13 +85,13 @@ TEST_CASE("Profile descriptors and catalog references are validated", "[profiles
 	SECTION("mismatched factory") {
 		class WrongParser final : public ProfileParser {
 			std::unique_ptr<ParserProfile> make_profile_impl(ProfileInfo info) const override {
-				return std::make_unique<TestProfile>("another-parser", std::move(info));
+				info.id = "another-profile";
+				return std::make_unique<TestProfile>(std::move(info));
 			}
 		} wrong;
 		CHECK_THROWS_AS(wrong.make_profile("shared"), std::logic_error);
 	}
-	CHECK_THROWS_AS(ParserProfile("", {"main", "Default"}), std::invalid_argument);
-	CHECK_THROWS_AS(ParserProfile("parser", {"", "Default"}), std::invalid_argument);
+	CHECK_THROWS_AS(ParserProfile(ProfileInfo{"", "Default"}), std::invalid_argument);
 }
 
 TEST_CASE("Factory validation distinguishes unknown IDs from broken declared factories", "[profiles]") {

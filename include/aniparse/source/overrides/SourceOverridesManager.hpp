@@ -34,18 +34,17 @@ public:
 	 * @param verifier The signature verifier (carries the pinned key); must outlive
 	 *                 the manager.
 	 * @param services Optional shared services; when given, a successful apply also
-	 *                 swaps the overrides's selectors and regex patterns into their
-	 *                 holders and clears its
-	 *                 resource cache so compiled sets rebuild. Null = domains only.
+	 *                 publishes a complete parser overrides generation and clears
+	 *                 the shared resource cache. Null = domains only.
 	 * @param extractors Optional video extractor store; when given, a successful
 	 *                 apply also refreshes its routing from the overrides's
 	 *                 "extractors" section. Null = extractor overrides ignored.
 	 * @param extractor_services Optional extractor-facing services; when given, a
-	 *                 successful apply swaps the overrides's extractor mirrors into
-	 *                 its mirror holder. The consumer feeds extractors through
+	 *                 successful apply publishes a complete extractor generation.
+	 *                 The consumer feeds extractors through
 	 *                 contexts built on this state, so extractor overrides (keyed
 	 *                 by extractor identifier) never mix with the parser ones in
-	 *                 @p services. Null = extractor mirrors ignored.
+	 *                 @p services. Null = extractor request overrides ignored.
 	 */
 	SourceOverridesManager(ParserStore& store, const SignatureVerifier& verifier,
 	               std::shared_ptr<const RuntimeServices> services = nullptr,
@@ -69,10 +68,9 @@ public:
 	/**
 	 * @brief Discard every active remote override.
 	 *
-	 * Rebuilds parser and extractor routing from static declarations only, swaps
-	 * empty mirror, selector and regex-pattern sources into their holders, clears
-	 * compiled
-	 * selector resources, and resets the anti-rollback revision to zero. In-flight
+	 * Rebuilds parser and extractor routing from static declarations only, publishes
+	 * empty overrides generations, clears shared resource caches, and resets the
+	 * anti-rollback revision to zero. In-flight
 	 * operations retain their old immutable snapshots; operations begun after this
 	 * call observe built-in parser and extractor fallbacks.
 	 * @note This method performs no I/O and does not verify or apply a new

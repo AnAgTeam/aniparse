@@ -155,7 +155,7 @@ CORO_TEST_CASE("RequestContext provisions a cookie jar when config has none") {
 	co_return;
 }
 
-CORO_TEST_CASE("RequestContext keeps an existing cookie jar") {
+CORO_TEST_CASE("Profile defaults cannot carry another account cookie jar") {
 	auto preset_jar        = std::make_shared<DummyCookieJar>();
 	auto parser_config     = std::make_shared<ParserConfig>();
 	parser_config->cookie_jar = preset_jar; // e.g. a session established earlier or a restored jar
@@ -165,22 +165,22 @@ CORO_TEST_CASE("RequestContext keeps an existing cookie jar") {
 
 	auto context = test_context(mock_client, nullptr, parser_config);
 
-	// The pre-existing jar must survive; it must not be replaced by make_cookie_jar().
-	REQUIRE(context.config()->cookie_jar == preset_jar);
-	REQUIRE(context.config()->cookie_jar != client_cookie_jar);
+	// A new account always gets its backend jar, even if profile defaults carry a jar.
+	REQUIRE(context.config()->cookie_jar != preset_jar);
+	REQUIRE(context.config()->cookie_jar == client_cookie_jar);
 
 	co_return;
 }
 
-CORO_TEST_CASE("make_config creates fresh independent profile settings") {
+CORO_TEST_CASE("make_session creates fresh independent profile settings") {
 	DummyParser parser;
 
-	auto derived = parser.make_profile("main")->make_config();
+	auto derived = parser.make_profile("main")->make_session(test_services(std::make_shared<CannedClientMock>())).config();
 
 	REQUIRE(derived != nullptr);
 	// A derived config belongs to a distinct instance and must not share the store.
 	REQUIRE(derived->cookie_jar == nullptr);
-	// make_config stamps the parser identity for request-time services.
+	// The parser identity is bound separately from the request configuration.
 
 	REQUIRE_FALSE(derived->headers.contains("Authorization"));
 
@@ -208,12 +208,14 @@ CORO_TEST_CASE("RequestContext stamps the parser id on log messages") {
 	DummyParser parser;
 	auto logger = std::make_shared<RecordingLogger>();
 
-	auto original = parser.make_profile("main")->make_context(std::make_shared<CannedClientMock>(), logger);
+	auto session = parser.make_profile("main")->make_session(test_services(std::make_shared<CannedClientMock>(), logger));
+	auto original = session.snapshot();
 	original.info("original");
 	REQUIRE(logger->last_parser_id == "Dummy");
 
-	// Replacement settings cannot replace the private profile binding.
-	auto derived = original.new_with_config(std::make_shared<ParserConfig>());
+	// Publishing user settings cannot replace the private profile binding.
+	REQUIRE(session.set_mirror("https://changed.example"));
+	auto derived = session.snapshot();
 	derived.error("derived");
 	REQUIRE(logger->last_level == LogLevel::Error);
 	REQUIRE(logger->last_parser_id == "Dummy");
@@ -223,8 +225,8 @@ CORO_TEST_CASE("RequestContext stamps the parser id on log messages") {
 
 CORO_TEST_CASE("RequestContext isolates cookie jars across parser instances") {
 	DummyParser parser;
-	auto config_a = parser.make_profile("main")->make_config();
-	auto config_b = parser.make_profile("main")->make_config();
+	auto config_a = parser.make_profile("main")->make_session(test_services(std::make_shared<CannedClientMock>())).config();
+	auto config_b = parser.make_profile("main")->make_session(test_services(std::make_shared<CannedClientMock>())).config();
 
 	auto client = std::make_shared<FreshJarClientMock>(std::make_shared<DummyCookieJar>());
 	auto context_a = test_context(client, nullptr, config_a);
@@ -296,7 +298,7 @@ CORO_TEST_CASE("RequestContext GET with normal config") {
 	auto parser_config = std::make_shared<ParserConfig>();
 	parser_config->headers.set("Authorization", "some-password");
 	parser_config->url_params["version"] = "1.0";
-	parser_config->modifiers.push_back([](HttpRequest& any_request) {
+	parser_config->modifiers.push_back([](HttpRequest& any_request, const RequestContext&) {
 		if (auto* request = std::get_if<GetRequest>(&any_request)) {
 			request->url.insert(0, "/v1");
 			//request->headers["User-Agent"] += "/1.0";
@@ -379,6 +381,50 @@ CORO_TEST_CASE("RequestContext request headers take priority over config") {
 	REQUIRE(headers.at("X-Extra") == "config-only");
 	// header names are matched case-insensitively
 	REQUIRE(headers.contains("authorization"));
+}
+
+CORO_TEST_CASE("Request modifiers share the operation snapshot for every request kind", "[session]") {
+    auto config = std::make_shared<ParserConfig>();
+    config->headers.set("X-Profile", "profile");
+    config->modifiers.emplace_back([](HttpRequest& request, const RequestContext& context) {
+        std::visit([&](auto& value) {
+            CHECK(value.headers.at("X-Profile") == "profile");
+            CHECK(value.headers.at("X-App") == "original");
+            value.headers.set("Referer", std::string(context.canonical_base_url()));
+        }, request);
+    });
+    session_test::Factory parser;
+    parser.factory = [config](auto info) {
+        return std::make_unique<session_test::ConfiguredProfile>(std::move(info), config);
+    };
+    auto client = std::make_shared<CannedClientMock>();
+    HttpClientConfig defaults;
+    defaults.request_defaults.headers.set("X-App", "original");
+    client->set_config(defaults);
+    SessionConfig settings;
+    settings.canonical_base_url = "https://original.example";
+    auto session = parser.make_profile("main")->make_session(test_services(client), settings);
+    auto context = session.snapshot();
+    settings.canonical_base_url = "https://new.example";
+    REQUIRE(session.set_settings(std::move(settings)));
+    defaults.request_defaults.headers.set("X-App", "new");
+    client->set_config(std::move(defaults));
+
+    auto check_referer = [&] {
+        std::visit([](const auto& request) {
+            if constexpr (std::is_same_v<std::decay_t<decltype(request)>, std::monostate>) {
+                FAIL("Client did not receive a request");
+            } else {
+                CHECK(request.request.headers.at("Referer") == "https://original.example");
+            }
+        }, client->request);
+    };
+    REQUIRE(co_await context.request(GetRequest{}));
+    check_referer();
+    REQUIRE(co_await context.request(PostRequest{}));
+    check_referer();
+    REQUIRE(co_await context.request(PostMultipartRequest{}));
+    check_referer();
 }
 
 CORO_TEST_CASE("request carries the HTTP method through to the client") {
@@ -522,13 +568,19 @@ CORO_TEST_CASE("Request defaults respect header precedence for every HTTP reques
     CHECK_FALSE(config->headers.contains("X-Default"));
 
     config->headers = {};
-    context = context.new_with_config(config);
+    context = test_context(client, nullptr, config);
     client_config.request_defaults.headers.set("User-Agent", "App/2.0");
     client->set_config(client_config);
     co_await context.request(GetRequest{.url = "https://example.com"});
+    CHECK(std::get<ConfiguredGetRequest>(client->request).request.headers.at("User-Agent") == "App/1.0");
+    auto next = test_context(client, nullptr, config);
+    co_await next.request(GetRequest{.url = "https://example.com"});
     CHECK(std::get<ConfiguredGetRequest>(client->request).request.headers.at("User-Agent") == "App/2.0");
     client->set_config({});
     co_await context.request(GetRequest{.url = "https://example.com"});
+    CHECK(std::get<ConfiguredGetRequest>(client->request).request.headers.at("User-Agent") == "App/1.0");
+    auto cleared = test_context(client, nullptr, config);
+    co_await cleared.request(GetRequest{.url = "https://example.com"});
     CHECK_FALSE(std::get<ConfiguredGetRequest>(client->request).request.headers.contains("User-Agent"));
     co_return;
 }
@@ -547,53 +599,44 @@ static_assert(!HasPublicParserIdentity<ParserConfig>);
 static_assert(!HasPublicProfileIdentity<ParserConfig>);
 }
 
-TEST_CASE("Replacement settings are copied and null replacement is rejected", "[profiles]") {
-    auto context = ParserProfile("Example", {"main", "Example"})
-        .make_context(std::make_shared<CannedClientMock>());
-    auto settings = std::make_shared<ParserConfig>(*context.config());
-    settings->headers.set("X-Account", "new");
-    auto updated = context.new_with_config(settings);
-    settings->headers.set("X-Account", "later");
+TEST_CASE("Session settings are copied and retain the profile binding", "[profiles]") {
+    auto profile = test_profile("Example");
+    auto session = profile->make_session(test_services());
+    auto context = session.snapshot();
+    SessionConfig settings;
+    settings.headers.set("X-Account", "new");
+    REQUIRE(session.set_settings(settings));
+    auto updated = session.snapshot();
+    settings.headers.set("X-Account", "later");
     CHECK(updated.config()->headers.at("X-Account") == "new");
     CHECK_FALSE(context.config()->headers.contains("X-Account"));
-    CHECK_THROWS_AS(context.new_with_config(nullptr), std::invalid_argument);
+    static_assert(!std::is_constructible_v<ParserProfile, std::string, ProfileInfo>);
 }
 
-TEST_CASE("Profile contexts restore authentication over fresh defaults and backend jars", "[profiles]") {
+TEST_CASE("Profile sessions restore credentials over fresh defaults and backend jars", "[profiles]") {
     struct Profile : ParserProfile {
-        Profile() : ParserProfile("Example", {"account", "Account"}) {}
-        void configure(ParserConfig& config) const override {
-            config.headers.set("X-Default", "current");
-        }
-        AuthKeys auth_keys() const noexcept override {
-            return {{"session"}, {"Authorization"}, {"token"}};
-        }
-    } profile;
-    struct Client : CannedClientMock {
-        std::shared_ptr<CookieJar> make_cookie_jar() override {
-            return std::make_shared<MemoryCookieJar>();
-        }
+        using ParserProfile::ParserProfile;
+        void configure(ParserConfig& config) const override { config.headers.set("X-Default", "current"); }
+        AuthKeys auth_keys() const noexcept override { return {{"session"}, {"Authorization"}, {"token"}}; }
     };
-    auto services = std::make_shared<RuntimeServices>();
-    services->client = std::make_shared<Client>();
-    auto original = profile.make_context(services);
-    auto settings = std::make_shared<ParserConfig>(*original.config());
-    settings->headers.set("Authorization", "Bearer saved");
-    settings->url_params["token"] = "saved";
-    settings->alt_link = 1; // Select the second mirror for the saved session.
+    auto profile = test_profile<Profile>("Example", {"account", "Account"});
+    auto services = test_services();
+    auto original = profile->make_session(services);
+    auto saved = original.export_state();
+    saved.auth.headers.set("Authorization", "Bearer saved");
+    saved.auth.url_params["token"] = "saved";
+    saved.settings.base_url = "https://selected.example";
     auto cookie = parse_netscape_line("example.com\tFALSE\t/\tFALSE\t0\tsession\tsaved");
     REQUIRE(cookie);
-    settings->cookie_jar->set_cookie(*cookie);
-    auto authenticated = original.new_with_config(settings);
-    auto saved = profile.export_auth(*authenticated.config());
-
-    auto restored = profile.make_context(services, saved);
-    CHECK(restored.config()->cookie_jar != authenticated.config()->cookie_jar);
-    CHECK(restored.config()->headers.at("X-Default") == "current");
-    CHECK(restored.config()->headers.at("Authorization") == "Bearer saved");
-    CHECK(restored.config()->url_params.at("token") == "saved");
-    CHECK(restored.alt_link() == saved.alt_link);
-    auto restored_cookie = restored.config()->cookie_jar->find_cookie("session");
+    saved.auth.cookies.push_back(*cookie);
+    auto restored = profile->restore_session(services, saved);
+    REQUIRE(restored);
+    CHECK(restored->config()->cookie_jar != original.config()->cookie_jar);
+    CHECK(restored->config()->headers.at("X-Default") == "current");
+    CHECK(restored->config()->headers.at("Authorization") == "Bearer saved");
+    CHECK(restored->config()->url_params.at("token") == "saved");
+    CHECK(restored->snapshot().base_url() == *saved.settings.base_url);
+    auto restored_cookie = restored->config()->cookie_jar->find_cookie("session");
     REQUIRE(restored_cookie);
     CHECK(restored_cookie->value == "saved");
     CHECK_FALSE(original.config()->headers.contains("Authorization"));

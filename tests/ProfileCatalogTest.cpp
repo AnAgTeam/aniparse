@@ -49,10 +49,15 @@ constexpr std::string_view payload = R"({
 })";
 
 constexpr std::array<std::string_view, 1> builtin{"https://builtin-api.example"};
+struct Profile : ParserProfile {
+    using ParserProfile::ParserProfile;
+    std::span<const std::string_view> mirrors() const override { return builtin; }
+    std::string canonical_base_url() const override { return "https://builtin-front.example"; }
+};
 std::shared_ptr<RuntimeServices> services() {
 	auto result = std::make_shared<RuntimeServices>();
 	result->client = std::make_shared<NoNetwork>();
-	result->mirrors = std::make_shared<MirrorSourceHolder>();
+
 	return result;
 }
 }
@@ -90,22 +95,22 @@ TEST_CASE("SourceOverridesManager applies isolated profile settings and keeps ol
 	Verifier verifier;
 	auto state = services();
 	SourceOverridesManager manager(store, verifier, state);
-	auto before = ParserProfile("Example", {"reader", "Test"}).make_context(state);
+	auto before = test_profile<Profile>("Example", {"reader", "Test"})->make_session(state).snapshot();
 	REQUIRE(manager.apply(payload, "signature"));
-	auto main = ParserProfile("Example", {"main", "Test"}).make_context(state);
-	auto reader = ParserProfile("Example", {"reader", "Test"}).make_context(state);
-	auto other = ParserProfile("Example", {"other", "Test"}).make_context(state);
-	auto foreign = ParserProfile("OtherParser", {"reader", "Test"}).make_context(state);
-	CHECK(before.base_url(builtin) == builtin.front());
-	CHECK(main.base_url(builtin) == "https://main-api.example");
-	CHECK(main.canonical_base_url("https://builtin-front.example") == "https://main-front.example");
-	CHECK(reader.base_url(builtin) == "https://reader-api.example");
-	CHECK(reader.canonical_base_url("https://builtin-front.example") == "https://reader-front.example");
-	CHECK(other.base_url(builtin) == builtin.front());
-	CHECK(other.canonical_base_url("https://builtin-front.example") == "https://builtin-front.example");
-	CHECK(foreign.base_url(builtin) == builtin.front());
+	auto main = test_profile<Profile>("Example", {"main", "Test"})->make_session(state).snapshot();
+	auto reader = test_profile<Profile>("Example", {"reader", "Test"})->make_session(state).snapshot();
+	auto other = test_profile<Profile>("Example", {"other", "Test"})->make_session(state).snapshot();
+	auto foreign = test_profile<Profile>("OtherParser", {"reader", "Test"})->make_session(state).snapshot();
+	CHECK(before.base_url() == builtin.front());
+	CHECK(main.base_url() == "https://main-api.example");
+	CHECK(main.canonical_base_url() == "https://main-front.example");
+	CHECK(reader.base_url() == "https://reader-api.example");
+	CHECK(reader.canonical_base_url() == "https://reader-front.example");
+	CHECK(other.base_url() == builtin.front());
+	CHECK(other.canonical_base_url() == "https://builtin-front.example");
+	CHECK(foreign.base_url() == builtin.front());
 
-	auto pinned = state->mirrors->get();
+	auto pinned = state->overrides->load();
 	auto updated = boost::json::parse(payload).as_object();
 	updated["revision"] = 8;
 	updated.at("parsers").as_object().at("Example").as_object()
@@ -114,26 +119,26 @@ TEST_CASE("SourceOverridesManager applies isolated profile settings and keeps ol
 	const auto newer = boost::json::serialize(updated);
 	verifier.accepted = false;
 	CHECK_FALSE(manager.apply(newer, "bad signature"));
-	CHECK(state->mirrors->get() == pinned);
+	CHECK(state->overrides->load() == pinned);
 	CHECK(manager.revision() == 7);
 	verifier.accepted = true;
 	REQUIRE(manager.apply(newer, "signature"));
-	auto fresh = ParserProfile("Example", {"reader", "Test"}).make_context(state);
-	CHECK(fresh.base_url(builtin) == "https://new-reader-api.example");
-	CHECK(reader.base_url(builtin) == "https://reader-api.example");
+	auto fresh = test_profile<Profile>("Example", {"reader", "Test"})->make_session(state).snapshot();
+	CHECK(fresh.base_url() == "https://new-reader-api.example");
+	CHECK(reader.base_url() == "https://reader-api.example");
 
 	auto malformed = updated;
 	malformed["revision"] = 9;
 	malformed.at("parsers").as_object().at("Example").as_object()["profiles"] = 42;
-	pinned = state->mirrors->get();
+	pinned = state->overrides->load();
 	CHECK_FALSE(manager.apply(boost::json::serialize(malformed), "signature"));
-	CHECK(state->mirrors->get() == pinned);
+	CHECK(state->overrides->load() == pinned);
 	CHECK(manager.revision() == 8);
 	manager.reset();
-	auto reset = ParserProfile("Example", {"reader", "Test"}).make_context(state);
-	CHECK(reset.base_url(builtin) == builtin.front());
-	CHECK(reset.canonical_base_url("https://builtin-front.example") == "https://builtin-front.example");
-	CHECK(fresh.base_url(builtin) == "https://new-reader-api.example");
+	auto reset = test_profile<Profile>("Example", {"reader", "Test"})->make_session(state).snapshot();
+	CHECK(reset.base_url() == builtin.front());
+	CHECK(reset.canonical_base_url() == "https://builtin-front.example");
+	CHECK(fresh.base_url() == "https://new-reader-api.example");
 	CHECK(manager.revision() == 0);
 }
 
@@ -144,17 +149,17 @@ TEST_CASE("Obsolete parser-wide origins are ignored and empty profile mirrors us
 	SourceOverridesManager manager(store, verifier, state);
 	REQUIRE(manager.apply(R"({"schema_version":1,"revision":1,"parsers":{"Example":{
 	    "mirrors":["https://legacy.example"],"canonical_base_url":"https://legacy-front.example"}}})", "signature"));
-	auto legacy = ParserProfile("Example", {"main", "Test"}).make_context(state);
-	CHECK(legacy.base_url(builtin) == builtin.front());
-	CHECK(legacy.canonical_base_url("https://builtin-front.example") == "https://builtin-front.example");
+	auto legacy = test_profile<Profile>("Example", {"main", "Test"})->make_session(state).snapshot();
+	CHECK(legacy.base_url() == builtin.front());
+	CHECK(legacy.canonical_base_url() == "https://builtin-front.example");
 	REQUIRE(manager.apply(R"({"schema_version":1,"revision":2,"parsers":{"Example":{
 	    "mirrors":["https://legacy.example"],"profiles":{"main":{"mirrors":[]}}}}})", "signature"));
-	auto cleared = ParserProfile("Example", {"main", "Test"}).make_context(state);
-	CHECK(cleared.base_url(builtin) == builtin.front());
-	CHECK(legacy.base_url(builtin) == builtin.front());
-	auto unstamped = ParserProfile("Example", {"missing", "Test"}).make_context(state);
-	CHECK(unstamped.base_url(builtin) == builtin.front());
-	CHECK(unstamped.canonical_base_url("https://builtin-front.example") == "https://builtin-front.example");
+	auto cleared = test_profile<Profile>("Example", {"main", "Test"})->make_session(state).snapshot();
+	CHECK(cleared.base_url() == builtin.front());
+	CHECK(legacy.base_url() == builtin.front());
+	auto unstamped = test_profile<Profile>("Example", {"missing", "Test"})->make_session(state).snapshot();
+	CHECK(unstamped.base_url() == builtin.front());
+	CHECK(unstamped.canonical_base_url() == "https://builtin-front.example");
 }
 
 TEST_CASE("Profile overrides preserve independent absent and empty channels", "[profile-catalog]") {

@@ -1,5 +1,5 @@
 #pragma once
-#include "aniparse/runtime/RequestContext.hpp"
+#include "aniparse/source/Parser.hpp"
 #include "aniparse/net/backends/curl/CurlHttpClient.hpp"
 
 namespace aniparse::examples {
@@ -28,6 +28,22 @@ inline std::shared_ptr<HttpClient> make_client() {
 #else
 	return std::make_shared<OfflineClient>();
 #endif
+}
+
+inline std::shared_ptr<RuntimeServices> make_services() {
+    auto services = std::make_shared<RuntimeServices>();
+    services->client = make_client();
+    return services;
+}
+
+// Parsing-only tutorials still bind sessions through the ordinary parser factory.
+inline std::unique_ptr<ParserProfile> make_profile() {
+    struct ExampleParser final : Parser {
+        ParserInfo info() const override { return {.name = "Example"}; }
+        std::string identifier() const override { return "Example"; }
+        void emplace_domains(EmplaceDomainsSink&) const override {}
+    } parser;
+    return parser.make_profile(default_profile_id);
 }
 
 } // namespace aniparse::examples

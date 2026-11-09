@@ -1,3 +1,4 @@
+#include <aniparse/source/overrides/OverridesState.hpp>
 /*
  * Copyright (C) 2025-2026 Toilettrauma
  *
@@ -109,58 +110,54 @@ struct ProbeSet {
 };
 } // namespace
 
-TEST_CASE("the holder caches compiled sets per (parser id, set type)") {
-	SelectorSourceHolder holder(std::make_shared<const SelectorSource>(
+TEST_CASE("the generation caches compiled sets per (parser id, set type)") {
+	auto generation = std::make_shared<aniparse::OverridesState>(nullptr, std::make_shared<const SelectorSource>(
 	    SelectorSource::Overrides{}, SelectorSource::ScopedOverrides{
 	        { "parser_a", { { "info.title", "h1.a" } } },
 	        { "parser_b", { { "info.title", "h1.b" } } },
 	    }));
 
 	// Two parsers sharing one set type get one copy EACH, with their own override.
-	auto set_a = holder.set_for<ProbeSet>("parser_a");
-	auto set_b = holder.set_for<ProbeSet>("parser_b");
+	auto set_a = generation->selectors<ProbeSet>("parser_a");
+	auto set_b = generation->selectors<ProbeSet>("parser_b");
 	CHECK(set_a->css == "h1.a");
 	CHECK(set_b->css == "h1.b");
 	CHECK(set_a != set_b);
 
 	// A repeated request hits the cache: same instance, no rebuild.
-	CHECK(holder.set_for<ProbeSet>("parser_a") == set_a);
+	CHECK(generation->selectors<ProbeSet>("parser_a") == set_a);
 	// An uncovered id gets the built-in default.
-	CHECK(holder.set_for<ProbeSet>("parser_c")->css == ".default");
+	CHECK(generation->selectors<ProbeSet>("parser_c")->css == ".default");
 }
 
-TEST_CASE("holder set() invalidates cached views and sets") {
-	SelectorSourceHolder holder(std::make_shared<const SelectorSource>(
+TEST_CASE("New generations own independent compiled selector sets") {
+	auto generation = std::make_shared<aniparse::OverridesState>(nullptr, std::make_shared<const SelectorSource>(
 	    SelectorSource::Overrides{}, SelectorSource::ScopedOverrides{
 	        { "parser_a", { { "info.title", "h1.before" } } },
 	    }));
-	auto before = holder.set_for<ProbeSet>("parser_a");
-	auto view_before = holder.view_for("parser_a");
+	auto before = generation->selectors<ProbeSet>("parser_a");
 	CHECK(before->css == "h1.before");
 
 	// A catalog apply swaps the source: the next build must see the new overrides.
-	holder.set(std::make_shared<const SelectorSource>(
+	generation = std::make_shared<aniparse::OverridesState>(nullptr, std::make_shared<const SelectorSource>(
 	    SelectorSource::Overrides{}, SelectorSource::ScopedOverrides{
 	        { "parser_a", { { "info.title", "h1.after" } } },
 	    }));
-	auto after = holder.set_for<ProbeSet>("parser_a");
+	auto after = generation->selectors<ProbeSet>("parser_a");
 	CHECK(after->css == "h1.after");
 	CHECK(after != before);
-	CHECK(holder.view_for("parser_a") != view_before);
 
 	// Swapping to an empty source reads as every built-in literal.
-	holder.set(nullptr);
-	CHECK(holder.set_for<ProbeSet>("parser_a")->css == ".default");
+	generation = std::make_shared<aniparse::OverridesState>(nullptr, nullptr);
+	CHECK(generation->selectors<ProbeSet>("parser_a")->css == ".default");
 }
 
 TEST_CASE("an id with no scoped overrides gets the shared source itself") {
 	auto source = std::make_shared<const SelectorSource>(
 	    SelectorSource::Overrides{ { "info.title", "h1.flat" } });
-	SelectorSourceHolder holder(source);
+	auto generation = std::make_shared<aniparse::OverridesState>(nullptr, source);
 	// No view materialization needed: the flat-only source IS the view.
-	CHECK(holder.view_for("parser_a") == source);
-	CHECK(holder.view_for("") == source);
-	CHECK(holder.set_for<ProbeSet>("parser_a")->css == "h1.flat");
+	CHECK(generation->selectors<ProbeSet>("parser_a")->css == "h1.flat");
 }
 
 namespace {

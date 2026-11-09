@@ -11,7 +11,7 @@ services. Include the specific header for the type you use.
 | `images/` | Image containers and browsing | `ImageContainerInfo.hpp`, `ImagesGetter.hpp` |
 | `media/` | Shared value models and resource transformations | `MediaInfo.hpp`, `Image.hpp`, `RelatedWork.hpp`, `Recommendation.hpp`, `ResourceAdapter.hpp` |
 | `catalog/` | Content catalogs, cards, search and pagination | `CatalogInfo.hpp`, `CatalogRootGetter.hpp`, `CatalogEntry.hpp`, `SearchQuery.hpp`, `SearchCapabilities.hpp` |
-| `source/` | Parser registration, profiles and authentication | `Parser.hpp`, `ParserInfo.hpp`, `ParserProfile.hpp`, `ParserConfig.hpp` |
+| `source/` | Parser registration, profiles and authentication | `Parser.hpp`, `ParserInfo.hpp`, `ParserProfile.hpp`, `ProfileSession.hpp`, `SessionConfig.hpp` |
 | `source/overrides/` | Signed remote replacements for source settings | `SourceOverrides.hpp`, `ProfileOverrides.hpp`, `SourceOverridesManager.hpp` |
 | `net/` | HTTP value types, cookies and transport backends | `Request.hpp`, `Response.hpp`, `HttpClientConfig.hpp`, `HttpClient.hpp` |
 | `runtime/` | Applying profile configuration and sharing execution services | `RequestContext.hpp`, `RuntimeServices.hpp`, `Logger.hpp` |
@@ -81,13 +81,41 @@ still requires recovery, such as asking the user to find the work again.
 - `Parser::make_profile()`, `make_catalog_getter()` and `make_images_getter()`
   return fresh independently owned objects. Protected `make_profile_impl()` and
   `make_catalog_getter_impl()` hooks construct implementations after ID validation.
-  `ParserProfile::make_context()` and `make_config()` create execution state and
-  settings. Registry `find_*` methods locate existing objects.
+  `ParserProfile::make_session()` creates independent account state;
+  `ProfileSession::snapshot()` captures operation settings and overrides.
+  Passing a session where `RequestContext` is expected captures a snapshot
+  implicitly at the call site. Registry `find_*` methods locate existing objects.
   Static resource/selector/pattern factories use `make()`.
 
-`ParserProfile::authenticate()` returns a fresh authenticated config without
-mutating the supplied context. The caller explicitly adopts the result. Tasks
-returned by member coroutines do not retain their receiver; keep that object
+`ParserProfile::authenticate(session, credentials)` prepares an isolated mutable
+candidate, immediately awaits the profile's `authenticate_impl` hook and returns
+a new `ProfileSession`. The hook returns only success/error and cannot retain
+references to the candidate. Failure or cancellation leaves the input session
+unchanged. The caller explicitly adopts the returned session.
+
+Snapshots share immutable settings and one `OverridesState` generation; they
+retain a live, thread-safe cookie jar. A URL setting publishes a small new state
+while sharing the existing request configuration. Source identity and built-in
+origins belong to a private profile binding populated by the core factory.
+Parsers use `context.base_url()` and `context.canonical_base_url()` without
+fallback arguments. API and frontend overrides are independent.
+
+`SessionConfig` contains user URL/header/query overrides; credential fields are
+reserved for authentication. `session.config()` is a read-only view of effective
+request settings, including the live jar. Persist `SessionState` rather than
+that runtime configuration.
+
+`session.export_state()` produces portable user choices and declared durable
+credentials; `profile->restore_session(services, saved)` validates identity and
+restores them over current defaults in a fresh jar. No services, callbacks or
+remote overrides are persisted. An absent mirror choice follows current
+remote/built-in defaults; an explicit HTTP(S) URL survives remote updates.
+
+For browser login, retain `profile->begin_web_login(session)` from browser
+presentation through all `check_web_login` calls. Its origins and application
+request defaults stay fixed; changing settings on that interaction is rejected.
+A completed login returns an ordinary session whose later operations observe
+new overrides. Tasks returned by member coroutines do not retain their receiver; keep that object
 alive until the task completes or is destroyed. Factory ownership remains with
 the consumer through `unique_ptr`.
 

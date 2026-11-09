@@ -10,9 +10,10 @@ void HttpClient::set_config(HttpClientConfig config) {
     request_defaults_.store(std::move(defaults));
 }
 
-RequestDefaults HttpClient::request_defaults() const {
+std::shared_ptr<const RequestDefaults> HttpClient::request_defaults_snapshot() const {
     auto snapshot = request_defaults_.load();
-    return snapshot ? *snapshot : RequestDefaults{};
+    static const auto empty = std::make_shared<const RequestDefaults>();
+    return snapshot ? snapshot : empty;
 }
 
 } // namespace aniparse

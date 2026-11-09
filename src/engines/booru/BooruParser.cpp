@@ -52,12 +52,12 @@ void BooruParser::emplace_domains(EmplaceDomainsSink& sink) const {
 namespace {
 class BooruProfile final : public ParserProfile {
 public:
-    BooruProfile(std::string parser_id, ProfileInfo info, const BooruSite& site)
-        : ParserProfile(std::move(parser_id), std::move(info)), site_(site) {}
+    BooruProfile(ProfileInfo info, const BooruSite& site)
+        : ParserProfile(std::move(info)), site_(site) {}
     void configure(ParserConfig& config) const override;
     std::span<const std::string_view> mirrors() const override;
-    RequestTask<std::shared_ptr<const ParserConfig>> authenticate(
-	    RequestContext context,
+    RequestTask<void> authenticate_impl(
+	    AuthenticationSession& candidate,
 	    AuthenticationData credentials) const override;
     AuthKeys auth_keys() const noexcept override;
 private:
@@ -80,8 +80,8 @@ std::unique_ptr<ImagesGetter> BooruParser::make_images_getter() const {
 	return std::make_unique<BooruImagesGetter>(site_);
 }
 
-RequestTask<std::shared_ptr<const ParserConfig>> BooruProfile::authenticate(
-    RequestContext context, AuthenticationData credentials) const {
+RequestTask<void> BooruProfile::authenticate_impl(
+    AuthenticationSession& candidate, AuthenticationData credentials) const {
 	if (!site_.auth) {
 		// An anonymous source has nothing to authenticate.
 		co_return make_request_error(RequestErrorCode::NotImplemented, "The parser cannot auth");
@@ -93,13 +93,10 @@ RequestTask<std::shared_ptr<const ParserConfig>> BooruProfile::authenticate(
 		    "booru credentials must be user id (username) + api key (password)");
 	}
 
-	// Static query-param credentials: copy the base config and stamp them in. The
-	// merged url_params ride on every request (HttpClient applies config params).
-	auto config = std::make_shared<ParserConfig>(*context.config());
-	config->cookie_jar = nullptr;
+    auto* config = &candidate.config();
 	config->url_params[std::string(site_.auth->user_param)] = creds->username;
 	config->url_params[std::string(site_.auth->key_param)]  = creds->password;
-	co_return std::shared_ptr<const ParserConfig>(std::move(config));
+	co_return {};
 }
 
 AuthKeys BooruProfile::auth_keys() const noexcept {
@@ -112,7 +109,7 @@ AuthKeys BooruProfile::auth_keys() const noexcept {
 }
 
 std::unique_ptr<ParserProfile> BooruParser::make_profile_impl(ProfileInfo info) const {
-    return std::make_unique<BooruProfile>(identifier(), std::move(info), site_);
+    return std::make_unique<BooruProfile>(std::move(info), site_);
 }
 
 } // namespace aniparse::engines

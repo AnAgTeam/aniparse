@@ -4,24 +4,8 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #include "aniparse/source/Authentication.hpp"
-#include "aniparse/runtime/RequestContext.hpp"
 
 namespace aniparse {
-
-void import_auth(ParserConfig& config, const AuthState& state) {
-	if (config.cookie_jar) {
-		for (const Cookie& cookie : state.cookies) {
-			config.cookie_jar->set_cookie(cookie);
-		}
-	}
-	for (const auto& [name, value] : state.headers) {
-		config.headers.set(name, value);
-	}
-	for (const auto& [name, value] : state.url_params) {
-		config.url_params[name] = value;
-	}
-	config.alt_link = state.alt_link;
-}
 
 AuthKeys auth_keys_from_fields(const std::vector<AuthField>& fields) {
 	AuthKeys keys;

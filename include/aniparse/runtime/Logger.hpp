@@ -32,10 +32,8 @@ struct Logger {
 	 * @brief Output text with prefix and message
 	 * @param message_type Prefix to message. ("INFO", "ERROR", etc.)
 	 * @param message Message text to output
-	 * @param parser_id Identifier of the parser the message originates from (the value
-	 *        ParserProfile::make_config stamped into the emitting context's config). Empty when
-	 *        the source is not tied to a parser — a context whose config never went
-	 *        through make_config.
+	 * @param parser_id Source identifier from the context's private binding.
+	 *        Empty for an unbound extractor-store context.
 	 * @param loc Call site the message originates from, for diagnostics
 	 */
 	virtual void log(LogLevel message_type,

@@ -50,14 +50,15 @@ std::unique_ptr<ParserProfile> Parser::make_profile(std::string_view profile_id)
 		[profile_id](const auto& value) { return value.id == profile_id; });
 	if (selected == available.end()) return nullptr;
 	auto result = make_profile_impl(*selected);
-	if (!result || result->info().id != selected->id || result->parser_id() != identifier()) {
+	if (!result || result->info().id != selected->id) {
 		throw std::logic_error("Profile factory returned a mismatched profile");
 	}
+	result->parser_id_ = identifier();
 	return result;
 }
 
 std::unique_ptr<ParserProfile> Parser::make_profile_impl(ProfileInfo info) const {
-	return std::make_unique<ParserProfile>(identifier(), std::move(info));
+	return std::make_unique<ParserProfile>(std::move(info));
 }
 
 std::vector<CatalogInfo> Parser::catalog_descriptors() const { return {}; }

@@ -127,11 +127,11 @@ struct VideoExtractor {
 	 * keyed by this extractor's identifier() (if any) combined with the @p builtin
 	 * fallback.
 	 *
-	 * Non-virtual; the extractor counterpart of RequestContext::mirrors(). An
+	 * Non-virtual; resolves mirrors within the extractor namespace. An
 	 * extractor carries no stamped ParserConfig, so it names its own stable
 	 * identifier() as the override key. Overrides keyed by extractor identifier
 	 * reach the extractor only when the consumer builds its context on a
-	 * RuntimeServices whose mirror holder carries the extractor mirror source.
+	 * RuntimeServices whose overrides store carries the extractor generation.
 	 * @param context Request context holding the mirror snapshot.
 	 * @param builtin The extractor's built-in fallback base URLs.
 	 * @return The combined mirror view (@see Mirrors).
@@ -142,9 +142,8 @@ struct VideoExtractor {
 	 * @brief The base URL this extractor should fetch from.
 	 *
 	 * Folds @ref mirrors into a selection; extractors have no per-user mirror
-	 * switch (ParserConfig::alt_link is a parser concept), so the first mirror
-	 * is always used. Resolve it once into a local at the start of an extraction
-	 * so a concurrent catalog swap cannot split it across mirrors.
+	 * switch, so the first mirror
+	 * is always used. The context pins the mirrors throughout the extraction.
 	 * @param context Request context holding the mirror snapshot.
 	 * @param builtin The extractor's built-in fallback base URLs.
 	 * @return The first mirror's base URL, or an empty view when there is none.
@@ -156,10 +155,9 @@ struct VideoExtractor {
 	 * identifier, from the volatile-catalog regex source.
 	 *
 	 * The extractor counterpart of RequestContext::patterns(): an extractor
-	 * carries no stamped ParserConfig, so it names its own stable identifier() as
+	 * has no parser profile, so it names its own stable identifier() as
 	 * the override scope. Overrides reach the extractor only when the consumer
-	 * builds its context on a RuntimeServices whose pattern holder carries the
-	 * extractor pattern source.
+	 * builds its context on RuntimeServices publishing extractor overrides.
 	 * @tparam T Pattern set type exposing `static T make(const RegexSource&)`.
 	 * @param context Request context holding the pattern snapshot.
 	 * @return Shared handle to the built set; hold it for the whole extraction so

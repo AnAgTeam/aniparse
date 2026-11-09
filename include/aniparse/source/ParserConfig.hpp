@@ -14,6 +14,8 @@
 
 namespace aniparse {
 
+class RequestContext;
+
 /// Per-profile request switches.
 using ParserConfigFlags = FlagsBitfield<64, struct ParserConfigFlagsTag>;
 /// The bits of a ParserConfigFlags.
@@ -30,10 +32,10 @@ inline constexpr auto follow_redirects = ParserConfigFlags::make_bit(0);
  * The per-profile half of the configuration (the transport-wide half is
  * @ref HttpClientConfig): whatever a parser needs stamped onto every request it makes —
  * its default headers and url params, the cookie jar holding its session, and its
- * selected mirror. A @ref RequestContext applies it to each outgoing request.
+ * request hooks. A @ref RequestContext applies it to each outgoing request.
  *
- * ParserProfile::make_context applies the profile defaults and binds the context
- * to its parser and profile. This value contains settings only; replacing it
+ * ParserProfile::make_session applies defaults and binds the session to its
+ * parser and profile. User URL choices belong to SessionConfig. This value contains settings only; replacing it
  * cannot change a context's identity.
  * @see RequestContext
  */
@@ -51,13 +53,15 @@ struct ParserConfig {
 	/// Per-parser request switches. @see parser_config_flags
 	ParserConfigFlags flags;
 
-	/// Selected alternative link (mirror) index. @see AltLink, RequestContext::alt_link
-	size_t alt_link = 0;
-
-	/// Last-mile hooks run on every outgoing request, after the headers and url params
-	/// above have been applied, in order. The escape hatch for a request property that
-	/// is computed rather than constant (a signature over the final URL, say).
-	std::vector<std::function<void(aniparse::HttpRequest&)>> modifiers;
+	/**
+	 * @brief Request hooks run in order after merging headers and URL parameters.
+	 * Each hook receives the operation's snapshot by reference, so computed values
+	 * use the same pinned origins and settings as the request URL. Hooks may replace
+	 * merged values to enforce protocol requirements, or sign the final request.
+	 * @note Hooks run synchronously and may run concurrently for different requests.
+	 * Do not retain either argument or capture a borrowed parser/profile receiver.
+	 */
+	std::vector<std::function<void(HttpRequest&, const RequestContext&)>> modifiers;
 };
 
 } // namespace aniparse

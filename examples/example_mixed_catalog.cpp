@@ -81,9 +81,9 @@ int main() {
     MixedParser parser;
     auto catalog = parser.catalogs().front();
     auto profile = parser.make_profile(catalog.profile_id);
-    auto context = profile->make_context(examples::make_client());
+    auto session = profile->make_session(examples::make_services());
     auto root = parser.make_catalog_getter(catalog.id);
-    auto page = coro::sync_wait(root->latest(context, {}));
+    auto page = coro::sync_wait(root->latest(session, {}));
     if (!page || page->results.size() != 3) return 1;
     for (auto& row : page->results) {
         auto preview = row.item.preview_info();

@@ -74,10 +74,10 @@ struct HttpClient {
 	void set_config(HttpClientConfig config);
 
     /**
-     * @brief Read the currently published application request defaults.
-     * @return An owned snapshot, unaffected by subsequent configuration updates.
+     * @brief Retain application request defaults without copying headers.
+     * @return Non-null immutable defaults, valid across client configuration updates.
      */
-    RequestDefaults request_defaults() const;
+    std::shared_ptr<const RequestDefaults> request_defaults_snapshot() const;
 
     /**
      * @brief Apply transport settings for a configuration update.

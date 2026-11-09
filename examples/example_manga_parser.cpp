@@ -45,7 +45,7 @@ int main() {
     ExampleParser parser;
     auto catalog = parser.catalogs().front();
     auto profile = parser.make_profile(catalog.profile_id);
-    auto context = profile->make_context(examples::make_client());
+    auto context = profile->make_session(examples::make_services()).snapshot();
     auto root = parser.make_catalog_getter(catalog.id);
     // root and the returned item stay alive through their member coroutine calls.
     auto page = coro::sync_wait(root->latest(context, {}));

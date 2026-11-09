@@ -11,10 +11,10 @@ Select a catalog once. Every operation on the resulting root uses that selection
 for (const CatalogInfo& catalog : parser->catalogs()) {
     // The UI reads catalog.name, catalog.kinds and catalog.capabilities here.
     auto profile = parser->make_profile(catalog.profile_id);
-    auto context = profile->make_context(services);
+    auto session = profile->make_session(services);
     auto root = parser->make_catalog_getter(catalog.id);
     if (!root) continue;
-    auto page = co_await root->search(context, query, paging);
+    auto page = co_await root->search(session.snapshot(), query, paging);
     if (!page) continue; // Present the request error as appropriate.
     for (auto& row : page->results) {
         auto preview = row.item.preview_info(); // Never fetches details.

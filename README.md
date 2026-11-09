@@ -103,7 +103,10 @@ if (!root) {
     co_return make_request_error(RequestErrorCode::InvalidArguments, "Unknown catalog");
 }
 auto profile = parser->make_profile(root->info().profile_id);
-auto context = profile->make_context(client);
+auto services = std::make_shared<aniparse::RuntimeServices>();
+services->client = client;
+auto session = profile->make_session(services);
+auto context = session.snapshot();
 
 auto page = co_await root->search(context, {.query = "Frieren"}, {.limit = 10});
 if (!page) co_return unexpected(std::move(page.error()));

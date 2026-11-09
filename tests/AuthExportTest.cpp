@@ -1,186 +1,54 @@
-/*
- * Copyright (C) 2025-2026 Toilettrauma
- *
- * Author: Toilettrauma <macosinternal@gmail.com>
- */
+#include "TestRequestContext.hpp"
 #include "catch_amalgamated.hpp"
 #include <aniparse/source/Parser.hpp>
-#include <aniparse/runtime/RequestContext.hpp>
-#include <aniparse/source/Authentication.hpp>
-
-#include <memory>
-
 using namespace aniparse;
+using FakeCookieJar = MemoryCookieJar;
 
 namespace {
-
-// Minimal vector-backed jar so the test exercises the export/import logic
-// without pulling in the curl-backed CurlCookieJar (which needs a live client).
-class FakeCookieJar : public CookieJar {
-public:
-	std::optional<Cookie> find_cookie(std::string_view name) const override {
-		for (const Cookie& cookie : cookies_) {
-			if (cookie.name == name) {
-				return cookie;
-			}
-		}
-		return std::nullopt;
-	}
-
-	std::vector<Cookie> cookies() const override {
-		return cookies_;
-	}
-
-	void set_cookie(const Cookie& cookie) override {
-		for (Cookie& existing : cookies_) {
-			if (existing.name == cookie.name && existing.domain == cookie.domain &&
-			    existing.path == cookie.path) {
-				existing = cookie;
-				return;
-			}
-		}
-		cookies_.push_back(cookie);
-	}
-
-	void clear() override {
-		cookies_.clear();
-	}
-
-	std::vector<std::string> serialize() const override {
-		return {};
-	}
-
-	void deserialize(std::span<std::string>) override {
-	}
-
-private:
-	std::vector<Cookie> cookies_;
+struct CredentialProfile : ParserProfile {
+    using ParserProfile::ParserProfile;
+    AuthKeys auth_keys() const noexcept override { return {{"session"}, {"Authorization"}, {"token"}}; }
 };
-
-// Implements only the pure-virtual surface; keeps the default auth_keys()
-// (empty) and default export_auth().
-struct StubProfile : ParserProfile {
-    StubProfile() : ParserProfile("stub", {"main", "Default"}) {}
-};
-
-// Declares exactly which cookie / header / url-param entries are the durable
-// credential, so export_auth() lifts those and leaves the volatile rest.
-struct CredentialProfile : StubProfile {
-	AuthKeys auth_keys() const noexcept override {
-		AuthKeys keys;
-		keys.cookies    = {"session"};
-		keys.headers    = {"Authorization"};
-		keys.url_params = {"token"};
-		return keys;
-	}
-};
-
-Cookie make_cookie(std::string name, std::string value) {
-	Cookie cookie;
-	cookie.name   = std::move(name);
-	cookie.value  = std::move(value);
-	cookie.domain = "example.com";
-	return cookie;
+SessionState saved_credentials() {
+    SessionState saved{.parser_id = "Test", .profile_id = "main"};
+    saved.auth.cookies = {{.name = "session", .value = "secret", .domain = "example.com"},
+                          {.name = "antibot", .value = "volatile", .domain = "example.com"}};
+    saved.auth.headers = {{"Authorization", "Bearer xyz"}, {"User-Agent", "volatile-agent"}};
+    saved.auth.url_params = {{"token", "kept"}, {"ts", "dropped"}};
+    saved.settings.base_url = "https://selected.example";
+    return saved;
+}
 }
 
-ParserConfig make_authed_config() {
-	ParserConfig config;
-	config.cookie_jar = std::make_shared<FakeCookieJar>();
-	config.cookie_jar->set_cookie(make_cookie("session", "secret"));
-	config.cookie_jar->set_cookie(make_cookie("antibot", "volatile"));
-	config.headers.set("Authorization", "Bearer xyz");
-	config.headers.set("User-Agent", "volatile-agent");
-	config.url_params["token"]      = "kept";
-	config.url_params["ts"]         = "dropped";
-	config.alt_link                 = 3;
-	return config;
+TEST_CASE("Session export keeps only declared durable credentials and user choices") {
+    auto profile = test_profile<CredentialProfile>();
+    auto session = profile->restore_session(test_services(), saved_credentials());
+    REQUIRE(session);
+    auto saved = session->export_state();
+    REQUIRE(saved.auth.cookies.size() == 1);
+    CHECK(saved.auth.cookies.front().name == "session");
+    REQUIRE(saved.auth.headers.size() == 1);
+    CHECK(saved.auth.headers.at("Authorization") == "Bearer xyz");
+    REQUIRE(saved.auth.url_params.size() == 1);
+    CHECK(saved.auth.url_params.at("token") == "kept");
+    CHECK(saved.settings.base_url == "https://selected.example");
+    auto restored = profile->restore_session(test_services(), saved);
+    REQUIRE(restored);
+    CHECK(restored->config()->cookie_jar != session->config()->cookie_jar);
+    CHECK_FALSE(restored->config()->cookie_jar->find_cookie("antibot"));
+    CHECK_FALSE(restored->config()->headers.contains("User-Agent"));
+    CHECK_FALSE(restored->config()->url_params.contains("ts"));
 }
 
-} // namespace
-
-TEST_CASE("export_auth keeps only the credential-bearing entries") {
-	CredentialProfile parser;
-	ParserConfig config = make_authed_config();
-
-	AuthState state = parser.export_auth(config);
-
-	REQUIRE(state.cookies.size() == 1);
-	REQUIRE(state.cookies[0].name == "session");
-	REQUIRE(state.cookies[0].value == "secret");
-
-	REQUIRE(state.headers.size() == 1);
-	REQUIRE(state.headers.at("Authorization") == "Bearer xyz");
-
-	REQUIRE(state.url_params.size() == 1);
-	REQUIRE(state.url_params.at("token") == "kept");
-
-	REQUIRE(state.alt_link == 3);
-}
-
-TEST_CASE("export_auth then import_auth round-trips the session into a fresh config") {
-	CredentialProfile parser;
-	ParserConfig source = make_authed_config();
-	source.alt_link     = 7;
-
-	AuthState state = parser.export_auth(source);
-
-	ParserConfig restored;
-	restored.cookie_jar = std::make_shared<FakeCookieJar>();
-	import_auth(restored, state);
-
-	// Only the durable credential crossed over; volatile entries stayed behind.
-	REQUIRE(restored.cookie_jar->cookies().size() == 1);
-	auto session = restored.cookie_jar->find_cookie("session");
-	REQUIRE(session.has_value());
-	REQUIRE(session->value == "secret");
-	REQUIRE_FALSE(restored.cookie_jar->find_cookie("antibot").has_value());
-
-	REQUIRE(restored.headers.at("Authorization") == "Bearer xyz");
-	REQUIRE_FALSE(restored.headers.contains("User-Agent"));
-
-	REQUIRE(restored.url_params.at("token") == "kept");
-	REQUIRE_FALSE(restored.url_params.contains("ts"));
-
-	REQUIRE(restored.alt_link == 7);
-}
-
-TEST_CASE("export_auth with no declared keys yields an empty session but keeps alt_link") {
-	StubProfile parser;
-	ParserConfig config = make_authed_config();
-	config.alt_link     = 5;
-
-	AuthState state = parser.export_auth(config);
-
-	REQUIRE(state.cookies.empty());
-	REQUIRE(state.headers.empty());
-	REQUIRE(state.url_params.empty());
-	REQUIRE(state.alt_link == 5);
-}
-
-TEST_CASE("export_auth tolerates a config without a cookie jar") {
-	CredentialProfile parser;
-	ParserConfig config;
-	config.headers.set("Authorization", "Bearer xyz");
-
-	AuthState state = parser.export_auth(config);
-
-	REQUIRE(state.cookies.empty());
-	REQUIRE(state.headers.at("Authorization") == "Bearer xyz");
-}
-
-TEST_CASE("import_auth without a cookie jar skips cookies but restores the rest") {
-	AuthState state;
-	state.cookies.push_back(make_cookie("session", "secret"));
-	state.headers.set("Authorization", "Bearer xyz");
-	state.url_params["token"]      = "kept";
-	state.alt_link                 = 4;
-
-	ParserConfig config; // no cookie jar provisioned
-	import_auth(config, state);
-
-	REQUIRE(config.headers.at("Authorization") == "Bearer xyz");
-	REQUIRE(config.url_params.at("token") == "kept");
-	REQUIRE(config.alt_link == 4);
+TEST_CASE("A profile without declared credentials exports only user choices") {
+    auto profile = test_profile();
+    auto session = profile->restore_session(test_services(), saved_credentials());
+    REQUIRE(session);
+    auto saved = session->export_state();
+    CHECK(saved.auth.cookies.empty());
+    CHECK(saved.auth.headers.empty());
+    CHECK(saved.auth.url_params.empty());
+    CHECK(saved.settings.base_url == "https://selected.example");
 }
 
 #include "CoroTest.hpp"
@@ -197,7 +65,7 @@ public:
 
 class StorageProfile final : public ParserProfile {
 public:
-    StorageProfile() : ParserProfile("example", {"main", "Account"}) {}
+    using ParserProfile::ParserProfile;
     mutable int exchanges = 0;
     std::optional<AuthInfo> auth_info() const override {
         AuthInfo info;
@@ -209,25 +77,25 @@ public:
         web.storage_token_path = "token.access_token";
         return info;
     }
-    RequestTask<std::shared_ptr<const ParserConfig>> authenticate(
-        RequestContext context, AuthenticationData credentials) const override {
+    RequestTask<void> authenticate_impl(
+        AuthenticationSession& candidate, AuthenticationData credentials) const override {
         ++exchanges;
         const auto& token = std::get<AuthenticationToken>(credentials).token;
         if (token == "rejected") {
             co_return make_request_error(RequestErrorCode::InvalidCredentials, "Rejected");
         }
-        if (token == "empty") co_return std::shared_ptr<const ParserConfig>{};
-        auto config = std::make_shared<ParserConfig>(*context.config());
-        config->cookie_jar.reset();
+        if (token == "empty") co_return make_request_error(RequestErrorCode::UnexpectedResponse, "Empty token");
+        auto* config = &candidate.config();
         config->headers.set("Authorization", "Bearer " + token);
-        co_return context.new_with_config(config).config();
+        co_return {};
     }
 };
 }
 
 CORO_TEST_CASE("Web login verifies storage tokens only at the declared origin", "[auth][web-login]") {
-    StorageProfile profile;
-    auto context = profile.make_context(std::make_shared<WebLoginClient>());
+    auto owned_profile = test_profile<StorageProfile>("example");
+    auto& profile = *owned_profile;
+    auto context = profile.begin_web_login(profile.make_session(test_services(std::make_shared<WebLoginClient>())));
     auto observations = profile.web_login_observation(context);
     REQUIRE(observations.storage.size() == 1);
     CHECK(observations.storage.front().origin == "https://example.com");
@@ -257,12 +125,11 @@ CORO_TEST_CASE("Web login verifies storage tokens only at the declared origin", 
     state.storage.front().value = R"({"token":{"access_token":"valid"}})";
     auto verified = co_await profile.check_web_login(context, WebLoginEventKind::StorageChanged, state);
     REQUIRE(verified);
-    const auto* completed = std::get_if<InteractionCompleted<std::shared_ptr<const ParserConfig>>>(&*verified);
+    const auto* completed = std::get_if<InteractionCompleted<ProfileSession>>(&*verified);
     REQUIRE(completed);
-    REQUIRE(completed->value);
-    CHECK(completed->value->headers.at("Authorization") == "Bearer valid");
+    CHECK(completed->value.config()->headers.at("Authorization") == "Bearer valid");
     CHECK_FALSE(context.config()->headers.contains("Authorization"));
-    CHECK(completed->value->cookie_jar != context.config()->cookie_jar);
+    CHECK(completed->value.config()->cookie_jar != context.config()->cookie_jar);
     state.storage.front().value = R"({"token":{"access_token":"rejected"}})";
     auto rejected = co_await profile.check_web_login(context, WebLoginEventKind::ManualCheckRequested, state);
     REQUIRE_FALSE(rejected);
@@ -334,11 +201,13 @@ TEST_CASE("Interaction states support owned payloads and payload-free completion
 CORO_TEST_CASE("Non-browser authentication has no browser observations", "[auth][web-login]") {
     class PasswordProfile final : public ParserProfile {
     public:
-        PasswordProfile() : ParserProfile("example", {"password", "Account"}) {}
+        using ParserProfile::ParserProfile;
         std::optional<AuthInfo> auth_info() const override { return AuthInfo{}; }
-    } profile;
+    };
+    auto owned_profile = test_profile<PasswordProfile>("example", {"password", "Account"});
+    auto& profile = *owned_profile;
     REQUIRE_FALSE(profile.auth_info()->web_login);
-    const auto context = profile.make_context(std::make_shared<WebLoginClient>());
+    const auto context = profile.begin_web_login(profile.make_session(test_services(std::make_shared<WebLoginClient>())));
     const auto observation = profile.web_login_observation(context);
     CHECK(observation.events.none());
     CHECK(observation.storage.empty());
@@ -346,4 +215,21 @@ CORO_TEST_CASE("Non-browser authentication has no browser observations", "[auth]
     const auto checked = co_await profile.check_web_login(context, WebLoginEventKind::Started, {});
     REQUIRE_FALSE(checked);
     CHECK(checked.error().code == RequestErrorCode::NotImplemented);
+}
+
+TEST_CASE("Session persistence supports transports without cookie jars") {
+    struct Client : HttpClient {
+        RequestTask<HttpResponse> do_request(ConfiguredGetRequest) override { co_return HttpResponse{}; }
+        RequestTask<HttpResponse> do_request(ConfiguredPostRequest) override { co_return HttpResponse{}; }
+        RequestTask<HttpResponse> do_request(ConfiguredPostMultipartRequest) override { co_return HttpResponse{}; }
+        void apply_client_config(HttpClientConfig) override {}
+        std::shared_ptr<CookieJar> make_cookie_jar() override { return nullptr; }
+    };
+    auto profile = test_profile<CredentialProfile>();
+    auto session = profile->restore_session(test_services(std::make_shared<Client>()), saved_credentials());
+    REQUIRE(session);
+    auto saved = session->export_state();
+    CHECK(saved.auth.cookies.empty());
+    CHECK(saved.auth.headers.at("Authorization") == "Bearer xyz");
+    CHECK(saved.auth.url_params.at("token") == "kept");
 }

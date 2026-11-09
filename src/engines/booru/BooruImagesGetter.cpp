@@ -59,7 +59,7 @@ RequestTask<SearchCapabilities> BooruImagesGetter::load_search_capabilities(Requ
 RequestTask<std::vector<SearchSuggestion>> BooruImagesGetter::suggest(
     RequestContext context, std::string partial, std::optional<std::string> kind) const {
 	const BooruEngine& engine = site_.engine();
-	std::string_view base = context.base_url(site_.api_hosts);
+	std::string_view base = context.base_url();
 	GetRequest request = engine.suggest_request(base, std::move(partial), std::move(kind));
 	auto json_result = co_await context.request_json(request);
 	if (!json_result) {
@@ -79,7 +79,7 @@ RequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> BooruImagesGette
 		                              describe_search_query_errors(errors));
 	}
 
-	std::string_view base = context.base_url(site_.api_hosts);
+	std::string_view base = context.base_url();
 	GetRequest request = site_.engine().list_request(base, query.query, filters);
 	auto json_result = co_await context.request_json(request);
 	if (!json_result) {
@@ -96,7 +96,7 @@ RequestTask<PageResults<std::unique_ptr<ImageContainerGetter>>> BooruImagesGette
 	}
 
 	// No tags = the source's default newest-first feed.
-	std::string_view base = context.base_url(site_.api_hosts);
+	std::string_view base = context.base_url();
 	GetRequest request = site_.engine().list_request(base, std::string{}, filters);
 	auto json_result = co_await context.request_json(request);
 	if (!json_result) {

@@ -4,14 +4,10 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/cache/ResourceCache.hpp"
-#include "aniparse/utility/AtomicSharedPtr.hpp"
 #include "aniparse/utility/Regex.hpp"
 
 #include <map>
 #include <memory>
-#include <mutex>
-#include <shared_mutex>
 #include <span>
 #include <string>
 #include <string_view>
@@ -41,7 +37,7 @@ namespace aniparse {
  * The table is SCOPED: owner identifier (parser id or extractor identifier) ->
  * short key (e.g. "info.title") -> pattern text, so one owner's hotfix can never
  * name, let alone clobber, another owner's pattern. A set compiled through a
- * scoped view (@ref RegexSourceHolder::view_for) reads only its owner's keys.
+ * scoped view (@ref RegexSource::scoped_to) reads only its owner's keys.
  *
  * The class is subclassable (virtual @ref compile and destructor) so tooling —
  * e.g. the catalog dumper — can RECORD the (key, fallback) pairs a set declares
@@ -147,106 +143,6 @@ protected:
 private:
 	Overrides overrides_;
 	ScopedOverrides scoped_;
-};
-
-/**
- * @brief A swappable slot for the current RegexSource, so the volatile catalog
- * can hotfix patterns at runtime while requests read lock-free.
- *
- * Holds the source behind an atomic shared_ptr: a reader get()s it (keeping that
- * snapshot alive by refcount even across a concurrent swap), a catalog apply
- * set()s a freshly built one. Never holds null — a default or cleared holder
- * carries an empty source, so every lookup falls back to the built-in literal.
- *
- * The holder also owns the compiled-pattern-set cache, keyed by (owner id, set
- * type): a pattern set is the one resource that legitimately shares its TYPE
- * across owners (an engine family's common set) while its CONTENT depends on the
- * owner's own overrides. The cache is dropped on every set(), so a catalog apply
- * recompiles against the new overrides.
- */
-class RegexSourceHolder {
-public:
-	RegexSourceHolder() : source_(std::make_shared<const RegexSource>()) {}
-
-	explicit RegexSourceHolder(std::shared_ptr<const RegexSource> source)
-	    : source_(source ? std::move(source) : std::make_shared<const RegexSource>()) {}
-
-	/// The current source, held alive by the returned handle across a concurrent set().
-	[[nodiscard]] std::shared_ptr<const RegexSource> get() const { return source_.load(); }
-
-	/**
-	 * @brief Swap in a new source; a null one becomes an empty source.
-	 * Drops every cached scoped view and compiled set: they were built from the
-	 * old source's overrides. In-flight readers keep their snapshots alive by
-	 * refcount; later builds see the new source.
-	 */
-	void set(std::shared_ptr<const RegexSource> source) {
-		source_.store(source ? std::move(source) : std::make_shared<const RegexSource>());
-		std::unique_lock write_lock(mutex_);
-		views_.clear();
-		sets_.clear();
-	}
-
-	/**
-	 * @brief The source scoped to one owner, cached until the next set().
-	 * @param owner The owner identifier (a parser id stamped into a context's
-	 *        config, or an extractor's identifier()); an empty id or an id the
-	 *        source carries no scoped overrides for yields the shared source itself
-	 * @return The scoped source view
-	 */
-	[[nodiscard]] std::shared_ptr<const RegexSource> view_for(std::string_view owner) {
-		auto source = source_.load();
-		if (owner.empty() || !source->has_scope(owner)) {
-			return source;
-		}
-		{
-			std::shared_lock read_lock(mutex_);
-			if (auto it = views_.find(owner); it != views_.end()) {
-				return it->second;
-			}
-		}
-		// Build outside the lock: a losing race just drops our copy for the winner.
-		auto view = source->scoped_to(owner);
-		std::unique_lock write_lock(mutex_);
-		auto [it, inserted] = views_.try_emplace(std::string(owner), std::move(view));
-		return it->second;
-	}
-
-	/**
-	 * @brief Build (once per owner id, cached) the pattern set @p T from that
-	 * owner's scoped source view.
-	 * @tparam T Pattern set type exposing `static T make(const RegexSource&)`
-	 * @param owner The owner identifier to scope overrides to
-	 * @return Shared handle to the built set; hold it for the whole operation so a
-	 *         concurrent set() cannot free it underneath
-	 * @note The cache key is (owner id, T): two owners sharing one set type get
-	 *       one compiled copy EACH, with their own overrides applied.
-	 */
-	template <class T>
-	[[nodiscard]] std::shared_ptr<const T> set_for(std::string_view owner) {
-		const void* type_key = detail::resource_type_key<T>();
-		{
-			std::shared_lock read_lock(mutex_);
-			if (auto by_id = sets_.find(owner); by_id != sets_.end()) {
-				if (auto it = by_id->second.find(type_key); it != by_id->second.end()) {
-					return std::static_pointer_cast<const T>(it->second);
-				}
-			}
-		}
-		// Compile outside the lock, off the scoped view: expensive and in need of
-		// no shared state. A losing build race drops our copy for the stored winner.
-		auto view = view_for(owner);
-		auto built = std::make_shared<const T>(T::make(*view));
-		std::unique_lock write_lock(mutex_);
-		auto [it, inserted] = sets_[std::string(owner)].try_emplace(type_key, std::move(built));
-		return std::static_pointer_cast<const T>(it->second);
-	}
-
-private:
-	AtomicSharedPtr<const RegexSource> source_;
-	std::shared_mutex mutex_;
-	std::map<std::string, std::shared_ptr<const RegexSource>, std::less<>> views_;
-	std::map<std::string, std::map<const void*, std::shared_ptr<const void>>, std::less<>> sets_;
 };
 
 } // namespace aniparse

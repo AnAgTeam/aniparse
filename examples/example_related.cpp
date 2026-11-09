@@ -61,7 +61,7 @@ int main() {
     if (!route || !route->catalog_id) return 1;
     auto root = route->parser->make_catalog_getter(*route->catalog_id);
     auto profile = route->parser->make_profile(root->info().profile_id);
-    auto context = profile->make_context(examples::make_client());
+    auto context = profile->make_session(examples::make_services()).snapshot();
     // Routing is local; the registered legacy host need not resolve on the network.
     auto opened = coro::sync_wait(root->parse_url(context, std::move(route->url)));
     if (!opened || !opened->has(related.kind)) return 1;

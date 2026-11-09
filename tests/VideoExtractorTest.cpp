@@ -146,16 +146,16 @@ TEST_CASE("VideoExtractor mirrors resolve the catalog override by extractor iden
 
 	auto services = std::make_shared<RuntimeServices>();
 	services->client = std::make_shared<NullClient>();
-	services->mirrors = std::make_shared<MirrorSourceHolder>();
+
 	auto context = test_context(services, std::make_shared<ParserConfig>());
 
 	static constexpr std::string_view builtin[] = { "https://video.example" };
 	// No override yet: the built-in list wins.
 	CHECK(extractor.base_url(context, builtin) == "https://video.example");
 
-	services->mirrors->set(std::make_shared<const MirrorSource>(
+	services->overrides->store(std::make_shared<const OverridesState>(std::make_shared<const MirrorSource>(
 	    std::map<std::string, std::vector<std::string>, std::less<>>{
-	        { "Video", { "https://live.example", "https://alt.example" } } }));
+	        { "Video", { "https://live.example", "https://alt.example" } } })));
 
 	// The mirror snapshot is taken at context construction, so the swapped source
 	// is seen through a context built after the swap.

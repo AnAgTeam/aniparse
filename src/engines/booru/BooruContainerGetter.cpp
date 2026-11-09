@@ -27,7 +27,7 @@ ImageContainerCapabilities BooruContainerGetter::capabilities() const noexcept {
 RequestTask<BooruContainerGetter::Post> BooruContainerGetter::fetch_post(
     RequestContext& context) const {
 	const BooruEngine& engine = site_.engine();
-	std::string_view base = context.base_url(site_.api_hosts);
+	std::string_view base = context.base_url();
 	GetRequest request = engine.container_request(base, id_);
 	auto json_result = co_await context.request_json(request);
 	if (!json_result) {

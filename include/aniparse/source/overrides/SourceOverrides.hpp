@@ -85,7 +85,7 @@ struct SourceOverrides {
 	/// other's overrides.
 	std::map<std::string, std::vector<std::string>, std::less<>> extractor_domains;
 	/// Per-extractor ordered fetch base URLs, keyed by extractor identifier; the
-	/// consumer feeds them to extractors through a MirrorSourceHolder of its own
+	/// consumer feeds them to extractors through an OverridesStore of its own
 	/// (@see SourceOverridesManager). SourceOverridesManager unions their hosts into
 	/// @c extractor_domains the same way it does for parser mirrors.
 	std::map<std::string, std::vector<std::string>, std::less<>> extractor_mirrors;
@@ -96,7 +96,7 @@ struct SourceOverrides {
 	/// hotfix cannot name another parser's pattern.
 	std::map<std::string, std::map<std::string, std::string, std::less<>>, std::less<>> patterns;
 	/// Per-extractor regex pattern overrides, keyed by extractor identifier; the
-	/// consumer feeds them to extractors through a RegexSourceHolder of its own
+	/// consumer feeds them to extractors through an OverridesStore of its own
 	/// (@see SourceOverridesManager). Kept separate from @c patterns for the same
 	/// anti-aliasing reason as @c extractor_domains.
 	std::map<std::string, std::map<std::string, std::string, std::less<>>, std::less<>> extractor_patterns;

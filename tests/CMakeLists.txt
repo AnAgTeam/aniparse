@@ -15,6 +15,7 @@ add_executable(aniparse-tests
 	"PolymorphicInterfacesTest.cpp"
 	"AuthExportTest.cpp"
 	"ParserProfileTest.cpp"
+    "ProfileSessionTest.cpp"
 	"RequestorContextTest.cpp"
 	"MirrorSourceTest.cpp"
 	"StrongBitsetTest.cpp"

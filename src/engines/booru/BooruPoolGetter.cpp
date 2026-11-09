@@ -24,7 +24,7 @@ ImageContainerCapabilities BooruPoolGetter::capabilities() const noexcept {
 
 RequestTask<ImageContainerInfo> BooruPoolGetter::load_info(RequestContext context) const {
 	const BooruEngine& engine = site_.engine();
-	std::string_view base = context.base_url(site_.api_hosts);
+	std::string_view base = context.base_url();
 	GetRequest request = engine.pool_request(base, id_);
 	auto json_result = co_await context.request_json(request);
 	if (!json_result) {
@@ -46,7 +46,7 @@ RequestTask<PageResults<ImageItem>> BooruPoolGetter::items(
 	// The engine builds the pool-order page request (a listing in pool order), so
 	// items() streams the collection without holding the whole id list.
 	const BooruEngine& engine = site_.engine();
-	std::string_view base = context.base_url(site_.api_hosts);
+	std::string_view base = context.base_url();
 	GetRequest request = engine.pool_items_request(base, id_, filters);
 	auto json_result = co_await context.request_json(request);
 	if (!json_result) {

@@ -113,17 +113,17 @@ TEST_CASE("SourceOverridesManager rejects a non-newer catalog and keeps the appl
 	CHECK_FALSE(store.find_for_url("https://other.example"));
 }
 
-TEST_CASE("SourceOverridesManager swaps catalog selectors into the services holder") {
+TEST_CASE("SourceOverridesManager swaps catalog selectors into the service generation") {
 	ParserStore store;
 	StubVerifier verifier(true);
 
 	auto services = std::make_shared<RuntimeServices>();
-	services->selectors = std::make_shared<html::SelectorSourceHolder>();
+
 	services->resources = std::make_shared<ResourceCache>();
 	SourceOverridesManager manager(store, verifier, services);
 
-	// Before any catalog the holder is empty -> every key falls back.
-	CHECK(services->selectors->get()->get("example.info.description", "FALLBACK") == "FALLBACK");
+	// Before any catalog the generation is empty -> every key falls back.
+	CHECK_FALSE(services->overrides->load());
 
 	std::string_view payload = R"({
 		"schema_version": 1, "revision": 2, "parsers": {},
@@ -131,26 +131,25 @@ TEST_CASE("SourceOverridesManager swaps catalog selectors into the services hold
 	})";
 	REQUIRE(manager.apply(payload, "sig").has_value());
 
-	auto source = services->selectors->get();
+	auto source = services->overrides->load()->selector_source();
 	REQUIRE(source);
 	CHECK(source->get("example.info.description", "FALLBACK") == "#desc"); // override applied
 	CHECK(source->get("unknown.key", "FALLBACK") == "FALLBACK");          // unknown still falls back
 }
 
-TEST_CASE("SourceOverridesManager swaps catalog patterns into the services holders") {
+TEST_CASE("SourceOverridesManager swaps catalog patterns into the service generations") {
 	ParserStore store;
 	StubVerifier verifier(true);
 
 	auto services = std::make_shared<RuntimeServices>();
-	services->patterns = std::make_shared<RegexSourceHolder>();
+
 	services->resources = std::make_shared<ResourceCache>();
 	auto extractor_services = std::make_shared<RuntimeServices>();
-	extractor_services->patterns = std::make_shared<RegexSourceHolder>();
+
 	SourceOverridesManager manager(store, verifier, services, nullptr, extractor_services);
 
-	// Before any catalog the holders are empty -> every key falls back.
-	CHECK(services->patterns->get()->scoped_to("ExampleParser")->get("info.id", "FALLBACK") ==
-	      "FALLBACK");
+	// Before any catalog the generations are empty -> every key falls back.
+	CHECK_FALSE(services->overrides->load());
 
 	std::string_view payload = R"json({
 		"schema_version": 1, "revision": 2,
@@ -159,14 +158,14 @@ TEST_CASE("SourceOverridesManager swaps catalog patterns into the services holde
 	})json";
 	REQUIRE(manager.apply(payload, "sig").has_value());
 
-	// Parser patterns land in the parser holder, extractor patterns in the
+	// Parser patterns land in the parser generation, extractor patterns in the
 	// extractor one — no aliasing across the two.
-	CHECK(services->patterns->get()->scoped_to("ExampleParser")->get("info.id", "FALLBACK") ==
+	CHECK(services->overrides->load()->pattern_source()->scoped_to("ExampleParser")->get("info.id", "FALLBACK") ==
 	      R"(/x/(?<id>\d+))");
-	CHECK(services->patterns->get()->scoped_to("SomeExtractor")->empty_source());
-	CHECK(extractor_services->patterns->get()->scoped_to("SomeExtractor")->get("video_path", "FALLBACK") ==
+	CHECK(services->overrides->load()->pattern_source()->scoped_to("SomeExtractor")->empty_source());
+	CHECK(extractor_services->overrides->load()->pattern_source()->scoped_to("SomeExtractor")->get("video_path", "FALLBACK") ==
 	      "/v/x");
-	CHECK(extractor_services->patterns->get()->scoped_to("ExampleParser")->empty_source());
+	CHECK(extractor_services->overrides->load()->pattern_source()->scoped_to("ExampleParser")->empty_source());
 }
 
 TEST_CASE("SourceOverridesManager swaps catalog mirrors and unions their hosts into routing") {
@@ -175,7 +174,7 @@ TEST_CASE("SourceOverridesManager swaps catalog mirrors and unions their hosts i
 	StubVerifier verifier(true);
 
 	auto services     = std::make_shared<RuntimeServices>();
-	services->mirrors = std::make_shared<MirrorSourceHolder>();
+
 	SourceOverridesManager manager(store, verifier, services);
 
 	// A catalog with only mirrors (no separate "domains") for the parser.
@@ -185,8 +184,8 @@ TEST_CASE("SourceOverridesManager swaps catalog mirrors and unions their hosts i
 	})";
 	REQUIRE(manager.apply(payload, "sig").has_value());
 
-	// The override reached the holder, keyed by parser id.
-	auto source = services->mirrors->get();
+	// The override reached the generation, keyed by parser id.
+	auto source = services->overrides->load()->mirrors;
 	REQUIRE(source);
 	REQUIRE(source->list_for("ExampleParser", "main"));
 	CHECK(*source->list_for("ExampleParser", "main") ==
@@ -204,7 +203,7 @@ TEST_CASE("SourceOverridesManager swaps canonical frontend origins and routes th
 	StubVerifier verifier(true);
 
 	auto services     = std::make_shared<RuntimeServices>();
-	services->mirrors = std::make_shared<MirrorSourceHolder>();
+
 	SourceOverridesManager manager(store, verifier, services);
 
 	std::string_view payload = R"({
@@ -215,7 +214,7 @@ TEST_CASE("SourceOverridesManager swaps canonical frontend origins and routes th
 	})";
 	REQUIRE(manager.apply(payload, "sig").has_value());
 
-	auto source = services->mirrors->get();
+	auto source = services->overrides->load()->mirrors;
 	REQUIRE(source);
 	REQUIRE(source->canonical_base_for("ExampleParser", "main"));
 	CHECK(*source->canonical_base_for("ExampleParser", "main") == "https://frontend.example:8443/path");
@@ -230,9 +229,9 @@ TEST_CASE("SourceOverridesManager applies the extractors section to the extracto
 	StubVerifier verifier(true);
 
 	auto services = std::make_shared<RuntimeServices>();
-	services->mirrors = std::make_shared<MirrorSourceHolder>();
+
 	auto extractor_services = std::make_shared<RuntimeServices>();
-	extractor_services->mirrors = std::make_shared<MirrorSourceHolder>();
+
 	SourceOverridesManager manager(store, verifier, services, &extractors, extractor_services);
 
 	std::string_view payload = R"({
@@ -249,13 +248,13 @@ TEST_CASE("SourceOverridesManager applies the extractors section to the extracto
 	// The extractor's mirror host was unioned into its routing.
 	CHECK(extractors.route_url("https://extractor-live.example/watch/1"));
 
-	// Mirrors went to separate holders: the parser override in services, the
+	// Mirrors went to separate generations: the parser override in services, the
 	// extractor override in extractor_services — no aliasing under the shared id.
-	REQUIRE(services->mirrors->get()->list_for("SharedId", "main"));
-	CHECK(*services->mirrors->get()->list_for("SharedId", "main") ==
+	REQUIRE(services->overrides->load()->mirrors->list_for("SharedId", "main"));
+	CHECK(*services->overrides->load()->mirrors->list_for("SharedId", "main") ==
 	      std::vector<std::string>{ "https://parser-live.example" });
-	REQUIRE(extractor_services->mirrors->get()->list_for("SharedId"));
-	CHECK(*extractor_services->mirrors->get()->list_for("SharedId") ==
+	REQUIRE(extractor_services->overrides->load()->mirrors->list_for("SharedId"));
+	CHECK(*extractor_services->overrides->load()->mirrors->list_for("SharedId") ==
 	      std::vector<std::string>{ "https://extractor-live.example:8443/base" });
 }
 
@@ -267,13 +266,13 @@ TEST_CASE("SourceOverridesManager reset restores static routing and empty overri
 	StubVerifier verifier(true);
 
 	auto services = std::make_shared<RuntimeServices>();
-	services->mirrors = std::make_shared<MirrorSourceHolder>();
-	services->selectors = std::make_shared<html::SelectorSourceHolder>();
-	services->patterns = std::make_shared<RegexSourceHolder>();
+
+
+
 	services->resources = std::make_shared<ResourceCache>();
 	auto extractor_services = std::make_shared<RuntimeServices>();
-	extractor_services->mirrors = std::make_shared<MirrorSourceHolder>();
-	extractor_services->patterns = std::make_shared<RegexSourceHolder>();
+
+
 	SourceOverridesManager manager(store, verifier, services, &extractors, extractor_services);
 
 	std::string_view payload = R"({
@@ -292,9 +291,9 @@ TEST_CASE("SourceOverridesManager reset restores static routing and empty overri
 	REQUIRE(manager.apply(payload, "sig").has_value());
 	CHECK(store.find_for_url("https://catalog.example/title/1"));
 	CHECK(extractors.route_url("https://extractor.example/embed/1"));
-	CHECK(services->selectors->get()->get("shared.info", "FALLBACK") == ".catalog");
-	CHECK(services->patterns->get()->scoped_to("SharedId")->get("info.id", "FALLBACK") == "/x");
-	CHECK(extractor_services->patterns->get()->scoped_to("SharedId")->get("video_path", "FALLBACK") == "/v/x");
+	CHECK(services->overrides->load()->selector_source()->get("shared.info", "FALLBACK") == ".catalog");
+	CHECK(services->overrides->load()->pattern_source()->scoped_to("SharedId")->get("info.id", "FALLBACK") == "/x");
+	CHECK(extractor_services->overrides->load()->pattern_source()->scoped_to("SharedId")->get("video_path", "FALLBACK") == "/v/x");
 
 	manager.reset();
 
@@ -304,11 +303,11 @@ TEST_CASE("SourceOverridesManager reset restores static routing and empty overri
 	CHECK_FALSE(store.find_for_url("https://mirror.example/title/1"));
 	CHECK_FALSE(store.find_for_url("https://frontend.example/title/1"));
 	CHECK_FALSE(extractors.route_url("https://extractor.example/embed/1"));
-	CHECK(services->mirrors->get()->empty_source());
-	CHECK(extractor_services->mirrors->get()->empty_source());
-	CHECK(services->selectors->get()->get("shared.info", "FALLBACK") == "FALLBACK");
-	CHECK(services->patterns->get()->empty_source());
-	CHECK(extractor_services->patterns->get()->empty_source());
+	CHECK(services->overrides->load()->mirrors->empty_source());
+	CHECK(extractor_services->overrides->load()->mirrors->empty_source());
+	CHECK(services->overrides->load()->selector_source()->get("shared.info", "FALLBACK") == "FALLBACK");
+	CHECK(services->overrides->load()->pattern_source()->empty_source());
+	CHECK(extractor_services->overrides->load()->pattern_source()->empty_source());
 }
 
 TEST_CASE("SourceOverridesManager without an extractor store ignores the extractors section") {
@@ -331,7 +330,7 @@ TEST_CASE("SourceOverridesManager ignores obsolete parser origins including malf
     store.add_parser(std::make_unique<CatalogParser>("ExampleParser"));
     StubVerifier verifier(true);
     auto services = std::make_shared<RuntimeServices>();
-    services->mirrors = std::make_shared<MirrorSourceHolder>();
+
     SourceOverridesManager manager(store, verifier, services);
     std::string_view payload;
     SECTION("old valid origins") {
@@ -344,7 +343,7 @@ TEST_CASE("SourceOverridesManager ignores obsolete parser origins including malf
             "mirrors":42,"canonical_base_url":[]}}})";
     }
     REQUIRE(manager.apply(payload, "sig"));
-    CHECK(services->mirrors->get()->empty_source());
+    CHECK(services->overrides->load()->mirrors->empty_source());
     CHECK_FALSE(store.find_for_url("https://obsolete.example/title/1"));
     CHECK_FALSE(store.find_for_url("https://obsolete-front.example/title/1"));
 }

@@ -1,6 +1,5 @@
 #pragma once
 #include "aniparse/utility/InteractionState.hpp"
-#include <memory>
 #include "aniparse/net/CookieJar.hpp"
 #include "aniparse/utility/FlagsBitfield.hpp"
 #include <optional>
@@ -8,13 +7,6 @@
 #include <vector>
 
 namespace aniparse {
-
-struct ParserConfig;
-
-/// A pending login or a completed candidate with a non-null configuration.
-/// The caller adopts the candidate only while the interaction remains active.
-using WebLoginCheck = InteractionState<std::shared_ptr<const ParserConfig>>;
-
 
 /// A reason to recheck the current browser session; not proof of authentication.
 enum class WebLoginEventKind {
@@ -113,8 +105,6 @@ struct WebLoginInfo {
 
 	/// The URL the web view opens for the user to sign in.
 	std::string login_url;
-	/// Legacy URL prefixes describing expected post-login navigation; not proof of login.
-	std::vector<std::string> success_globs;
 	/// Where the credential is lifted from after login.
 	Material material = Material::Cookies;
 	/// StorageToken: the localStorage key the token sits under.

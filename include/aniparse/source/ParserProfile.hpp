@@ -3,28 +3,82 @@
  */
 #pragma once
 #include "aniparse/runtime/RequestContext.hpp"
+#include "aniparse/source/ProfileSession.hpp"
 #include "aniparse/source/Authentication.hpp"
 #include "aniparse/source/ProfileInfo.hpp"
-#include "aniparse/source/AltLink.hpp"
 
 namespace aniparse {
 
 /**
  * @brief Immutable configuration and authentication behavior shared by catalogs.
  *
- * User state lives in ParserConfig, not in this object. Store authentication by
- * the pair of parser ID and profile ID. Multiple contexts may use one profile
+ * Account state lives in ProfileSession, not in this object. Store authentication by
+ * the pair of parser ID and profile ID. Multiple sessions may use one profile
  * with independent accounts; sharing a profile alone does not share cookies.
  */
 class ParserProfile {
 public:
-	/**
-	 * @brief Bind this profile to its owning parser and descriptor.
-	 * @param parser_id Stable owning parser identifier.
-	 * @param info Owned profile descriptor with a nonempty ID.
-	 * @throws std::invalid_argument If either identifier is empty.
-	 */
-	explicit ParserProfile(std::string parser_id, ProfileInfo info);
+    /**
+     * @brief Construct profile behavior; Parser::make_profile binds its owner.
+     * @param info Selected profile descriptor.
+     */
+    explicit ParserProfile(ProfileInfo info);
+
+    /**
+     * @brief Create an independent anonymous session with this profile's defaults.
+     * @param services Shared services; the client must be non-null.
+     * @param settings User choices; absent URLs use current overrides/built-ins.
+     * @return A session that may outlive this profile.
+     * @throws std::invalid_argument For missing identity/client or invalid URLs.
+     */
+    ProfileSession make_session(std::shared_ptr<const RuntimeServices> services,
+                                SessionConfig settings = {}) const;
+    /**
+     * @brief Restore portable credentials over current profile defaults.
+     * @param services Shared services with a non-null client.
+     * @param saved Saved state for this exact parser/profile pair.
+     * @return Independent session, or InvalidArguments for mismatched/invalid state.
+     */
+    Result<ProfileSession> restore_session(std::shared_ptr<const RuntimeServices> services,
+                                           SessionState saved) const;
+    /**
+     * @brief Authenticate on an isolated candidate inheriting only user choices.
+     * @param current Existing session, left unchanged including its cookies.
+     * @param credentials Owned credentials for this attempt.
+     * @return A new independent session on success; an error leaves current intact.
+     * @note Keep this profile alive until the task completes or is destroyed.
+     */
+    RequestTask<ProfileSession> authenticate(ProfileSession current, AuthenticationData credentials) const;
+    /**
+     * @brief Start an isolated web interaction with pinned origins and request defaults.
+     * @param current Session whose user choices should be inherited.
+     * @return Login session to retain from opening the browser through all checks.
+     * @throws std::invalid_argument If the session belongs to another profile.
+     */
+    ProfileSession begin_web_login(ProfileSession current) const;
+    /**
+     * @brief Resolve login presentation from a session's current/pinned snapshot.
+     * @param session Ordinary session or the pinned browser interaction session.
+     * @return The profile's resolved authentication descriptor.
+     */
+    std::optional<AuthInfo> auth_info(const ProfileSession& session) const { return auth_info(session.snapshot()); }
+    /**
+     * @brief Resolve browser observation settings from the pinned login session.
+     * @param login Session returned by begin_web_login.
+     * @return Owned observation settings for that interaction.
+     */
+    WebLoginObservationConfig web_login_observation(const ProfileSession& login) const;
+    /**
+     * @brief Verify browser state using the origins pinned by begin_web_login.
+     * @param login Login session retained for the browser interaction.
+     * @param event Reason for the check.
+     * @param state Owned browser state.
+     * @return Pending, or a new session for explicit adoption; errors leave login intact.
+     * @note Keep this profile alive until the task completes or is destroyed.
+     */
+    RequestTask<InteractionState<ProfileSession>> check_web_login(
+        ProfileSession login, WebLoginEventKind event, WebLoginState state) const;
+
 	virtual ~ParserProfile() = default;
 
 	/**
@@ -38,52 +92,6 @@ public:
 	 * @return An owned copy, independent of this profile's lifetime.
 	 */
 	std::string parser_id() const { return parser_id_; }
-
-	/**
-	 * @brief Authenticate the parser's service with the given credentials.
-	 *
-	 * Login belongs to this profile: the returned config may be used by every
-	 * catalog referencing this profile.
-	 *
-	 * Contract: returns a FRESH authenticated config and does NOT mutate the
-	 * passed context. Implementations log in on a new config with its own cookie
-	 * jar (copy the config, clear its cookie_jar, adopt it via new_with_config,
-	 * and perform the login through that context), so the caller's session is left
-	 * untouched — retries and failed logins never pollute it. The caller adopts
-	 * the result via RequestContext::new_with_config. By default reports
-	 * NotImplemented.
-	 * @param context Request context with this parser/profile identity (left unmodified)
-	 * @param credentials Credentials to authenticate with
-	 * @return Task with a new authenticated config for the caller to adopt.
-	 * @note The caller must keep this profile alive until the returned task has
-	 * completed or been destroyed. The task borrows this; it does not own the
-	 * profile. This also applies when a task is stored or returned to another caller.
-	 */
-	virtual RequestTask<std::shared_ptr<const ParserConfig>> authenticate(
-	    RequestContext context,
-	    AuthenticationData credentials) const;
-
-    /**
-     * @brief Resolve browser subscriptions, including the legacy storage-token key.
-     * @param context Context used to resolve the login URL and settings.
-     * @return Owned observation settings; storage origins are normalized.
-     */
-    WebLoginObservationConfig web_login_observation(RequestContext context) const;
-
-    /**
-     * @brief Check browser credentials without changing the caller's session.
-     * @param context Profile context, left unmodified.
-     * @param event Reason for this check; it does not itself prove a successful login.
-     * @param state Owned browser snapshot, valid across suspension.
-     * @return InteractionPending, or InteractionCompleted with a fresh non-null authenticated
-     * config for explicit adoption. Failures use
-     * the Result error channel. The default adapts StorageToken to authenticate;
-     * cookie profiles must implement their own verification.
-     * @note Keep this profile alive until the task completes or is destroyed.
-     * The task borrows its receiver. Hosts must discard results after cancellation.
-     */
-    virtual RequestTask<WebLoginCheck> check_web_login(
-        RequestContext context, WebLoginEventKind event, WebLoginState state) const;
 
 	/**
 	 * @see AuthInfo
@@ -128,75 +136,14 @@ public:
 	 */
 	virtual AuthKeys auth_keys() const noexcept;
 
-	/**
-	 * @see AuthState
-	 * @brief Distill a persistable session from an authenticated config.
-	 *
-	 * Default: copy the entries named by auth_keys() out of the config. Override
-	 * only for exotic credentials that a name list cannot express (e.g. a token
-	 * parsed out of a response body).
-	 * @param config Authenticated config to export from
-	 * @return The persistable session
-	 */
-	virtual AuthState export_auth(const ParserConfig& config) const;
-
-	/**
-	 * @brief Create an independent request context configured for this profile.
-	 * @param services Shared runtime services with a valid HTTP client.
-	 * @return A context with profile defaults, private identity, and a backend jar.
-	 * @throws std::invalid_argument If services or its client is null.
-	 * @note The context does not borrow this profile and may outlive it.
-	 */
-	[[nodiscard]] RequestContext make_context(std::shared_ptr<const RuntimeServices> services) const;
-
-	/**
-	 * @brief Create a configured context over a client and optional logger.
-	 * @param client HTTP backend; must not be null.
-	 * @param logger Optional logger; null disables logging.
-	 * @return An independent context configured for this profile.
-	 * @throws std::invalid_argument If client is null.
-	 */
-	[[nodiscard]] RequestContext make_context(std::shared_ptr<HttpClient> client,
-	                                         std::shared_ptr<Logger> logger = nullptr) const;
-
-	/**
-	 * @brief Restore authentication over fresh defaults and a new backend jar.
-	 * @param services Shared runtime services with a valid HTTP client.
-	 * @param auth Previously exported authentication state for this profile.
-	 * @return A context privately bound to this profile with restored credentials.
-	 * @throws std::invalid_argument If services or its client is null.
-	 */
-	[[nodiscard]] RequestContext make_context(std::shared_ptr<const RuntimeServices> services,
-	                                         const AuthState& auth) const;
-
-	/**
-	 * @brief Create a fresh configuration for this profile.
-	 * @return Independent settings with configured defaults and no cookie jar.
-	 *         Use make_context to create a context with a private profile binding.
-	 * @note Does not inherit credentials or client request defaults. Restore saved
-	 * authentication explicitly with import_auth after creation.
-	 */
-	[[nodiscard]] std::shared_ptr<ParserConfig> make_config() const;
-
-	/**
-	 * @brief Seed parser-specific defaults onto a freshly derived config.
-	 *
-	 * Called by @ref make_config after the common derivation (fresh session,
-	 * profile defaults), so a parser need not repeat these per request. Default:
-	 * no-op. Override to set constant headers/params a parser needs on every
-	 * request (e.g. an API's fixed headers). These defaults belong to the profile
-	 * and are shared by its catalogs.
-	 * @param config Config being readied, mutated in place.
-	 */
-	virtual void configure(ParserConfig& config) const;
 
 	/**
 	 * @brief The source's built-in mirrors (full base URLs), in selection order.
 	 *
 	 * One mirror set serves every catalog referencing this profile. The single source of truth a getter's fetch path
-	 * (RequestContext::base_url) and the UI picker (@ref mirror_choices) both read;
-	 * a live remote override keyed by parser and profile may supersede it at
-	 * request time. Default: none.
+	 * (RequestContext::base_url) and the mirror choices (ProfileSession::mirror_choices) both read;
+	 * a remote override keyed by parser and profile may supersede it when
+	 * the next operation snapshot is captured. Default: none.
 	 * @return The built-in base URLs; empty for a source with no selectable mirrors.
 	 */
 	[[nodiscard]] virtual std::span<const std::string_view> mirrors() const;
@@ -205,30 +152,56 @@ public:
 	 * @brief Declare this profile's built-in public frontend origin.
 	 * @return An owned origin URL, or an empty string when none is declared.
 	 * @note Pure metadata used by overrides generation. Request-time code resolves
-	 * overrides through RequestContext::canonical_base_url with its fallback.
+	 * overrides through the no-argument RequestContext::canonical_base_url().
 	 */
 	[[nodiscard]] virtual std::string canonical_base_url() const;
 
-	/**
-	 * @brief The mirror choices to show the user, with any live remote override
-	 * applied.
-	 *
-	 * The built-in @ref mirrors overlaid with the override carried in @p context
-	 * (keyed by the private identity bound by @ref make_context)
-	 * — so a picker reflects the mirrors actually fetched from, not a stale list.
-	 * @param context Context carrying the current mirror snapshot and parser id.
-	 * @return The resolved mirror descriptors, in selection order.
-	 */
-	[[nodiscard]] std::vector<AltLink> mirror_choices(const RequestContext& context) const;
-
-
 protected:
+	/**
+	 * @brief Seed parser-specific defaults onto a freshly derived config.
+	 *
+	 * Called when capturing defaults for a new session,
+	 * so a parser need not repeat these per request. Default:
+	 * no-op. Set constant headers/params directly and register request rules in
+	 * ParserConfig::modifiers. Those rules receive the operation's snapshot when
+	 * a request is sent, so derived headers follow its resolved origins.
+	 * These defaults belong to the profile and are shared by its catalogs.
+	 * @param config Config being readied, mutated in place.
+	 */
+	virtual void configure(ParserConfig& config) const;
+
+    /**
+     * @brief Implement the login protocol on an already clean candidate.
+     * @param candidate Mutable settings and pinned request context owned by the wrapper.
+     * @param credentials Owned credentials.
+     * @return Success after configuring/verifying the candidate, or an error.
+     * @note Immediately awaited by authenticate. Borrowed candidate lives in its
+     * parent coroutine frame; do not retain it or launch work beyond this call.
+     */
+    virtual RequestTask<void> authenticate_impl(AuthenticationSession& candidate,
+                                                 AuthenticationData credentials) const;
+    /**
+     * @brief Verify a browser sample on an isolated candidate.
+     * @param candidate Clean candidate owned by the awaiting wrapper.
+     * @param event Reason for the check.
+     * @param state Owned browser sample.
+     * @return Pending or completed with no payload; the wrapper returns the session.
+     * @note Candidate references and child tasks must not escape this call.
+     */
+    virtual RequestTask<InteractionState<std::monostate>> check_web_login_impl(
+        AuthenticationSession& candidate, WebLoginEventKind event, WebLoginState state) const;
 	ParserProfile(const ParserProfile&) = default;
 	ParserProfile(ParserProfile&&) = default;
 	ParserProfile& operator=(const ParserProfile&) = default;
 	ParserProfile& operator=(ParserProfile&&) = default;
 
 private:
+    friend struct Parser;
+    std::shared_ptr<const detail::ProfileBinding> make_binding() const;
+    bool owns(const RequestContext& context) const;
+    RequestTask<ProfileSession> authenticate_context(RequestContext base, AuthenticationData credentials) const;
+    RequestTask<InteractionState<ProfileSession>> check_web_login_context(
+        RequestContext base, WebLoginEventKind event, WebLoginState state, bool pinned) const;
 	std::string parser_id_;
 	ProfileInfo info_;
 };

@@ -83,73 +83,52 @@ expected<uint64_t, OverridesError> SourceOverridesManager::apply(std::string_vie
 	}
 	union_canonical_hosts(domains, profile_origins);
 
-	// Commit only after a clean decode+verify: rebuild routing, swap mirrors and
-	// selectors, drop stale compiled sets, then advance the revision so the next
-	// apply is checked against it.
-	uint64_t new_revision = decoded->revision;
-	store_.refresh_domains(std::move(domains));
-	if (extractors_) {
-		auto extractor_domains = std::move(decoded->extractor_domains);
-		union_mirror_hosts(extractor_domains, decoded->extractor_mirrors);
-		extractors_->refresh_domains(std::move(extractor_domains));
-	}
-	if (services_) {
-		if (services_->mirrors) {
-			services_->mirrors->set(
-			    std::make_shared<const MirrorSource>(std::map<std::string, std::vector<std::string>, std::less<>>{},
-			                                         std::move(profile_mirrors),
-			                                         std::move(profile_origins)));
-		}
-		if (services_->selectors) {
-			services_->selectors->set(
-			    std::make_shared<const html::SelectorSource>(std::move(decoded->selectors)));
-		}
-		if (services_->patterns) {
-			services_->patterns->set(
-			    std::make_shared<const RegexSource>(std::move(decoded->patterns)));
-		}
-		if (services_->resources) {
-			services_->resources->clear();
-		}
-	}
-	if (extractor_services_ && extractor_services_->mirrors) {
-		extractor_services_->mirrors->set(
-		    std::make_shared<const MirrorSource>(std::move(decoded->extractor_mirrors)));
-	}
-	if (extractor_services_ && extractor_services_->patterns) {
-		extractor_services_->patterns->set(
-		    std::make_shared<const RegexSource>(std::move(decoded->extractor_patterns)));
-	}
+    // Construct every source before publishing. Request contexts acquire one
+    // generation, never independent mirror/selector/pattern revisions.
+    const uint64_t new_revision = decoded->revision;
+    auto mirrors = std::make_shared<const MirrorSource>(
+        std::map<std::string, std::vector<std::string>, std::less<>>{},
+        std::move(profile_mirrors), std::move(profile_origins));
+    auto selectors = std::make_shared<const html::SelectorSource>(std::move(decoded->selectors));
+    auto patterns = std::make_shared<const RegexSource>(std::move(decoded->patterns));
+    auto generation = std::make_shared<const OverridesState>(mirrors, selectors, patterns, new_revision);
+    union_mirror_hosts(decoded->extractor_domains, decoded->extractor_mirrors);
+    auto extractor_mirrors = std::make_shared<const MirrorSource>(std::move(decoded->extractor_mirrors));
+    auto extractor_patterns = std::make_shared<const RegexSource>(std::move(decoded->extractor_patterns));
+    auto extractor_generation = std::make_shared<const OverridesState>(
+        extractor_mirrors, nullptr, extractor_patterns, new_revision);
+    store_.refresh_domains(std::move(domains));
+    if (extractors_) {
+        auto extractor_domains = std::move(decoded->extractor_domains);
+        extractors_->refresh_domains(std::move(extractor_domains));
+    }
+    if (services_) {
+        if (services_->overrides) services_->overrides->store(std::move(generation));
+
+
+
+        if (services_->resources) services_->resources->clear();
+    }
+    if (extractor_services_) {
+        if (extractor_services_->overrides) extractor_services_->overrides->store(std::move(extractor_generation));
+
+
+    }
 	revision_ = new_revision;
 	return revision_;
 }
 
 void SourceOverridesManager::reset() {
-	store_.refresh_domains({});
-	if (extractors_) {
-		extractors_->refresh_domains({});
-	}
-	if (services_) {
-		if (services_->mirrors) {
-			services_->mirrors->set(std::make_shared<const MirrorSource>());
-		}
-		if (services_->selectors) {
-			services_->selectors->set(std::make_shared<const html::SelectorSource>());
-		}
-		if (services_->patterns) {
-			services_->patterns->set(std::make_shared<const RegexSource>());
-		}
-		if (services_->resources) {
-			services_->resources->clear();
-		}
-	}
-	if (extractor_services_ && extractor_services_->mirrors) {
-		extractor_services_->mirrors->set(std::make_shared<const MirrorSource>());
-	}
-	if (extractor_services_ && extractor_services_->patterns) {
-		extractor_services_->patterns->set(std::make_shared<const RegexSource>());
-	}
-	revision_ = 0;
+    store_.refresh_domains({});
+    if (extractors_) extractors_->refresh_domains({});
+    if (services_) {
+        if (services_->overrides) services_->overrides->store(std::make_shared<const OverridesState>());
+        if (services_->resources) services_->resources->clear();
+    }
+    if (extractor_services_ && extractor_services_->overrides) {
+        extractor_services_->overrides->store(std::make_shared<const OverridesState>());
+    }
+    revision_ = 0;
 }
 
 } // namespace aniparse

@@ -11,11 +11,13 @@
 #include <boost/json.hpp>
 
 #include <cassert>
+#include <algorithm>
 #include <ranges>
 
 namespace aniparse {
 
-static void apply_config_to(HttpRequest& any_request, const ParserConfig& config, const RequestDefaults& defaults) {
+static void apply_config_to(HttpRequest& any_request, const ParserConfig& config,
+                            const RequestDefaults& defaults, const RequestContext& context) {
 	std::visit([&](auto& request) {
 		// Request headers take priority over config: merge_missing keeps existing names.
 		request.headers.merge_missing(config.headers);
@@ -27,87 +29,91 @@ static void apply_config_to(HttpRequest& any_request, const ParserConfig& config
 	}, any_request);
 
 	for (auto& modifier : config.modifiers) {
-		modifier(any_request);
+		modifier(any_request, context);
 	}
+}
+
+std::shared_ptr<const OverridesState> RequestContext::capture_overrides(const RuntimeServices& services) {
+    if (services.overrides) {
+        if (auto current = services.overrides->load()) return current;
+    }
+    static const auto empty = std::make_shared<const OverridesState>();
+    return empty;
 }
 
 RequestContext::RequestContext(std::shared_ptr<const RuntimeServices> services,
-                                   std::shared_ptr<ProfileState> config)
-    : services_(std::move(services))
-    , config_(std::move(config)) {
-	if (!services_ || !services_->client) {
-		throw std::invalid_argument("Client has to be valid");
-	}
-	// resources() hands out a reference, so a cache must always exist. Fill one in
-	// if the caller left it null, copying the state only in that (rare) case.
-	if (!services_->resources) {
-		auto filled = std::make_shared<RuntimeServices>(*services_);
-		filled->resources = std::make_shared<ResourceCache>();
-		services_ = std::move(filled);
-	}
-	// Provision a jar only if the config does not already carry one. Overwriting
-	// would drop a session established earlier (login, or a restored jar) and
-	// would make new_with_logger/new_with_config silently wipe cookies.
-	if (!config_->cookie_jar) {
-		config_->cookie_jar = services_->client->make_cookie_jar();
-	}
-
-	// Snapshot mirror and canonical-origin overrides once, so every source URL
-	// this context resolves reads the same set even if a catalog apply swaps the
-	// holder mid-operation.
-	if (services_->mirrors) {
-		mirror_snapshot_ = services_->mirrors->get();
-	}
-
-	// Post-construction invariant every other method relies on: a valid service
-	// bundle with a client and a resource cache, and a valid config. The cookie
-	// jar is best-effort (a client's make_cookie_jar may legitimately return null),
-	// so it is not part of the invariant.
-	assert(services_ && services_->client && services_->resources);
-	assert(config_);
+                               std::shared_ptr<const detail::SessionState> state,
+                               std::shared_ptr<const OverridesState> overrides,
+                               std::shared_ptr<const RequestDefaults> defaults)
+    : services_(std::move(services)), state_(std::move(state)),
+      overrides_(std::move(overrides)), defaults_(std::move(defaults)) {
+    resolve_urls();
 }
 
-RequestContext RequestContext::make(std::shared_ptr<const RuntimeServices> services,
-                                      ParserConfig config, std::string parser_id,
-                                      std::string profile_id) {
-	auto state = std::make_shared<ProfileState>();
-	static_cast<ParserConfig&>(*state) = std::move(config);
-	state->parser_id = std::move(parser_id);
-	state->profile_id = std::move(profile_id);
-	return RequestContext(std::move(services), std::move(state));
+Mirrors RequestContext::mirrors() const {
+    const auto& binding = *state_->binding;
+    const auto* urls = overrides_->mirrors->list_for(binding.parser_id, binding.profile_id);
+    return Mirrors{urls, binding.mirror_views};
+}
+
+void RequestContext::resolve_urls() {
+    base_url_ = state_->settings.base_url ? std::string_view(*state_->settings.base_url) : mirrors().base_url(0);
+    const auto& binding = *state_->binding;
+    const auto* frontend = overrides_->mirrors->canonical_base_for(binding.parser_id, binding.profile_id);
+    canonical_base_url_ = state_->settings.canonical_base_url ? std::string_view(*state_->settings.canonical_base_url) :
+        (frontend ? std::string_view(*frontend) : std::string_view(binding.canonical_base_url));
+}
+
+RequestContext RequestContext::make_extractor(std::shared_ptr<const RuntimeServices> services,
+                                               std::string extractor_id) {
+    ParserConfig config;
+    if (!services || !services->client) throw std::invalid_argument("Client has to be valid");
+    if (!services->resources) {
+        auto filled = std::make_shared<RuntimeServices>(*services);
+        filled->resources = std::make_shared<ResourceCache>();
+        services = std::move(filled);
+    }
+    if (!config.cookie_jar) config.cookie_jar = services->client->make_cookie_jar();
+    auto binding = std::make_shared<detail::ProfileBinding>();
+    binding->parser_id = std::move(extractor_id);
+    auto state = std::make_shared<const detail::SessionState>(detail::SessionState{
+        std::move(binding), std::make_shared<const ParserConfig>(std::move(config)), {}});
+    auto overrides = capture_overrides(*services);
+    auto defaults = services->client->request_defaults_snapshot();
+    return RequestContext(std::move(services), std::move(state), std::move(overrides), std::move(defaults));
 }
 
 RequestTask<HttpResponse> RequestContext::request(GetRequest request) {
-	assert(config_ && services_ && services_->client);
+	assert(state_ && services_ && services_->client);
 	HttpRequest any_request = std::move(request);
-	apply_config_to(any_request, *config_, services_->client->request_defaults());
+	apply_config_to(any_request, *state_->config, *defaults_, *this);
 	assert(std::holds_alternative<GetRequest>(any_request));
 
 	return services_->client->do_request(ConfiguredGetRequest{
 	    .request = std::get<GetRequest>(std::move(any_request)),
-	    .cookies = config_->cookie_jar});
+	    .cookies = state_->config->cookie_jar});
 }
 
 RequestTask<HttpResponse> RequestContext::request(PostRequest request) {
-	assert(config_ && services_ && services_->client);
+	assert(state_ && services_ && services_->client);
 	HttpRequest any_request = std::move(request);
-	apply_config_to(any_request, *config_, services_->client->request_defaults());
+	apply_config_to(any_request, *state_->config, *defaults_, *this);
 	assert(std::holds_alternative<PostRequest>(any_request));
 
 	return services_->client->do_request(ConfiguredPostRequest{
 	    .request = std::get<PostRequest>(std::move(any_request)),
-	    .cookies = config_->cookie_jar});
+	    .cookies = state_->config->cookie_jar});
 }
 
 RequestTask<HttpResponse> RequestContext::request(PostMultipartRequest request) {
-	assert(config_ && services_ && services_->client);
+	assert(state_ && services_ && services_->client);
 	HttpRequest any_request = std::move(request);
-	apply_config_to(any_request, *config_, services_->client->request_defaults());
+	apply_config_to(any_request, *state_->config, *defaults_, *this);
 	assert(std::holds_alternative<PostMultipartRequest>(any_request));
 
 	return services_->client->do_request(ConfiguredPostMultipartRequest{
 	    .request = std::get<PostMultipartRequest>(std::move(any_request)),
-	    .cookies = config_->cookie_jar});
+	    .cookies = state_->config->cookie_jar});
 }
 
 namespace {
@@ -208,70 +214,13 @@ RequestTask<boost::json::value> RequestContext::request_json(PostRequest request
 }
 
 std::shared_ptr<const ParserConfig> RequestContext::config() const {
-	assert(config_);
-	return config_;
+	assert(state_);
+	return state_->config;
 }
 
 ResourceCache& RequestContext::resources() const {
 	assert(services_ && services_->resources);
 	return *services_->resources;
-}
-
-std::shared_ptr<const html::SelectorSource> RequestContext::selector_source() const {
-	assert(services_);
-	if (services_->selectors) {
-		if (auto source = services_->selectors->get()) {
-			return source;
-		}
-	}
-	// No holder (the default, until the volatile index populates one): a shared
-	// empty source, so every selector falls back to its built-in literal.
-	static const std::shared_ptr<const html::SelectorSource> empty =
-	    std::make_shared<const html::SelectorSource>();
-	return empty;
-}
-
-std::shared_ptr<const RegexSource> RequestContext::pattern_source() const {
-	assert(services_);
-	if (services_->patterns) {
-		if (auto source = services_->patterns->get()) {
-			return source;
-		}
-	}
-	// No holder: a shared empty source, so every pattern falls back to its
-	// built-in literal.
-	static const std::shared_ptr<const RegexSource> empty =
-	    std::make_shared<const RegexSource>();
-	return empty;
-}
-
-size_t RequestContext::alt_link() const {
-	assert(config_);
-	return config_->alt_link;
-}
-
-void RequestContext::set_alt_link(size_t alt_link) {
-	assert(config_);
-	config_->alt_link = alt_link;
-}
-
-RequestContext RequestContext::new_with_logger(std::shared_ptr<Logger> logger) const {
-	assert(services_);
-	// A different logger is a different service bundle: copy the state and swap it.
-	auto services = std::make_shared<RuntimeServices>(*services_);
-	services->logger = std::move(logger);
-	auto result = *this;
-	result.services_ = std::move(services);
-	return result;
-}
-
-RequestContext RequestContext::new_with_config(std::shared_ptr<const ParserConfig> config) const {
-	if (!config) {
-		throw std::invalid_argument("Replacement config must not be null");
-	}
-	auto result = make(services_, *config, config_->parser_id, config_->profile_id);
-	result.mirror_snapshot_ = mirror_snapshot_;
-	return result;
 }
 
 } // namespace aniparse

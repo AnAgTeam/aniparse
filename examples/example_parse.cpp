@@ -110,7 +110,7 @@ int main() {
 	// A RequestContext is what a parser's getters receive; here we build one only
 	// to reach its selector cache via resources(). No request is made — the HTML
 	// already came from the fixture on disk.
-	auto context = ParserProfile("Example", {"main", "Example"}).make_context(examples::make_client());
+	auto context = examples::make_profile()->make_session(examples::make_services()).snapshot();
 	extract_cards(context, document);
 
 	// Many sites ship data as a JS literal rather than as markup. parse_json_var

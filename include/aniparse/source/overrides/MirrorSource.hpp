@@ -4,7 +4,6 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/utility/AtomicSharedPtr.hpp"
 #include <cstddef>
 #include <functional>
 #include <map>
@@ -20,7 +19,7 @@ namespace aniparse {
  * @brief A read-time view over a parser's mirror (base-URL) list: a remote
  * override if one exists, otherwise the getter's built-in fallback.
  *
- * Returned by RequestContext::mirrors(). The override pointer aliases the
+ * Used internally by operation snapshots and by extractors. The override pointer aliases the
  * context's held MirrorSource snapshot and the built-in span aliases the getter's
  * static list, so a returned base_url() view stays valid for the context's
  * lifetime (a whole operation) without copying.
@@ -46,7 +45,7 @@ public:
 	 * @brief The base URL for a mirror selection, preferring the override list.
 	 * An out-of-range index clamps to the first entry. Uses the built-in fallback
 	 * when there is no (non-empty) override.
-	 * @param index The selected mirror index (@see RequestContext::alt_link).
+	 * @param index Position in this view; session selection stores the URL itself.
 	 * @return The base URL, or an empty view if no mirror is available at all.
 	 */
 	[[nodiscard]] std::string_view base_url(std::size_t index) const noexcept {
@@ -78,8 +77,17 @@ public:
 	 * @brief Override keys identify a parser and one of its request profiles.
 	 */
 	using ProfileKey = std::pair<std::string, std::string>;
-	using ProfileMirrors = std::map<ProfileKey, std::vector<std::string>>;
-	using ProfileOrigins = std::map<ProfileKey, std::string>;
+	/// Transparent ordering avoids allocating temporary ID strings during snapshots.
+    struct ProfileKeyLess {
+        using is_transparent = void;
+        template<class Left, class Right>
+        bool operator()(const Left& left, const Right& right) const {
+            return std::pair<std::string_view, std::string_view>{left.first, left.second} <
+                   std::pair<std::string_view, std::string_view>{right.first, right.second};
+        }
+    };
+    using ProfileMirrors = std::map<ProfileKey, std::vector<std::string>, ProfileKeyLess>;
+    using ProfileOrigins = std::map<ProfileKey, std::string, ProfileKeyLess>;
 
 	MirrorSource() = default;
 
@@ -109,12 +117,12 @@ public:
 	/**
 	 * @brief Resolve a profile's mirror override without crossing profile boundaries.
 	 * @param parser_id Stable owning parser identifier.
-	 * @param profile_id Stable profile identifier stamped by ParserProfile::make_config.
+	 * @param profile_id Stable profile identifier bound by Parser::make_profile.
 	 * @return A list owned by this source, or nullptr for built-in fallback.
 	 */
 	const std::vector<std::string>* list_for(
 		std::string_view parser_id, std::string_view profile_id) const {
-		auto it = profile_mirrors_.find({std::string(parser_id), std::string(profile_id)});
+		auto it = profile_mirrors_.find(std::pair<std::string_view, std::string_view>{parser_id, profile_id});
 		if (it != profile_mirrors_.end()) return &it->second;
 		return nullptr;
 	}
@@ -122,12 +130,12 @@ public:
 	/**
 	 * @brief Resolve a profile's canonical origin independently of other profiles.
 	 * @param parser_id Stable owning parser identifier.
-	 * @param profile_id Stable profile identifier stamped by ParserProfile::make_config.
+	 * @param profile_id Stable profile identifier bound by Parser::make_profile.
 	 * @return An origin owned by this source, or nullptr for built-in fallback.
 	 */
 	const std::string* canonical_base_for(
 		std::string_view parser_id, std::string_view profile_id) const {
-		auto it = profile_origins_.find({std::string(parser_id), std::string(profile_id)});
+		auto it = profile_origins_.find(std::pair<std::string_view, std::string_view>{parser_id, profile_id});
 		if (it != profile_origins_.end()) return &it->second;
 		return nullptr;
 	}
@@ -142,34 +150,6 @@ private:
 	std::map<std::string, std::vector<std::string>, std::less<>> overrides_;
 	ProfileMirrors profile_mirrors_;
 	ProfileOrigins profile_origins_;
-};
-
-/**
- * @brief A swappable slot for the current MirrorSource, so the volatile overrides
- * can hotfix mirror hosts at runtime while requests read lock-free.
- *
- * Holds the source behind an atomic shared_ptr: a reader get()s it (keeping that
- * snapshot alive by refcount even across a concurrent swap), an override update
- * set()s a freshly built one. Never holds null — a default or cleared holder
- * carries an empty source, so every parser falls back to its built-in mirrors.
- */
-class MirrorSourceHolder {
-public:
-	MirrorSourceHolder() : source_(std::make_shared<const MirrorSource>()) {}
-
-	explicit MirrorSourceHolder(std::shared_ptr<const MirrorSource> source)
-	    : source_(source ? std::move(source) : std::make_shared<const MirrorSource>()) {}
-
-	/// The current source, held alive by the returned handle across a concurrent set().
-	[[nodiscard]] std::shared_ptr<const MirrorSource> get() const { return source_.load(); }
-
-	/// Swap in a new source; a null one becomes an empty source.
-	void set(std::shared_ptr<const MirrorSource> source) {
-		source_.store(source ? std::move(source) : std::make_shared<const MirrorSource>());
-	}
-
-private:
-	AtomicSharedPtr<const MirrorSource> source_;
 };
 
 } // namespace aniparse
