@@ -38,6 +38,9 @@ add_executable(aniparse-tests
 	"JsonAccessTest.cpp"
 	"JsonViewTest.cpp"
 	"JsonConversionTest.cpp"
+	"JsonDecodeTest.cpp"
+	"JsonDecodeCompatibilityTest.cpp"
+	"JsonDecodePolicyTest.cpp"
 	"ResourceCacheTest.cpp"
 	"RepublishableTest.cpp"
 	"FileCachingClientTest.cpp"
@@ -49,6 +52,14 @@ add_executable(aniparse-tests
 set_property(TARGET aniparse-tests PROPERTY CXX_STANDARD 23)
 target_link_libraries(aniparse-tests PRIVATE aniparse)
 add_test(NAME aniparse-tests COMMAND aniparse-tests)
+
+# Compile failures are part of the conversion contract too. Each fixture is
+# checked against both Boost and the diagnostic entry point, sequentially.
+configure_file(JsonDecodeCompileTest.cmake.in json-decode-compile.cmake.in @ONLY)
+file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/json-decode-compile-$<CONFIG>.cmake"
+    INPUT "${CMAKE_CURRENT_BINARY_DIR}/json-decode-compile.cmake.in")
+add_test(NAME aniparse-json-decode-compile
+    COMMAND "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/json-decode-compile-$<CONFIG>.cmake")
 
 # Tests that drive the curl backend (CurlHttpClient) directly. Only built when that
 # backend is present; with it off they cannot compile (CurlHttpClient is gated out).

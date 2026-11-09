@@ -4,7 +4,7 @@
  * Author: Toilettrauma <macosinternal@gmail.com>
  */
 #pragma once
-#include "aniparse/utility/Expected.hpp"
+#include "aniparse/utility/ResultFwd.hpp"
 
 #include "aniparse/net/CancellingTask.hpp"
 
@@ -84,18 +84,6 @@ struct RequestError {
 	/// on this. Candidate for removal from the public error if it proves unused.
 	std::string body;
 };
-
-/**
- * @brief The result of an operation that talks to a source: the value on success,
- * a @ref RequestError on failure. The return type of every parser getter — a
- * caller must inspect it before reading the value, and a failure cannot be
- * ignored by accident.
- * @tparam T The success value type.
- * @tparam Error The failure type; @ref RequestError unless an operation needs a
- *         richer one.
- */
-template<typename T, typename Error = RequestError>
-using Result = expected<T, Error>;
 
 /**
  * @brief Build the failure half of a @ref Result in one call — the standard way

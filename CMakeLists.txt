@@ -5,6 +5,7 @@ cmake_minimum_required (VERSION 3.18)
 option(ANIPARSE_BUILD_TESTS "build tests, Default=OFF" OFF)
 option(ANIPARSE_BUILD_EXAMPLES "build examples, Default=OFF" OFF)
 option(ANIPARSE_BUILD_BENCHMARKS "build microbenchmarks, Default=OFF" OFF)
+option(ANIPARSE_JSON_CHECKS "enable Strict and Diagnostics for default JSON model decoding" OFF)
 option(ANIPARSE_ANALYZE "MSVC /analyze lifetime gate (slow; CI leg)" OFF)
 
 # HTTP backends. The parse core is backend-neutral (talks only to HttpClient);
@@ -157,6 +158,9 @@ add_library(aniparse ${aniparse_library_type}
 
 	"src/json/View.cpp" "include/aniparse/json/View.hpp"
 	"include/aniparse/json/Conversion.hpp" "include/aniparse/utility/Tolerant.hpp"
+	"include/aniparse/json/Decode.hpp" "include/aniparse/json/DecodeError.hpp"
+	"include/aniparse/json/detail/DecodeContext.hpp" "include/aniparse/json/detail/DecodeValue.hpp"
+	"src/json/DecodeError.cpp" "include/aniparse/utility/ResultFwd.hpp"
 	"src/html/HTMLDocument.cpp" "include/aniparse/html/HTMLDocument.hpp"
 	"src/html/DOMAttributes.cpp" "include/aniparse/html/DOMAttributes.hpp"
 	"src/html/DOMElement.cpp" "include/aniparse/html/DOMElement.hpp"
@@ -219,6 +223,7 @@ target_compile_options(aniparse PUBLIC
 # library to rediscover it and reach for the (std::max)(...) parenthesis trick.
 target_compile_definitions(aniparse PUBLIC
 	ANIPARSE_VERSION="${PROJECT_VERSION}"
+	ANIPARSE_JSON_CHECKS=$<BOOL:${ANIPARSE_JSON_CHECKS}>
 	$<$<PLATFORM_ID:Windows>:NOMINMAX>
 )
 
