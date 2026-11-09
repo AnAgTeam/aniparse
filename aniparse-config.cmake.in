@@ -11,7 +11,7 @@ include(CMakeFindDependencyMacro)
 # consumer's project.
 find_dependency(asyncnet CONFIG COMPONENTS task)
 find_dependency(fmt CONFIG)
-find_dependency(Boost CONFIG COMPONENTS json regex)
+find_dependency(Boost CONFIG COMPONENTS json regex charconv)
 find_dependency(tl-expected CONFIG)
 
 include("${CMAKE_CURRENT_LIST_DIR}/aniparse-targets.cmake")

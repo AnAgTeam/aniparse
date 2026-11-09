@@ -79,7 +79,7 @@ set(ASYNCNET_BUILD_CLIENT ${ANIPARSE_CURL_BACKEND})
 find_package(asyncnet REQUIRED)
 find_package(lexbor REQUIRED)
 find_package(fmt REQUIRED)
-find_package(Boost REQUIRED COMPONENTS json regex)
+find_package(Boost REQUIRED COMPONENTS json regex charconv)
 find_package(tl-expected CONFIG REQUIRED)
 
 # ---- ADD LIBRARY
@@ -153,6 +153,7 @@ add_library(aniparse ${aniparse_library_type}
 	"include/aniparse/media/Serialization.hpp"
 	"src/source/Authentication.cpp" "include/aniparse/source/Authentication.hpp"
 
+	"src/json/View.cpp" "include/aniparse/json/View.hpp"
 	"src/html/HTMLDocument.cpp" "include/aniparse/html/HTMLDocument.hpp"
 	"src/html/DOMAttributes.cpp" "include/aniparse/html/DOMAttributes.hpp"
 	"src/html/DOMElement.cpp" "include/aniparse/html/DOMElement.hpp"
@@ -261,6 +262,7 @@ target_link_libraries(aniparse PUBLIC
 	fmt::fmt
 	Boost::json
 	Boost::regex
+	Boost::charconv
 	tl::expected
 	$<BUILD_INTERFACE:${LEXBOR_LIBRARIES}>
 )

@@ -3,6 +3,7 @@
 	"version": "0.1",
 	"dependencies": [
 		"boost-json",
+		"boost-charconv",
 		"boost-regex",
 		"boost-system",
 		"fmt",

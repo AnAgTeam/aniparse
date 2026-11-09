@@ -35,6 +35,7 @@ add_executable(aniparse-tests
 	"CatalogSinkTest.cpp"
 	"JsParserTest.cpp"
 	"JsonAccessTest.cpp"
+	"JsonViewTest.cpp"
 	"ResourceCacheTest.cpp"
 	"RepublishableTest.cpp"
 	"FileCachingClientTest.cpp"

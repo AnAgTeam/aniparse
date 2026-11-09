@@ -44,3 +44,8 @@ foreach(topic IN ITEMS search auth mixed_catalog related similar)
     set_property(TARGET aniparse-example-${topic} PROPERTY CXX_STANDARD 23)
     target_link_libraries(aniparse-example-${topic} PRIVATE aniparse)
 endforeach()
+
+# JSON selection and standard ranges, with no network or runtime dependencies.
+add_executable(aniparse-example-json-view "example_json_view.cpp")
+set_property(TARGET aniparse-example-json-view PROPERTY CXX_STANDARD 20)
+target_link_libraries(aniparse-example-json-view PRIVATE aniparse)
