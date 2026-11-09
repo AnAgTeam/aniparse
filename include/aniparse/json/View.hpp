@@ -37,6 +37,9 @@ concept Scalar = std::same_as<T, std::string> || std::same_as<T, bool>
 /// retain moved documents. Rvalues with non-owning custom storage are copied into
 /// default storage so a caller's memory resource cannot dangle.
 /// A default View is missing; an explicit JSON null is present but has no scalar value.
+/// Potentially deprecated: model conversion via json/Conversion.hpp is being
+/// evaluated as the primary parser API. View remains supported during that trial;
+/// no compiler deprecation attribute is applied yet.
 class View {
 public:
     View() = default;

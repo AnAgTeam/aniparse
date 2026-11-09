@@ -156,6 +156,7 @@ add_library(aniparse ${aniparse_library_type}
 	"src/source/Authentication.cpp" "include/aniparse/source/Authentication.hpp"
 
 	"src/json/View.cpp" "include/aniparse/json/View.hpp"
+	"include/aniparse/json/Conversion.hpp" "include/aniparse/utility/Tolerant.hpp"
 	"src/html/HTMLDocument.cpp" "include/aniparse/html/HTMLDocument.hpp"
 	"src/html/DOMAttributes.cpp" "include/aniparse/html/DOMAttributes.hpp"
 	"src/html/DOMElement.cpp" "include/aniparse/html/DOMElement.hpp"

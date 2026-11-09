@@ -37,6 +37,7 @@ add_executable(aniparse-tests
 	"JsParserTest.cpp"
 	"JsonAccessTest.cpp"
 	"JsonViewTest.cpp"
+	"JsonConversionTest.cpp"
 	"ResourceCacheTest.cpp"
 	"RepublishableTest.cpp"
 	"FileCachingClientTest.cpp"
@@ -71,7 +72,7 @@ set(aniparse_model_headers
     manga/MangaInfo.hpp anime/AnimeInfo.hpp images/ImageContainerInfo.hpp
     source/ParserInfo.hpp source/ProfileInfo.hpp
     catalog/SearchQuery.hpp catalog/SearchCapabilities.hpp catalog/CatalogInfo.hpp catalog/Pagination.hpp
-    AniParse.hpp source/overrides/ProfileOverrides.hpp
+    AniParse.hpp source/overrides/ProfileOverrides.hpp utility/Tolerant.hpp
 )
 set(aniparse_model_checks)
 foreach(model_header IN LISTS aniparse_model_headers)

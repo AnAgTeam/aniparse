@@ -15,7 +15,7 @@ services. Include the specific header for the type you use.
 | `source/overrides/` | Signed remote replacements for source settings | `SourceOverrides.hpp`, `ProfileOverrides.hpp`, `SourceOverridesManager.hpp` |
 | `net/` | HTTP value types, cookies and transport backends | `Request.hpp`, `Response.hpp`, `HttpClientConfig.hpp`, `HttpClient.hpp` |
 | `runtime/` | Applying profile configuration and sharing execution services | `RequestContext.hpp`, `RuntimeServices.hpp`, `Logger.hpp` |
-| `html/`, `json/` | Document parsing and data access | `HTMLParser.hpp`, `Json.hpp` |
+| `html/`, `json/` | Document parsing, model conversion and data access | `HTMLParser.hpp`, `Conversion.hpp`, `Json.hpp` |
 | `engines/` | Reusable engines shared by concrete parsers | `booru/` |
 | `concepts/`, `utility/` | Shared language constraints and focused helpers | Headers named for their purpose |
 

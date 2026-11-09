@@ -49,7 +49,8 @@ independent of catalog selection; image-container routes have no catalog ID.
 | Issue requests | aniparse::RequestContext — `request`, `request_html`, `request_json` |
 | Handle failures | aniparse::RequestError and aniparse::RequestErrorCode |
 | Pull data out of HTML | aniparse::html::HTMLDocument, aniparse::html::DOMElementView |
-| Pull data out of JSON | aniparse/json/Json.hpp — field lookups that never throw |
+| Decode JSON models | @ref json-models — Boost conversion and explicit tolerant fields |
+| Read individual JSON fields | aniparse/json/Json.hpp — field lookups that never throw |
 | Offer search filters | aniparse::SearchCapabilities, aniparse::validate_query |
 | Route a URL to a parser | aniparse::ParserStore, aniparse::ParsedUrl |
 
